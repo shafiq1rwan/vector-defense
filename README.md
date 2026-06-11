@@ -10,6 +10,7 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Quick Play** — free choice of 3 maps × 3 difficulties, with endless mode after wave 20
 - **6 hero towers** — SLY (archer), GLACE (frost), BRUNO (cannon), VOLTA (tesla), REX (sniper), LUMA (support aura with a visible buff glow on boosted towers), each with two specialization branches at max level and veterancy ranks earned from kills
 - **11 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
+- **Structures** — multi-cell relics of the old grid: the 2×1 REACTOR (credit income each wave) and the 2×2 BASTION siege fortress, both reawakened through the campaign
 - **Active abilities** — Orbital Strike, Frost Nova, Overdrive (Q/W/E)
 - **Wave modifiers** (fast / regen / horde / wealth), kill-combo credits, wave MVP damage rankings
 - **Meta-progression** — earn ⬡ cores every run and buy permanent upgrades in the core shop

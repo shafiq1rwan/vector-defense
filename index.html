@@ -78,6 +78,7 @@
   .nIc{display:flex; align-items:center; gap:2px; font-size:10px; color:var(--dim); font-weight:700;}
   .nIc canvas{display:block;}
   #cards{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+  #structs{display:grid; grid-template-columns:repeat(2,1fr); gap:6px;}
   .card{
     background:#0a1126; border:1px solid var(--line); border-radius:8px;
     padding:4px 2px 3px; text-align:center; cursor:pointer; position:relative;
@@ -533,6 +534,8 @@
       </div>
       <div class="secLbl">HEROES</div>
       <div id="cards"></div>
+      <div class="secLbl">STRUCTURES</div>
+      <div id="structs"></div>
     </div>
     <div id="panelBottom">
       <div id="abils"></div>
@@ -545,7 +548,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.0';
+const VERSION='4.1';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -698,6 +701,18 @@ const canBuild=(c,r)=>{
   const k=c+','+r;
   return c>=0&&c<COLS&&r>=0&&r<ROWS&&buildable.has(k)&&!occ.has(k);
 };
+/* multi-cell structures: every covered cell must be valid */
+function canPlace(type,c,r){
+  const fp=TOWERS[type].footprint||[1,1];
+  for(let dc=0;dc<fp[0];dc++)for(let dr=0;dr<fp[1];dr++)
+    if(!canBuild(c+dc,r+dr)) return false;
+  return true;
+}
+/* anchor the footprint so it centres on the cursor */
+function anchorFor(type){
+  const fp=TOWERS[type].footprint||[1,1];
+  return [Math.floor(mouse.x/CELL-(fp[0]-1)/2), Math.floor(mouse.y/CELL-(fp[1]-1)/2)];
+}
 
 /* ============================== CAMPAIGN ============================== */
 const INTRO="LUMA: The grid has been dark for a hundred cycles. Tonight the spawn gates reopened, and the glyphs walk again. You are all we have, Commander.";
@@ -709,8 +724,8 @@ const CAMPAIGN=[
     brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
   {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:8,  mod:null,    unlock:'tesla',
     brief:"A storm answers our distress call. Win here, and VOLTA the Stormcaller joins your roster."},
-  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:10, mod:'fast',  unlock:null,
-    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave ten."},
+  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:10, mod:'fast',  unlock:'reactor',
+    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave ten, and our engineers will reignite a buried GRID REACTOR: old power for a new war."},
   {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:10, mod:null,    unlock:'sniper',
     brief:"A deadeye watches this siege from the ridge line. Break it, and REX shoots for you."},
   {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:12, mod:'horde', unlock:null,
@@ -719,8 +734,8 @@ const CAMPAIGN=[
     brief:"Fifteen waves. Hold the line, Commander, and LUMA herself will stand with you."},
   {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:15, mod:'regen', unlock:null,
     brief:"These ones knit themselves back together as they walk. Hit harder than they heal."},
-  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:15, mod:null,    unlock:null,
-    brief:"The void spiral. Even light walks carefully here. Trust your towers."},
+  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:15, mod:null,    unlock:'bastion',
+    brief:"The void spiral — even light walks carefully here. Beneath it sleeps a BASTION of the first war. Survive, and we wake it for you."},
   {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:15, mod:'wealth',unlock:null,
     brief:"Their war chest marches with the column. Take it from them, bolt by bolt."},
   {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:15, mod:'horde', unlock:null,
@@ -762,7 +777,14 @@ const TOWERS={
   sniper:{key:'5',name:'REX', title:'the Deadeye', cost:150, range:235, rate:.5, dmg:75, dtype:'phys',
     color:'#ff4d6a', desc:'Extreme range hitscan rifle.'},
   aura:{key:'6',name:'LUMA', title:'the Amplifier', cost:100, range:90, rate:0, dmg:0, dtype:'phys',
-    color:'#ffd34d', aura:true, desc:'No attack. Boosts damage & speed of towers in range.'}
+    color:'#ffd34d', aura:true, desc:'No attack. Boosts damage & speed of towers in range.'},
+  /* structures — relics of the old defence grid, reawakened */
+  reactor:{key:'7',name:'REACTOR', title:'relic power plant', cost:120, range:0, rate:0, dmg:0, dtype:'phys',
+    color:'#6bffb0', footprint:[2,1], income:12,
+    desc:'Reignited grid power. Pays credits at every wave clear.'},
+  bastion:{key:'8',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
+    color:'#9a6bff', footprint:[2,2], splash:80,
+    desc:'A fortress of the first war. Slow, devastating mortar shells.'}
 };
 const SPECS={
   archer:[{id:'multi', n:'MULTISHOT', d:'Also fires at 2 extra targets'},
@@ -776,7 +798,11 @@ const SPECS={
   sniper:[{id:'rail',  n:'RAILGUN',   d:'Shots pierce all in line'},
           {id:'exec',  n:'EXECUTE',   d:'Kills non-boss under 25% HP'}],
   aura:[  {id:'war',   n:'WAR BANNER',d:'+20% extra damage buff'},
-          {id:'tempo', n:'TEMPO',     d:'+20% rate buff, +20% radius'}]
+          {id:'tempo', n:'TEMPO',     d:'+20% rate buff, +20% radius'}],
+  reactor:[{id:'overcharge',n:'OVERCHARGE',d:'+50% income'},
+           {id:'cells',  n:'AID CELLS', d:'+1 core life each wave clear'}],
+  bastion:[{id:'hellfire',n:'HELLFIRE', d:'Shells leave burning ground'},
+           {id:'longnine',n:'LONG NINE',d:'+40% range, +25% damage'}]
 };
 const specCost=def=>Math.round(def.cost*1.2);
 const lvlStat=(t,lv)=>({
@@ -790,6 +816,11 @@ const upCost=(t,lv)=>Math.round(t.cost*.85*lv);
 function computeStats(t){
   const s=lvlStat(t.def,t.level);
   if(t.def.aura){ s.auraDmg=.25+.08*(t.level-1); s.auraRate=.15+.05*(t.level-1); }
+  if(t.def.income){
+    s.income=Math.round(t.def.income*Math.pow(1.5,t.level-1));
+    if(t.spec==='overcharge') s.income=Math.round(s.income*1.5);
+  }
+  if(t.spec==='longnine'){ s.range=Math.round(s.range*1.4); s.dmg=Math.round(s.dmg*1.25); }
   if(t.spec==='mortar'){ s.range=Math.round(s.range*1.45); s.splash=Math.round(s.splash*1.4); }
   if(t.spec==='super'){ s.chain+=3; }
   if(t.spec==='tempo'){ s.range=Math.round(s.range*1.2); s.auraRate+=.2; }
@@ -1105,7 +1136,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
       const r2=e.def.empBurst*e.def.empBurst;
       let zapped=0;
       for(const t of towers){
-        if(t.def.aura) continue;
+        if(t.def.aura||t.def.income) continue;
         if(dist2(t,e)<=r2){ t.empT=Math.max(t.empT,1.5); zapped++; spray(t.x,t.y,'#ffe14d',5,70,.35,2); }
       }
       ring(e.x,e.y,e.def.empBurst,'#ffe14d',.4);
@@ -1121,11 +1152,14 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
 /* ============================== TOWERS ============================== */
 function placeTower(type,c,r){
   const def=TOWERS[type];
-  const t={type,def,c,r,x:c*CELL+CELL/2,y:r*CELL+CELL/2,level:1,cd:0,angle:-Math.PI/2,
+  const fp=def.footprint||[1,1];
+  const t={type,def,c,r,x:(c+fp[0]/2)*CELL,y:(r+fp[1]/2)*CELL,level:1,cd:0,angle:-Math.PI/2,
            invested:def.cost,flash:0,spawnT:.4,spec:null,mode:0,buffD:0,buffR:0,
-           empT:0,totalDmg:0,waveDmg:0,xp:0,rank:0};
+           empT:0,totalDmg:0,waveDmg:0,xp:0,rank:0,keys:[]};
+  for(let dc=0;dc<fp[0];dc++)for(let dr=0;dr<fp[1];dr++) t.keys.push((c+dc)+','+(r+dr));
   t.stats=computeStats(t);
-  towers.push(t); occ.set(c+','+r,t);
+  towers.push(t);
+  t.keys.forEach(k=>occ.set(k,t));
   money-=def.cost; usedTypes.add(type);
   SND.place();
   spray(t.x,t.y,def.color,14,90,.45);
@@ -1167,10 +1201,11 @@ function fire(t,target){
     projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:310,dmg,kind:'shard',color:c,dtype,src:t,
                 slow:deep?.25:t.def.slow, slowDur:deep?2.4:t.def.slowDur, brittle:t.spec==='shatter'});
     SND.frost();
-  }else if(t.type==='cannon'){
-    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:250,dmg,kind:'shell',color:c,dtype,src:t,
-                splash:s.splash, napalm:t.spec==='napalm'});
+  }else if(t.type==='cannon'||t.type==='bastion'){
+    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:t.type==='bastion'?200:250,dmg,kind:'shell',color:c,dtype,src:t,
+                splash:s.splash, napalm:t.spec==='napalm'||t.spec==='hellfire'});
     SND.cannon();
+    if(t.type==='bastion') shake=Math.max(shake,2);
   }else if(t.type==='tesla'){
     const falloff=t.spec==='super'?.9:.75;
     const hitlist=[target]; let cur=target, d2=dmg;
@@ -1279,6 +1314,15 @@ function update(dt){
       const bonus=20+wave*3;
       money+=bonus;
       addText(W/2,90,'WAVE '+wave+' CLEAR  +'+bonus,'#4d8dff',true);
+      /* reactors pay out, aid cells patch the core */
+      let inc=0, healed=0;
+      for(const t of towers){
+        if(!t.def.income) continue;
+        inc+=t.stats.income;
+        if(t.spec==='cells'&&lives<maxLives()){ lives++; healed++; }
+      }
+      if(inc){ money+=inc; addText(W/2,138,'REACTORS +'+inc,'#6bffb0'); bumpStat('moneyV'); }
+      if(healed){ addText(W/2,158,'CORE PATCHED +'+healed,'#39ff6a'); bumpStat('livesV'); }
       const mvps=towers.filter(t=>t.waveDmg>0).sort((a,b)=>b.waveDmg-a.waveDmg).slice(0,3);
       if(mvps.length)
         addText(W/2,116,'MVP: '+mvps.map(t=>t.def.name+' '+fmt(t.waveDmg)).join('  ·  '),'#9db8ff');
@@ -1351,7 +1395,7 @@ function update(dt){
         e.empPulseT=10;
         let zapped=0;
         for(const t of towers){
-          if(t.def.aura) continue;
+          if(t.def.aura||t.def.income) continue;
           if(dist2(t,e)<=110*110){ t.empT=2; zapped++; spray(t.x,t.y,'#ffe14d',6,80,.4,2); }
         }
         if(zapped){
@@ -1392,7 +1436,7 @@ function update(dt){
     if(t.flash>0) t.flash-=dt;
     if(t.spawnT>0) t.spawnT-=dt;
     if(t.empT>0){ t.empT-=dt; continue; }
-    if(t.def.aura) continue;
+    if(t.def.aura||t.def.income) continue;
     t.cd-=dt;
     const tgt=acquire(t);
     if(tgt){
@@ -1524,6 +1568,41 @@ function drawTowerBody(c,type,level,angle,t,firing){
       c.lineTo(Math.cos(a)*14,bob+Math.sin(a)*14); c.stroke();
     }
     c.beginPath(); c.arc(0,bob,3+Math.sin(t*5)*.8,0,TAU); c.stroke();
+  }else if(type==='reactor'){
+    /* relic power plant: long housing, twin coils, pulsing energy bus */
+    c.strokeRect(-32,-13,64,26);
+    for(const cx of [-16,16]){
+      c.beginPath(); c.arc(cx,0,8,0,TAU); c.stroke();
+      c.beginPath(); c.arc(cx,0,3.5+Math.sin(t*5+cx)*1,0,TAU); c.stroke();
+    }
+    glow(c,col,12);
+    c.globalAlpha=.6+.35*Math.sin(t*4);
+    c.beginPath(); c.moveTo(-24,0); c.lineTo(-8,0); c.moveTo(8,0); c.lineTo(24,0); c.stroke();
+    c.globalAlpha=1;
+    /* vent fins */
+    c.beginPath();
+    c.moveTo(-32,-13); c.lineTo(-26,-19); c.lineTo(26,-19); c.lineTo(32,-13);
+    c.stroke();
+    /* rising spark */
+    const sp=(t*.9)%1;
+    c.globalAlpha=1-sp;
+    c.fillStyle=col;
+    c.beginPath(); c.arc(0,-14-sp*10,1.6,0,TAU); c.fill();
+    c.globalAlpha=1;
+  }else if(type==='bastion'){
+    /* ancient siege fortress: walls, corner blocks, rotating mortar */
+    c.strokeRect(-32,-32,64,64);
+    c.strokeRect(-32,-32,12,12); c.strokeRect(20,-32,12,12);
+    c.strokeRect(-32,20,12,12);  c.strokeRect(20,20,12,12);
+    poly(c,0,0,20,8,t*.15); c.stroke();
+    c.save(); c.rotate(angle);
+    const rec=firing?-4:0;
+    c.strokeRect(4+rec,-8,30,16);
+    c.beginPath(); c.moveTo(34+rec,-10); c.lineTo(34+rec,10); c.stroke();
+    c.restore();
+    glow(c,col,12);
+    c.beginPath(); c.arc(0,0,5+Math.sin(t*4)*1.2,0,TAU); c.stroke();
+    noGlow(c);
   }
   noGlow(c);
   c.fillStyle=col;
@@ -1877,17 +1956,19 @@ function draw(){
 
   /* placement ghost */
   if(placing && mouse.inside){
-    const c=Math.floor(mouse.x/CELL), r=Math.floor(mouse.y/CELL);
-    const key=c+','+r;
-    const ok=canBuild(c,r)&&money>=TOWERS[placing].cost;
-    const x=c*CELL+CELL/2, y=r*CELL+CELL/2;
+    const fp=TOWERS[placing].footprint||[1,1];
+    const [c,r]=anchorFor(placing);
+    const ok=canPlace(placing,c,r)&&money>=TOWERS[placing].cost;
+    const x=(c+fp[0]/2)*CELL, y=(r+fp[1]/2)*CELL;
     const st=lvlStat(TOWERS[placing],1);
-    ctx.globalAlpha=.13; ctx.fillStyle=ok?'#39ff6a':'#ff4d6a';
-    ctx.beginPath(); ctx.arc(x,y,st.range,0,TAU); ctx.fill();
-    ctx.globalAlpha=.5; ctx.strokeStyle=ok?'#39ff6a':'#ff4d6a'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.arc(x,y,st.range,0,TAU); ctx.stroke();
-    ctx.globalAlpha=.85;
-    ctx.strokeRect(c*CELL+1,r*CELL+1,CELL-2,CELL-2);
+    if(st.range>0){
+      ctx.globalAlpha=.13; ctx.fillStyle=ok?'#39ff6a':'#ff4d6a';
+      ctx.beginPath(); ctx.arc(x,y,st.range,0,TAU); ctx.fill();
+      ctx.globalAlpha=.5; ctx.strokeStyle=ok?'#39ff6a':'#ff4d6a'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(x,y,st.range,0,TAU); ctx.stroke();
+    }
+    ctx.globalAlpha=.85; ctx.strokeStyle=ok?'#39ff6a':'#ff4d6a'; ctx.lineWidth=1;
+    ctx.strokeRect(c*CELL+1,r*CELL+1,fp[0]*CELL-2,fp[1]*CELL-2);
     ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.8;
     drawTowerBody(ctx,placing,1,-Math.PI/2,time,false);
     ctx.restore();
@@ -1937,17 +2018,23 @@ function draw(){
       ctx.setLineDash([]); ctx.globalAlpha=1;
     }
     ctx.strokeStyle='rgba(120,160,255,.3)'; ctx.lineWidth=1;
-    poly(ctx,0,0,14,8,Math.PI/8); ctx.stroke();
+    if(t.def.footprint){
+      const fp=t.def.footprint;
+      ctx.strokeRect(-fp[0]*CELL/2+4,-fp[1]*CELL/2+4,fp[0]*CELL-8,fp[1]*CELL-8);
+    }else{
+      poly(ctx,0,0,14,8,Math.PI/8); ctx.stroke();
+    }
     /* LUMA aura buff indicator — gold dashed ring + rising chevron */
-    if(!t.def.aura && (t.buffD>0||t.buffR>0)){
+    if(!t.def.aura && !t.def.income && (t.buffD>0||t.buffR>0)){
+      const br=t.def.footprint?30:16;
       ctx.strokeStyle='#ffd34d'; ctx.lineWidth=1.2;
       ctx.globalAlpha=.45+.15*Math.sin(time*4+t.x);
       ctx.setLineDash([5,7]); ctx.lineDashOffset=-time*14;
-      ctx.beginPath(); ctx.arc(0,0,16,0,TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,0,br,0,TAU); ctx.stroke();
       ctx.setLineDash([]);
       const ph=(time*1.1+t.x*.013)%1;
       ctx.globalAlpha=(1-ph)*.75;
-      const cy=-12-ph*9;
+      const cy=-(br-4)-ph*9;
       ctx.beginPath(); ctx.moveTo(-3.5,cy+3.5); ctx.lineTo(0,cy); ctx.lineTo(3.5,cy+3.5); ctx.stroke();
       ctx.globalAlpha=1;
     }
@@ -2181,10 +2268,12 @@ function showTowerInfo(t){
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
   html+= d.aura
     ? `<b>BUFF</b> +${Math.round(s.auraDmg*100)}% dmg · +${Math.round(s.auraRate*100)}% rate · <b>RNG</b> ${s.range}<br>`
+    : d.income
+    ? `<b>INCOME</b> +${s.income} credits at every wave clear<br>`
     : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b>
       · <b style="color:#ffd34d">${'★'.repeat(t.rank)||'☆'}</b>${t.rank<MAX_RANK?` <span style="font-size:9px">(${Math.floor(t.xp)}/${XP_T[t.rank]} XP)</span>`:' MAX'}<br>`;
   html+=`<div class="btnrow" style="margin-top:5px">
-      ${d.aura?'':`<button id="targetBtn">${ic('target',11)}${MODES[t.mode]}</button>`}
+      ${(d.aura||d.income)?'':`<button id="targetBtn">${ic('target',11)}${MODES[t.mode]}</button>`}
       <button class="up" id="upBtn" ${maxed||money<uc?'disabled':''}>${maxed?'MAX':ic('up',11)+'$'+uc}</button>
       <button class="sell" id="sellBtn">${ic('x',10)}$${refund}</button>
     </div>`;
@@ -2200,7 +2289,7 @@ function showTowerInfo(t){
   pop.innerHTML=html;
   pop.classList.remove('hidden');
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
-  if(!d.aura) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
+  if(!d.aura&&!d.income) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
   $('upBtn').onclick=()=>{
     if(t.level>=MAX_LVL||money<upCost(d,t.level)) return;
     money-=upCost(d,t.level); t.invested+=upCost(d,t.level);
@@ -2211,7 +2300,7 @@ function showTowerInfo(t){
   };
   $('sellBtn').onclick=()=>{
     money+=refund; soldAny=true;
-    occ.delete(t.c+','+t.r);
+    t.keys.forEach(k=>occ.delete(k));
     towers=towers.filter(x=>x!==t);
     spray(t.x,t.y,'#ffd34d',12,100,.4);
     SND.sell(); selTower=null; hidePop(); refreshUI();
@@ -2262,8 +2351,8 @@ function renderEnemyIcon(canvas,type,scale=1){
   c.restore();
 }
 function buildUI(){
-  /* hero cards */
-  const wrap=$('cards'); wrap.innerHTML='';
+  /* hero + structure cards */
+  $('cards').innerHTML=''; $('structs').innerHTML='';
   for(const k in TOWERS){
     const d=TOWERS[k];
     const card=document.createElement('div');
@@ -2271,8 +2360,8 @@ function buildUI(){
     card.innerHTML=`<span class="key">${d.key}</span><span class="lockB hidden">${ic('lock',10)}</span><canvas width="46" height="46"></canvas>
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
     card.onclick=()=>selectCard(k);
-    wrap.appendChild(card);
-    renderIcon(card.querySelector('canvas'),k,1.2);
+    (d.footprint?$('structs'):$('cards')).appendChild(card);
+    renderIcon(card.querySelector('canvas'),k,d.footprint?.6:1.2);
   }
   /* ability buttons */
   const ab=$('abils'); ab.innerHTML='';
@@ -2460,7 +2549,7 @@ function codexHeroes(){
     return `<div class="cdx"><canvas width="44" height="44" data-hero="${k}"></canvas><div>
       <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
       ${d.desc}<br>
-      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s`} · <i>${DT_NAMES[d.dtype]}</i><br>
+      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income}/wave · footprint ${d.footprint[0]}×${d.footprint[1]}`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
       <span style="color:#c46bff">★ ${SPECS[k][0].n} / ${SPECS[k][1].n}</span></div></div>`;
   }).join('');
 }
@@ -2528,7 +2617,7 @@ function showCodexTab(tab){
   $('codexBody').innerHTML =
     tab==='heroes'?codexHeroes():tab==='enemies'?codexEnemies():tab==='biome'?codexBiome():codexControls();
   document.querySelectorAll('#codexTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab));
-  document.querySelectorAll('#codexBody canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.1));
+  document.querySelectorAll('#codexBody canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,TOWERS[cv.dataset.hero].footprint?.55:1.1));
   document.querySelectorAll('#codexBody canvas[data-enemy]').forEach(cv=>renderEnemyIcon(cv,cv.dataset.enemy,.9));
   document.querySelectorAll('#codexBody canvas[data-biome]').forEach(cv=>renderBiomeIcon(cv,cv.dataset.biome));
 }
@@ -2697,8 +2786,9 @@ cvs.addEventListener('pointerdown',e=>{
   const c=Math.floor(mouse.x/CELL), r=Math.floor(mouse.y/CELL), key=c+','+r;
   if(placing){
     const d=TOWERS[placing];
-    if(canBuild(c,r)&&money>=d.cost){
-      placeTower(placing,c,r);
+    const [ac2,ar2]=anchorFor(placing);
+    if(canPlace(placing,ac2,ar2)&&money>=d.cost){
+      placeTower(placing,ac2,ar2);
       if(money<d.cost || !e.shiftKey) cancelPlacing();
       refreshUI();
     }else SND.deny();
@@ -2720,9 +2810,9 @@ cvs.addEventListener('pointerup',e=>{
   if(mode==='strike' && aiming==='strike'){
     castStrike(mouse.x,mouse.y); refreshUI();
   }else if(mode==='place' && placing){
-    const c=Math.floor(mouse.x/CELL), r=Math.floor(mouse.y/CELL);
+    const [c,r]=anchorFor(placing);
     const d=TOWERS[placing];
-    if(canBuild(c,r)&&money>=d.cost){
+    if(canPlace(placing,c,r)&&money>=d.cost){
       placeTower(placing,c,r);
       if(money<d.cost) cancelPlacing();   /* touch keeps placing until the card is tapped again */
       refreshUI();
