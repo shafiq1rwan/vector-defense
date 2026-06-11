@@ -173,6 +173,25 @@
     bottom:max(8px, env(safe-area-inset-bottom));
     font-size:9px; letter-spacing:1px; color:var(--dim);
   }
+  #credTag{
+    position:absolute; left:max(10px, env(safe-area-inset-left));
+    bottom:max(8px, env(safe-area-inset-bottom));
+    font-size:9px; letter-spacing:1px; color:var(--dim);
+  }
+  /* animated title backdrop — sits behind every other title element */
+  #titleOverlay>*{position:relative; z-index:1;}
+  #titleOverlay>#titleBg{position:absolute; inset:0; width:100%; height:100%; z-index:0;}
+  #titleOverlay .gearBtn, #titleOverlay #verTag, #titleOverlay #credTag{position:absolute;}
+  .menuRow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
+  .menuCard{
+    flex:none; width:160px; padding:13px 10px 10px; border-radius:11px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    background:#0a1126; border:1px solid #2a3f7a; cursor:pointer;
+    color:#cfe1ff; font:inherit; font-size:13px; font-weight:700; letter-spacing:2px;
+  }
+  .menuCard svg{margin:0;}
+  .menuCard:hover{border-color:#7db2ff; color:#fff; background:#101c42;}
+  .menuCard .mSub{font-size:8px; font-weight:400; letter-spacing:1px; color:var(--dim);}
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
   .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
   .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
@@ -458,6 +477,7 @@
     <div id="towerPop" class="hidden"></div>
 
     <div id="titleOverlay" class="overlay solid vcenter">
+      <canvas id="titleBg"></canvas>
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
       <button id="codexBtn" class="gearBtn" style="right:58px" title="Codex"></button>
       <div id="logo">
@@ -470,12 +490,12 @@
         <canvas id="logoR" width="56" height="56"></canvas>
       </div>
       <div id="bestLine"></div>
-      <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
-      <div class="btnrow" style="gap:10px; flex-wrap:wrap; justify-content:center">
-        <button id="campBtn" class="cta">CAMPAIGN</button>
-        <button id="startBtn" class="cta">QUICK PLAY</button>
-        <button id="shopBtn" class="cta">SHOP</button>
+      <div class="menuRow">
+        <button id="campBtn" class="menuCard"></button>
+        <button id="startBtn" class="menuCard"></button>
+        <button id="shopBtn" class="menuCard"></button>
       </div>
+      <span id="credTag">BY: SAISS &amp; CLAUDE</span>
       <span id="verTag"></span>
     </div>
 
@@ -624,7 +644,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.8';
+const VERSION='4.9';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2778,8 +2798,9 @@ function buildUI(){
   });
   /* svg icons on static buttons */
   $('codexBtn').innerHTML=ic('book',15);
-  $('campBtn').innerHTML=ic('star')+'CAMPAIGN';
-  $('startBtn').innerHTML=ic('play')+'QUICK PLAY';
+  $('campBtn').innerHTML=ic('star',20)+'CAMPAIGN<span class="mSub" id="mSubCamp"></span>';
+  $('startBtn').innerHTML=ic('play',20)+'QUICK PLAY<span class="mSub" id="mSubQp"></span>';
+  $('shopBtn').innerHTML=ic('hex',20)+'SHOP<span class="mSub" id="mSubShop"></span>';
   $('campBack').innerHTML=ic('back',16);
   $('qpBack').innerHTML=ic('back',16);
   $('qpLaunch').innerHTML=ic('play')+'LAUNCH';
@@ -2797,7 +2818,6 @@ function buildUI(){
   $('settingsBtn').innerHTML=ic('gear',15);
   $('settingsBack').innerHTML=ic('back')+'BACK';
   $('pSettingsBtn').innerHTML=ic('gear',15);
-  $('shopBtn').innerHTML=ic('hex',11)+'SHOP';
   $('shopBack').innerHTML=ic('back')+'BACK';
   $('verTag').textContent='v'+VERSION;
   $('foot').textContent='VECTOR DEFENSE v'+VERSION;
@@ -3474,6 +3494,79 @@ function lumaLoop(){
   drawLumaPortrait();
   lumaRAF=requestAnimationFrame(lumaLoop);
 }
+
+/* ============================== TITLE BACKDROP ============================== */
+/* flat vector linework behind the menu — drifting glyphs, blueprint grid,
+   scrolling perspective floor. No gradients anywhere. */
+const TB_GLYPHS=[];
+for(let i=0;i<9;i++) TB_GLYPHS.push({
+  fx:Math.random(), fy:.06+Math.random()*.42, s:7+Math.random()*15,
+  n:[3,4,5,6][i%4], spd:.006+Math.random()*.014, rs:(Math.random()-.5)*.5,
+  col:['#4d8dff','#ff7e4d','#ffe14d','#b06bff','#4dffd2'][i%5]
+});
+function refreshTitle(){
+  const done=CAMPAIGN.filter(n=>(SAVE.camp.stars[n.id]||0)>0).length;
+  const sc=$('mSubCamp'), sq=$('mSubQp'), ss=$('mSubShop');
+  if(sc) sc.textContent='★ '+totalStars()+'/36 · '+done+'/12 MISSIONS';
+  if(sq) sq.textContent=(SAVE.bestWave?'BEST WAVE '+SAVE.bestWave:'3 MAPS')+' · ENDLESS';
+  if(ss) ss.textContent=SAVE.cores+' CORES BANKED';
+}
+let tbWasHidden=true;
+function titleBgLoop(){
+  requestAnimationFrame(titleBgLoop);
+  const ov=$('titleOverlay');
+  if(ov.classList.contains('hidden')){ tbWasHidden=true; return; }
+  if(tbWasHidden){ tbWasHidden=false; refreshTitle(); }
+  const cv=$('titleBg');
+  const w=ov.clientWidth, h=ov.clientHeight;
+  if(!w||!h) return;
+  if(cv.width!==w*2||cv.height!==h*2){ cv.width=w*2; cv.height=h*2; }
+  const c=cv.getContext('2d');
+  c.setTransform(2,0,0,2,0,0);
+  c.clearRect(0,0,w,h);
+  const t=performance.now()/1000;
+  /* twinkling star specks */
+  c.fillStyle='#9db8ff';
+  for(let i=0;i<42;i++){
+    const x=((i*.117)%1)*w, y=((i*.379)%1)*h*.62;
+    c.globalAlpha=.06+.14*(0.5+0.5*Math.sin(t*(1+i%3)+i*2.2));
+    c.fillRect(x,y,i%4?1.5:2.5,i%4?1.5:2.5);
+  }
+  c.globalAlpha=1;
+  /* faint blueprint grid */
+  c.strokeStyle='rgba(60,100,200,.05)'; c.lineWidth=1;
+  c.beginPath();
+  for(let x=(w/2)%48;x<w;x+=48){ c.moveTo(x,0); c.lineTo(x,h); }
+  for(let y=24;y<h;y+=48){ c.moveTo(0,y); c.lineTo(w,y); }
+  c.stroke();
+  /* slow twin hexes behind the logo */
+  c.strokeStyle='rgba(77,141,255,.07)'; c.lineWidth=1.5;
+  poly(c,w/2,h*.30,112,6,t*.05); c.stroke();
+  poly(c,w/2,h*.30,88,6,-t*.04); c.stroke();
+  /* drifting glyph silhouettes */
+  c.lineWidth=1.5;
+  for(const g of TB_GLYPHS){
+    const x=(((g.fx+t*g.spd)%1.12)-.06)*w, y=g.fy*h;
+    c.strokeStyle=g.col; c.globalAlpha=.11;
+    poly(c,x,y,g.s,g.n,t*g.rs); c.stroke();
+  }
+  c.globalAlpha=1;
+  /* perspective floor — scrolling horizontals + static rays */
+  const hy=h*.72;
+  c.strokeStyle='rgba(77,141,255,.09)'; c.lineWidth=1;
+  c.beginPath();
+  for(let i=0;i<9;i++){
+    const f=(t*.10+i/9)%1;
+    const y=hy+(h-hy)*f*f;
+    c.moveTo(0,y); c.lineTo(w,y);
+  }
+  for(let i=-7;i<=7;i++){
+    c.moveTo(w/2+i*w*.075,hy); c.lineTo(w/2+i*w*.26,h);
+  }
+  c.stroke();
+  c.strokeStyle='rgba(77,141,255,.16)';
+  c.beginPath(); c.moveTo(0,hy); c.lineTo(w,hy); c.stroke();
+}
 let selNode=0;
 function buildCampaign(){
   const map=$('campMap');
@@ -3594,6 +3687,7 @@ buildMap(mapIndex);
 buildUI();
 reset();
 requestAnimationFrame(frame);
+requestAnimationFrame(titleBgLoop);
 
 /* PWA: installable + offline (https only; no-op when opened from disk) */
 if('serviceWorker' in navigator && location.protocol==='https:'){
