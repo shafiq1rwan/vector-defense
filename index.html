@@ -139,10 +139,29 @@
     overflow-y:auto; padding:12px;
   }
   .overlay.hidden{display:none;}
+  .overlay.solid{background:var(--bg);}
+  /* safe vertical centering: spacers absorb extra space, collapse when content scrolls */
+  .vcenter::before,.vcenter::after{content:''; flex:1 1 0; min-height:0;}
   .big{
     font-size:34px; font-weight:800; letter-spacing:9px; color:#fff;
     text-shadow:0 0 18px var(--neon);
   }
+  /* animated logo */
+  #logo{display:flex; align-items:center; gap:18px;}
+  #logo canvas{animation:bob 3s ease-in-out infinite;}
+  #logo canvas:last-child{animation-delay:1.5s;}
+  @keyframes bob{50%{transform:translateY(-7px);}}
+  #logoTxt{font-weight:800; font-size:42px; letter-spacing:3px; line-height:1; white-space:nowrap;}
+  #logoTxt span{display:inline-block; animation:wave 2.6s ease-in-out infinite; animation-delay:calc(var(--i)*.07s);}
+  #logoTxt .lw{color:#fff; text-shadow:0 0 14px rgba(77,141,255,.9);}
+  #logoTxt .lb{color:var(--bg); -webkit-text-stroke:1.6px #4d8dff; text-shadow:0 0 16px rgba(77,141,255,.55);}
+  @keyframes wave{50%{transform:translateY(-6px);}}
+  #logoSub{font-size:9px; letter-spacing:7px; color:var(--dim); margin-top:7px; text-align:center;}
+  #logoBar{width:230px; height:2px; background:#4d8dff; margin:5px auto 0; animation:pul2 2.2s infinite;}
+  #verTag{position:absolute; bottom:8px; right:12px; font-size:9px; letter-spacing:1px; color:var(--dim);}
+  #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
+  .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
+  .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
   .sub{color:var(--dim); font-size:11.5px; max-width:640px; line-height:1.6;}
   #bestLine{font-size:10px; letter-spacing:2px; color:var(--gold);}
   .roster{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
@@ -224,6 +243,9 @@
     #panel{width:100%; max-width:800px; max-height:none;}
     #cards{grid-template-columns:repeat(6,1fr);}
     .big{font-size:24px; letter-spacing:5px;}
+    #logoTxt{font-size:28px;}
+    #logo{gap:10px;}
+    #logo canvas{width:42px; height:42px;}
     button{padding:10px 3px;}
     .abtn{padding:8px 2px;}
     /* overlays escape the short stage box and fill the phone screen */
@@ -279,21 +301,38 @@
       <button id="speedBtn" title="Game speed"></button>
     </div>
 
-    <div id="titleOverlay" class="overlay">
+    <div id="titleOverlay" class="overlay solid vcenter">
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
-      <div class="big">VECTOR<span style="color:#4d8dff">DEFENSE</span></div>
+      <div id="logo">
+        <canvas id="logoL" width="56" height="56"></canvas>
+        <div>
+          <div id="logoTxt"></div>
+          <div id="logoSub">NEON GRID TOWER DEFENSE</div>
+          <div id="logoBar"></div>
+        </div>
+        <canvas id="logoR" width="56" height="56"></canvas>
+      </div>
       <div id="bestLine"></div>
       <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
       <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
-      <div class="selRow"><span class="lbl"><svg class="ic" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#9db8ff" stroke-width="1.4"><path d="M8 1.2l5.9 3.4v6.8L8 14.8l-5.9-3.4V4.6z"/></svg>SHOP <b id="coreCount" style="color:#9db8ff"></b></span><span id="metaShop" class="selRow"></span></div>
       <div class="btnrow" style="gap:10px">
         <button id="codexBtn" class="cta">CODEX</button>
+        <button id="shopBtn" class="cta">SHOP</button>
         <button id="startBtn" class="cta">DEPLOY</button>
       </div>
+      <span id="verTag"></span>
     </div>
 
-    <div id="codexOverlay" class="overlay hidden">
+    <div id="shopOverlay" class="overlay solid vcenter hidden">
+      <div class="big" style="font-size:20px; letter-spacing:6px">CORE SHOP</div>
+      <div id="shopBal" class="sub"></div>
+      <div id="metaShop" class="shopGrid"></div>
+      <div class="sub" style="font-size:10px">Earn cores by surviving waves — upgrades are permanent across every run.</div>
+      <button id="shopBack" class="cta">BACK</button>
+    </div>
+
+    <div id="codexOverlay" class="overlay solid hidden">
       <div class="big" style="font-size:20px; letter-spacing:6px">CODEX</div>
       <div class="btnrow" id="codexTabs">
         <button data-tab="heroes">HEROES</button>
@@ -305,7 +344,7 @@
       <button id="codexBack" class="cta">BACK</button>
     </div>
 
-    <div id="endOverlay" class="overlay hidden">
+    <div id="endOverlay" class="overlay vcenter hidden">
       <div class="big" id="endTitle">CORE LOST</div>
       <div class="sub" id="endSub"></div>
       <div id="medals"></div>
@@ -316,7 +355,7 @@
       </div>
     </div>
 
-    <div id="settingsOverlay" class="overlay hidden">
+    <div id="settingsOverlay" class="overlay solid vcenter hidden">
       <div class="big" style="font-size:20px; letter-spacing:6px">SETTINGS</div>
       <div class="setRow"><span>MUSIC</span><button id="setMusic" class="tog"></button></div>
       <div class="setRow"><span>SOUND FX</span><button id="setSfx" class="tog"></button></div>
@@ -326,7 +365,7 @@
       <button id="settingsBack" class="cta">BACK</button>
     </div>
 
-    <div id="pauseOverlay" class="overlay hidden">
+    <div id="pauseOverlay" class="overlay vcenter hidden">
       <div class="big" style="font-size:26px">PAUSED</div>
       <div class="keysBox">
         <b>1–6</b> select hero &nbsp; <b>Q/W/E</b> abilities<br>
@@ -370,6 +409,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
+const VERSION='3.5';
 const W=800, H=512, CELL=32, COLS=25, ROWS=16, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1946,14 +1986,32 @@ function buildUI(){
   $('settingsBtn').innerHTML=ic('gear',15);
   $('settingsBack').innerHTML=ic('back')+'BACK';
   $('pSettingsBtn').innerHTML=ic('gear',11)+'SETTINGS';
+  $('shopBtn').innerHTML=ic('hex',11)+'SHOP';
+  $('shopBack').innerHTML=ic('back')+'BACK';
+  $('verTag').textContent='v'+VERSION;
+  $('foot').textContent='VECTOR DEFENSE v'+VERSION;
+  buildLogo();
   buildShop();
   updateBestLine();
   $('volSlider').value=Math.round(vol*100);
 }
+function buildLogo(){
+  const t=$('logoTxt'); t.innerHTML='';
+  let i=0;
+  for(const [word,cls] of [['VECTOR','lw'],['DEFENSE','lb']]){
+    for(const ch of word){
+      const s=document.createElement('span');
+      s.className=cls; s.textContent=ch; s.style.setProperty('--i',i++);
+      t.appendChild(s);
+    }
+  }
+  renderIcon($('logoL'),'archer',1.25);
+  renderEnemyIcon($('logoR'),'boss',1.25);
+}
 function buildShop(){
   const box=$('metaShop');
   if(!box) return;
-  $('coreCount').textContent=SAVE.cores;
+  $('shopBal').innerHTML=ic('hex',11)+'BALANCE: <b style="color:#9db8ff">'+SAVE.cores+'</b> cores';
   box.innerHTML='';
   for(const m of META){
     const rank=SAVE.meta[m.id];
@@ -2345,6 +2403,16 @@ $('resumeBtn').onclick=()=>togglePause();
 $('codexBtn').onclick=()=>openCodex('titleOverlay');
 $('pCodexBtn').onclick=()=>openCodex('pauseOverlay');
 $('settingsBtn').onclick=()=>{ac(); openSettings('titleOverlay');};
+$('shopBtn').onclick=()=>{
+  ac();
+  $('titleOverlay').classList.add('hidden');
+  $('shopOverlay').classList.remove('hidden');
+  buildShop();
+};
+$('shopBack').onclick=()=>{
+  $('shopOverlay').classList.add('hidden');
+  $('titleOverlay').classList.remove('hidden');
+};
 $('pSettingsBtn').onclick=()=>openSettings('pauseOverlay');
 $('settingsBack').onclick=()=>{
   $('settingsOverlay').classList.add('hidden');
