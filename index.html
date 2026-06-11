@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#04060d">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -262,7 +262,11 @@
     button{padding:10px 3px;}
     .abtn{padding:8px 2px;}
     /* overlays escape the short stage box and fill the phone screen */
-    .overlay{position:fixed; border-radius:0; justify-content:flex-start; padding:20px 12px 28px; z-index:50;}
+    .overlay{
+      position:fixed; border-radius:0; justify-content:flex-start; z-index:50;
+      padding:20px 12px 28px;
+      padding-bottom:max(28px, env(safe-area-inset-bottom));
+    }
     .overlay.hidden{display:none;}
   }
   @media (max-width:560px){
@@ -273,10 +277,16 @@
   /* phone landscape: canvas full-height on the left, scrollable panel beside it */
   @media (max-width:1100px) and (orientation:landscape) and (max-height:560px){
     body{overflow:hidden;}
-    #wrap{flex-direction:row; align-items:flex-start; justify-content:center; padding:6px; gap:8px; height:100%;}
+    #wrap{
+      flex-direction:row; align-items:flex-start; justify-content:center; gap:8px;
+      height:100vh; height:100dvh;   /* dvh: stop under the browser nav bar */
+      padding:6px;
+      padding-left:max(6px, env(safe-area-inset-left));
+      padding-right:max(6px, env(safe-area-inset-right));
+    }
     #stage{width:auto; max-width:none; flex:none; height:calc(100% - 0px);}
-    canvas#game{height:calc(100vh - 12px); max-height:520px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vh - 12px); max-height:none;}
+    canvas#game{height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:520px; width:auto;}
+    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:none;}
     #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
@@ -286,15 +296,18 @@
     body{overflow:hidden;}
     #wrap{
       position:fixed; top:0; left:0;
-      width:100vh; height:100vw;
+      width:100vh; width:100dvh;     /* dvh: keep the rotated layout off the nav bar */
+      height:100vw; height:100dvw;
       transform:rotate(90deg) translateY(-100%);
       transform-origin:top left;
       flex-direction:row; align-items:flex-start; justify-content:center;
       padding:6px; gap:8px;
+      padding-left:max(6px, env(safe-area-inset-top));
+      padding-right:max(6px, env(safe-area-inset-bottom));
     }
     #stage{width:auto; max-width:none; flex:none;}
-    canvas#game{height:calc(100vw - 12px); max-height:520px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); max-height:none;}
+    canvas#game{height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:520px; width:auto;}
+    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:none;}
     #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
