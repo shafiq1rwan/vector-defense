@@ -393,6 +393,7 @@
 
     <div id="titleOverlay" class="overlay solid vcenter">
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
+      <button id="codexBtn" class="gearBtn" style="right:58px" title="Codex"></button>
       <div id="logo">
         <canvas id="logoL" width="56" height="56"></canvas>
         <div>
@@ -409,7 +410,6 @@
       <div class="btnrow" style="gap:10px; flex-wrap:wrap; justify-content:center">
         <button id="campBtn" class="cta">CAMPAIGN</button>
         <button id="startBtn" class="cta">QUICK PLAY</button>
-        <button id="codexBtn" class="cta">CODEX</button>
         <button id="shopBtn" class="cta">SHOP</button>
       </div>
       <span id="verTag"></span>
@@ -1915,6 +1915,19 @@ function draw(){
     }
     ctx.strokeStyle='rgba(120,160,255,.3)'; ctx.lineWidth=1;
     poly(ctx,0,0,14,8,Math.PI/8); ctx.stroke();
+    /* LUMA aura buff indicator — gold dashed ring + rising chevron */
+    if(!t.def.aura && (t.buffD>0||t.buffR>0)){
+      ctx.strokeStyle='#ffd34d'; ctx.lineWidth=1.2;
+      ctx.globalAlpha=.45+.15*Math.sin(time*4+t.x);
+      ctx.setLineDash([5,7]); ctx.lineDashOffset=-time*14;
+      ctx.beginPath(); ctx.arc(0,0,16,0,TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      const ph=(time*1.1+t.x*.013)%1;
+      ctx.globalAlpha=(1-ph)*.75;
+      const cy=-12-ph*9;
+      ctx.beginPath(); ctx.moveTo(-3.5,cy+3.5); ctx.lineTo(0,cy); ctx.lineTo(3.5,cy+3.5); ctx.stroke();
+      ctx.globalAlpha=1;
+    }
     if(surgeT>0){
       ctx.globalAlpha=.35+.2*Math.sin(time*10);
       ctx.strokeStyle='#c46bff';
@@ -2263,7 +2276,7 @@ function buildUI(){
     ds.appendChild(b);
   });
   /* svg icons on static buttons */
-  $('codexBtn').innerHTML=ic('book')+'CODEX';
+  $('codexBtn').innerHTML=ic('book',15);
   $('campBtn').innerHTML=ic('star')+'CAMPAIGN';
   $('startBtn').innerHTML=ic('play')+'QUICK PLAY';
   $('campBack').innerHTML=ic('back')+'BACK';
