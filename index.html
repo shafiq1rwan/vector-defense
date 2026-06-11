@@ -273,13 +273,19 @@
   .selRow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center;}
   .selRow .lbl{font-size:9px; letter-spacing:2px; color:var(--dim);}
   .mapOpt{
-    border:1px solid var(--line); border-radius:8px; padding:4px; cursor:pointer;
-    background:#0a1126; font-size:9px; color:var(--dim); letter-spacing:1px;
+    border:1px solid var(--line); border-radius:8px; padding:5px 5px 4px; cursor:pointer;
+    background:#0a1126; font-size:9px; color:var(--dim); letter-spacing:1px; text-align:center;
   }
-  .mapOpt canvas{display:block; margin-bottom:2px; background:#070b16; border-radius:4px;}
-  .mapOpt.sel{border-color:#fff; color:#fff;}
-  .diffOpt{flex:none; padding:7px 16px; font-size:10px;}
+  .mapOpt canvas{display:block; margin-bottom:3px; background:#070b16; border-radius:5px;}
+  .mapOpt.sel{border-color:#fff; color:#fff; background:#101c42;}
+  .diffOpt{
+    flex:none; padding:7px 13px; font-size:10.5px;
+    display:flex; flex-direction:column; gap:3px; align-items:center;
+  }
+  .diffOpt .dd{font-size:7.5px; color:var(--dim); letter-spacing:.5px; font-weight:400;}
   .diffOpt.sel{border-color:#fff; background:#16265a; color:#fff;}
+  #qpOverlay{gap:11px;}
+  #qpLaunch{padding:9px 36px;}
   .metaOpt{
     flex:none; padding:5px 8px; font-size:8.5px; letter-spacing:.5px; line-height:1.4;
     background:#101a36; border-color:#2a3f7a; min-width:88px;
@@ -465,14 +471,21 @@
       </div>
       <div id="bestLine"></div>
       <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
-      <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
-      <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
       <div class="btnrow" style="gap:10px; flex-wrap:wrap; justify-content:center">
         <button id="campBtn" class="cta">CAMPAIGN</button>
         <button id="startBtn" class="cta">QUICK PLAY</button>
         <button id="shopBtn" class="cta">SHOP</button>
       </div>
       <span id="verTag"></span>
+    </div>
+
+    <div id="qpOverlay" class="overlay solid vcenter hidden">
+      <button id="qpBack" class="gearBtn backTL" title="Back to menu"></button>
+      <div class="big" style="font-size:18px; letter-spacing:6px">QUICK PLAY</div>
+      <div id="qpSub" class="sub" style="font-size:10px"></div>
+      <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
+      <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
+      <button id="qpLaunch" class="cta">LAUNCH</button>
     </div>
 
     <div id="campOverlay" class="overlay solid vcenter hidden">
@@ -611,7 +624,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.7';
+const VERSION='4.8';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2719,36 +2732,47 @@ function buildUI(){
     b.onclick=()=>{ac(); useAbility(k);};
     ab.appendChild(b);
   }
-  /* map selector */
+  /* map selector — road preview with spawn/core markers */
   const ms=$('mapSel'); ms.innerHTML='';
   MAPS.forEach((m,i)=>{
     if(m.hidden) return;
     const el=document.createElement('div');
     el.className='mapOpt'+(i===mapIndex?' sel':'');
     el.id='map_'+i;
-    el.innerHTML=`<canvas width="96" height="62"></canvas>${m.name}`;
+    el.innerHTML=`<canvas width="126" height="82"></canvas>${m.name}`;
     const c=el.querySelector('canvas').getContext('2d');
-    c.strokeStyle='#4d8dff'; c.lineWidth=3; c.lineJoin='round'; c.lineCap='round';
+    const sx=p=>6+p[0]*.142, sy=p=>4+p[1]*.142;
+    c.strokeStyle='#16265a'; c.lineWidth=9; c.lineJoin='round'; c.lineCap='round';
     c.beginPath();
-    m.path.forEach((p,j)=>{ const x=p[0]*.11, y=p[1]*.105; j?c.lineTo(x,y):c.moveTo(x,y); });
+    m.path.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
     c.stroke();
+    c.strokeStyle='#4d8dff'; c.lineWidth=2.5;
+    c.beginPath();
+    m.path.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
+    c.stroke();
+    const a=m.path[0], z=m.path[m.path.length-1];
+    c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.4,0,TAU); c.fill();
+    c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.4,0,TAU); c.fill();
     el.onclick=()=>{
       buildMap(i); reset();
       document.querySelectorAll('.mapOpt').forEach(x=>x.classList.remove('sel'));
       el.classList.add('sel');
+      SND.place();
     };
     ms.appendChild(el);
   });
-  /* difficulty selector */
+  /* difficulty selector — cards with the actual numbers */
   const ds=$('diffSel'); ds.innerHTML='';
   DIFFS.forEach((d,i)=>{
     const b=document.createElement('button');
     b.className='diffOpt'+(i===diffIndex?' sel':'');
-    b.textContent=d.label;
+    b.id='diff_'+i;
+    b.innerHTML=`<b>${d.label}</b><span class="dd">${Math.round(d.hp*100)}% HP · ${Math.round(d.reward*100)}% BOUNTY · ${d.lives} CORE</span>`;
     b.onclick=()=>{
       diffIndex=i; SAVE.diff=i; persist(); reset();
       document.querySelectorAll('.diffOpt').forEach(x=>x.classList.remove('sel'));
       b.classList.add('sel');
+      SND.place();
     };
     ds.appendChild(b);
   });
@@ -2757,6 +2781,8 @@ function buildUI(){
   $('campBtn').innerHTML=ic('star')+'CAMPAIGN';
   $('startBtn').innerHTML=ic('play')+'QUICK PLAY';
   $('campBack').innerHTML=ic('back',16);
+  $('qpBack').innerHTML=ic('back',16);
+  $('qpLaunch').innerHTML=ic('play')+'LAUNCH';
   $('launchBtn').innerHTML=ic('play')+'LAUNCH';
   $('codexBack').innerHTML=ic('back')+'BACK';
   $('restartBtn').innerHTML=ic('retry')+'RETRY';
@@ -3291,11 +3317,23 @@ $('pRestartBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   reset();
 };
-$('startBtn').onclick=()=>{
-  ac();
-  exitCampaign();
-  reset();
+function openQuickPlay(){
+  exitCampaign();   /* restore quick play map/difficulty if a mission left its own loaded */
+  MAPS.forEach((m,i)=>{ const el=$('map_'+i); if(el) el.classList.toggle('sel',i===mapIndex); });
+  DIFFS.forEach((d,i)=>{ const el=$('diff_'+i); if(el) el.classList.toggle('sel',i===diffIndex); });
+  $('qpSub').textContent=FINAL_WAVE+' WAVES, THEN ENDLESS — BEST WAVE '+(SAVE.bestWave||0)+' · WINS '+(SAVE.wins||0);
   $('titleOverlay').classList.add('hidden');
+  $('qpOverlay').classList.remove('hidden');
+}
+$('startBtn').onclick=()=>{ ac(); openQuickPlay(); };
+$('qpBack').onclick=()=>{
+  $('qpOverlay').classList.add('hidden');
+  $('titleOverlay').classList.remove('hidden');
+};
+$('qpLaunch').onclick=()=>{
+  ac();
+  reset();
+  $('qpOverlay').classList.add('hidden');
   running=true;
   SND.wave();
 };
