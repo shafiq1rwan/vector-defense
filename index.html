@@ -180,18 +180,24 @@
   #campOverlay .big{font-size:15px; letter-spacing:5px;}
   #campStars{font-size:10px;}
   #campMap{
-    position:relative; width:100%; max-width:620px; height:200px; flex:none;
+    position:relative; width:100%; max-width:620px; height:190px; flex:none;
     background:#070b16; border:1px solid var(--line); border-radius:10px;
+    overflow-x:auto; overflow-y:hidden;
   }
-  #campMap svg{position:absolute; inset:0; width:100%; height:100%;}
+  #campMap::-webkit-scrollbar{height:6px;}
+  #campMap::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
+  #campTrack{position:relative; width:1150px; height:100%;}
+  #campTrack svg{position:absolute; inset:0; width:100%; height:100%;}
+  .actLbl{position:absolute; top:7px; font-size:8px; letter-spacing:3px; font-weight:700; opacity:.85;}
   .cnode{
     position:absolute; transform:translate(-50%,-50%);
-    width:38px; height:38px; border-radius:50%; border:2px solid var(--neon);
-    background:#0a1126; color:var(--neon); font-size:12px; font-weight:800;
+    width:46px; height:46px; border-radius:50%; border:2px solid var(--neon);
+    background:#0a1126; color:var(--neon); font-size:14px; font-weight:800;
     cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:0; flex:none; line-height:1; letter-spacing:0;
   }
-  .cnode .cstars{font-size:7px; color:var(--gold); letter-spacing:1px; margin-top:1px; min-height:7px;}
+  .cnode .cstars{font-size:8px; color:var(--gold); letter-spacing:1px; margin-top:1px; min-height:8px;}
+  .cnode .lockMini{margin-top:1px; opacity:.8;}
   .cnode.lockedN{opacity:.35; border-style:dashed; cursor:not-allowed;}
   .cnode.cur{animation:pul 1.4s infinite;}
   .cnode.selN{border-color:#fff; color:#fff;}
@@ -206,8 +212,8 @@
   #briefText{min-height:24px; line-height:1.55; white-space:pre-wrap;}
   #launchBtn{align-self:flex-end; flex:none; padding:7px 24px;}
   @media (max-width:1100px){
-    #campMap{height:158px;}
-    .cnode{width:32px; height:32px; font-size:10px;}
+    #campMap{height:148px;}
+    .cnode{width:40px; height:40px; font-size:12px;}
     #briefText{min-height:18px;}
     #campOverlay .big{font-size:13px;}
   }
@@ -649,9 +655,9 @@ function genProps(){
     grove.push({key, x:c*CELL, y:r*CELL, items});
   }
 }
-function buildMap(i){
+function buildMap(i,persistSel=true){
   mapIndex=i;
-  if(!MAPS[i].hidden){ SAVE.map=i; persist(); }
+  if(persistSel && !MAPS[i].hidden){ SAVE.map=i; persist(); }
   const m=MAPS[i];
   PATH=m.path.map(p=>({x:p[0],y:p[1]}));
   SEGS=[]; PATH_LEN=0;
@@ -722,7 +728,7 @@ const CAMPAIGN=[
   {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:20, mod:null,    unlock:null,
     brief:"The OVERMIND PRIME walks. Twenty waves between it and the core. End this, Commander — for the grid."}
 ];
-const NODE_POS=[[7,46],[17,30],[28,44],[39,28],[50,42],[60,26],[70,40],[79,24],[88,38],[80,11],[63,8],[45,12]];
+const NODE_POS=[[5,38],[13,20],[21,42],[29,22],[38,40],[46,20],[54,42],[62,22],[70,40],[78,18],[86,40],[94,24]];
 const ACT_COL=['#4d8dff','#ffa53a','#ff3af0'];
 const BASE_HEROES=['archer','frost','cannon'];
 let campNode=null;
@@ -2050,15 +2056,15 @@ function draw(){
   /* combo */
   if(combo>=2 && comboT>0){
     const pop=1+Math.max(0,comboPop)*1.2;
-    ctx.save(); ctx.translate(W-80,96); ctx.scale(pop,pop);   /* below the floating speed button */
-    glow(ctx,'#ffd34d',14);
-    drawBolt(ctx,-26,-7,11,'#ffe14d');
-    ctx.font='bold 22px monospace'; ctx.textAlign='center';
+    ctx.save(); ctx.translate(W-86,100); ctx.scale(pop,pop);   /* below the floating speed button */
+    glow(ctx,'#ffd34d',16);
+    drawBolt(ctx,-34,-9,15,'#ffe14d');
+    ctx.font='bold 30px monospace'; ctx.textAlign='center';
     ctx.fillStyle='#ffe14d';
-    ctx.fillText('×'+combo,6,0);
+    ctx.fillText('×'+combo,10,0);
     noGlow(ctx);
-    ctx.fillStyle='rgba(255,211,77,.6)'; ctx.font='bold 9px monospace';
-    ctx.fillText('COMBO',0,13);
+    ctx.fillStyle='rgba(255,211,77,.7)'; ctx.font='bold 11px monospace';
+    ctx.fillText('COMBO',0,17);
     ctx.restore();
   }
   /* surge timer */
@@ -2122,10 +2128,14 @@ function draw(){
       }
     }
     if(msg){
-      ctx.globalAlpha=.55+.3*Math.sin(time*3);
-      ctx.fillStyle='#9db8ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
-      glow(ctx,'#4d8dff',8);
-      ctx.fillText(msg,W/2,H-18);
+      ctx.font='bold 16px monospace'; ctx.textAlign='center';
+      const tw=ctx.measureText(msg).width;
+      ctx.globalAlpha=.62; ctx.fillStyle='#04060d';
+      ctx.fillRect(W/2-tw/2-12,H-44,tw+24,28);
+      ctx.globalAlpha=.7+.3*Math.sin(time*3);
+      ctx.fillStyle='#cfe0ff';
+      glow(ctx,'#4d8dff',10);
+      ctx.fillText(msg,W/2,H-24);
       noGlow(ctx); ctx.globalAlpha=1;
     }
   }
@@ -2840,6 +2850,9 @@ function exitCampaign(){
   campNode=null;
   diffIndex=SAVE.diff!=null?SAVE.diff:1;
   finalWave=FINAL_WAVE;
+  /* restore the player's quick play map if a mission left another one loaded */
+  const mq=(SAVE.map!=null && MAPS[SAVE.map] && !MAPS[SAVE.map].hidden)?SAVE.map:0;
+  if(mapIndex!==mq) buildMap(mq);
 }
 let typeTimer=null;
 function typeText(el,txt){
@@ -2858,9 +2871,16 @@ function buildCampaign(){
   CAMPAIGN.forEach(n=>total+=SAVE.camp.stars[n.id]||0);
   $('campStars').innerHTML='★ '+total+' / '+(CAMPAIGN.length*3)+' — clear missions to unlock heroes and earn bonus cores';
   const pts=NODE_POS.map(p=>p[0]+','+p[1]).join(' ');
-  map.innerHTML=`<svg viewBox="0 0 100 56" preserveAspectRatio="none">
+  map.innerHTML=`<div id="campTrack"><svg viewBox="0 0 100 56" preserveAspectRatio="none">
     <polyline points="${pts}" fill="none" stroke="#1b2a55" stroke-width="1" vector-effect="non-scaling-stroke"/>
-  </svg>`;
+  </svg></div>`;
+  const track=$('campTrack');
+  [['ACT I',4,0],['ACT II',37,1],['ACT III',70,2]].forEach(([t,x,a])=>{
+    const s=document.createElement('span');
+    s.className='actLbl'; s.textContent=t;
+    s.style.left=x+'%'; s.style.color=ACT_COL[a];
+    track.appendChild(s);
+  });
   CAMPAIGN.forEach((n,i)=>{
     const st=SAVE.camp.stars[n.id]||0, open=nodeOpen(i);
     const el=document.createElement('button');
@@ -2869,12 +2889,12 @@ function buildCampaign(){
     el.style.top=(NODE_POS[i][1]/56*100)+'%';
     el.style.borderColor=open?ACT_COL[n.act-1]:'#3a4a7a';
     el.style.color=open?ACT_COL[n.act-1]:'#3a4a7a';
-    el.innerHTML=open
-      ? '<b>'+(i+1)+'</b><span class="cstars">'+'★'.repeat(st)+'</span>'
-      : ic('lock',13);
+    el.innerHTML='<b>'+(i+1)+'</b>'+(open
+      ? '<span class="cstars">'+'★'.repeat(st)+'</span>'
+      : '<span class="lockMini">'+ic('lock',9)+'</span>');
     el.onclick=()=>{ if(!open){SND.deny(); return;} selectNode(i); };
     el.dataset.node=i;
-    map.appendChild(el);
+    track.appendChild(el);
   });
   $('briefBox').classList.add('hidden');
 }
@@ -2896,7 +2916,7 @@ function launchMission(i){
   if(!nodeOpen(i)){SND.deny(); return;}
   campNode=n;
   diffIndex=n.diff;
-  buildMap(n.map);
+  buildMap(n.map,false);   /* missions never overwrite the quick play map choice */
   reset();
   $('campOverlay').classList.add('hidden');
   $('titleOverlay').classList.add('hidden');
@@ -2907,10 +2927,14 @@ function openCampaign(){
   $('titleOverlay').classList.add('hidden');
   buildCampaign();
   $('campOverlay').classList.remove('hidden');
-  /* auto-select the first unbeaten mission */
+  /* auto-select the first unbeaten mission and scroll it into view */
   let first=CAMPAIGN.findIndex(n=>!(SAVE.camp.stars[n.id]>0));
   if(first<0) first=CAMPAIGN.length-1;
   selectNode(first);
+  requestAnimationFrame(()=>{
+    const map=$('campMap'), track=$('campTrack');
+    if(map&&track) map.scrollLeft=track.offsetWidth*NODE_POS[first][0]/100 - map.clientWidth/2;
+  });
 }
 function updateCardLocks(){
   for(const k in TOWERS){
