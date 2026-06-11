@@ -508,8 +508,7 @@ const MAPS=[
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL=null, CORE=null;
 const stars=[], props=[];
-/* the 2x2 corner cells beside the spawn are an overgrown grove — scenery only, no towers */
-const GROVE_CELLS=[[0,0],[1,0],[0,1],[1,1]];
+/* flora clusters scattered around the field — pure scenery, hidden under placed towers */
 let grove=[];
 
 function pointAt(d){
@@ -537,6 +536,23 @@ function genProps(){
       kind:['crystal','node','shard','ring'][Math.floor(Math.random()*4)],
       seed:Math.random()*10, big:.7+Math.random()*.6});
   }
+  /* scatter flora clusters on free cells */
+  grove=[]; tries=0;
+  while(grove.length<7 && tries<400){
+    tries++;
+    const c=Math.floor(Math.random()*COLS), r=Math.floor(Math.random()*ROWS);
+    const key=c+','+r;
+    if(blocked.has(key)||used.has(key)) continue;
+    used.add(key);
+    const items=[];
+    const n=3+Math.floor(Math.random()*3);
+    for(let i=0;i<n;i++) items.push({
+      ox:4+Math.random()*32, oy:22+Math.random()*14,
+      kind:['grass','grass','fern','flower'][Math.floor(Math.random()*4)],
+      seed:Math.random()*10, s:.8+Math.random()*.8
+    });
+    grove.push({key, x:c*CELL, y:r*CELL, items});
+  }
 }
 function buildMap(i){
   mapIndex=i; SAVE.map=i; persist();
@@ -560,18 +576,6 @@ function buildMap(i){
     }
   }
   PORTAL=pointAt(46); CORE=pointAt(PATH_LEN-m.coreBack);
-  grove=GROVE_CELLS.filter(([cx,cy])=>!blocked.has(cx+','+cy)).map(([cx,cy])=>{
-    blocked.add(cx+','+cy);
-    const items=[];
-    const n=4+Math.floor(Math.random()*2);
-    for(let i=0;i<n;i++) items.push({
-      /* rooted along the cell bottom so they stay visible under the floating HUD buttons */
-      ox:4+Math.random()*32, oy:30+Math.random()*14,
-      kind:['grass','grass','fern','flower'][Math.floor(Math.random()*4)],
-      seed:Math.random()*10, s:.8+Math.random()*.8
-    });
-    return {x:cx*CELL, y:cy*CELL, items};
-  });
   /* building is only allowed within 2 cells of the road */
   buildable=new Set();
   for(const key of roadCells){
@@ -1495,6 +1499,7 @@ function drawProp(c,p){
 }
 /* spawn grove — swaying vector flora on the reserved cells */
 function drawPlantCluster(c,g){
+  if(occ.has(g.key)) return;
   for(const it of g.items){
     const sway=Math.sin(time*1.6+it.seed)*.14+Math.sin(time*.7+it.seed*2)*.06;
     c.save(); c.translate(g.x+it.ox,g.y+it.oy);
@@ -2163,7 +2168,7 @@ function buildShop(){
 }
 /* ============================== CODEX ============================== */
 const BIOME_LORE=[
-  ['plant','SPAWN GROVE','Bioluminescent flora rooted in the cells beside the rift. Too overgrown to build on.'],
+  ['plant','GRID FLORA','Bioluminescent tufts scattered across the field. They politely make way for towers.'],
   ['portal','SPAWN PORTAL','Rift where the glyph swarm phases into the field. Every wave pours out of it.'],
   ['core','THE CORE','The last light of the grid. Its outer ring shows remaining integrity — guard it.'],
   ['bird','SKY GLIDERS','Chevron flocks that cross the battlefield. Harmless; they have seen many sieges.'],
