@@ -479,20 +479,23 @@
     </div>
 
     <div id="pauseOverlay" class="overlay vcenter hidden">
+      <button id="pSettingsBtn" class="gearBtn" title="Settings"></button>
       <div class="big" style="font-size:26px">PAUSED</div>
-      <div class="keysBox">
-        <span class="k">1–6</span><span>select hero</span>
-        <span class="k">Q/W/E</span><span>abilities</span>
-        <span class="k">SPACE</span><span>start wave</span>
-        <span class="k">F</span><span>game speed</span>
-        <span class="k">T</span><span>targeting mode</span>
-        <span class="k">ESC</span><span>cancel</span>
-        <span class="k">SHIFT+CLICK</span><span>multi-place</span>
-        <span class="k">DRAG</span><span>place on touch</span>
+      <div class="setCard" style="width:auto; max-width:480px">
+        <div class="setHead">CONTROLS</div>
+        <div class="keysBox">
+          <span class="k">1–6</span><span>select hero</span>
+          <span class="k">Q/W/E</span><span>abilities</span>
+          <span class="k">SPACE</span><span>start wave</span>
+          <span class="k">F</span><span>game speed</span>
+          <span class="k">T</span><span>targeting mode</span>
+          <span class="k">ESC</span><span>cancel</span>
+          <span class="k">SHIFT+CLICK</span><span>multi-place</span>
+          <span class="k">DRAG</span><span>place on touch</span>
+        </div>
       </div>
       <div class="btnrow" style="gap:10px">
         <button id="resumeBtn" class="cta">RESUME</button>
-        <button id="pSettingsBtn" class="cta">SETTINGS</button>
         <button id="pRestartBtn" class="cta">RESTART</button>
         <button id="pHomeBtn" class="cta">HOME</button>
       </div>
@@ -2293,7 +2296,7 @@ function buildUI(){
   $('muteBtn').innerHTML=ic(muted?'sndOff':'sndOn');
   $('settingsBtn').innerHTML=ic('gear',15);
   $('settingsBack').innerHTML=ic('back')+'BACK';
-  $('pSettingsBtn').innerHTML=ic('gear',11)+'SETTINGS';
+  $('pSettingsBtn').innerHTML=ic('gear',15);
   $('shopBtn').innerHTML=ic('hex',11)+'SHOP';
   $('shopBack').innerHTML=ic('back')+'BACK';
   $('verTag').textContent='v'+VERSION;
