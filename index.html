@@ -167,7 +167,11 @@
   @keyframes wave{50%{transform:translateY(-6px);}}
   #logoSub{font-size:9px; letter-spacing:7px; color:var(--dim); margin-top:7px; text-align:center;}
   #logoBar{width:230px; height:2px; background:#4d8dff; margin:5px auto 0; animation:pul2 2.2s infinite;}
-  #verTag{position:absolute; bottom:8px; right:12px; font-size:9px; letter-spacing:1px; color:var(--dim);}
+  #verTag{
+    position:absolute; left:50%; transform:translateX(-50%);
+    bottom:max(8px, env(safe-area-inset-bottom));
+    font-size:9px; letter-spacing:1px; color:var(--dim);
+  }
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
   .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
   .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
@@ -223,10 +227,20 @@
     flex:none; width:40px; height:36px; padding:0;
   }
   .gearBtn svg{margin:0; vertical-align:middle;}
-  .setRow{
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
-    width:270px; font-size:11px; letter-spacing:2px; color:var(--dim);
+  .setCard{
+    width:300px; max-width:92%; background:#0a1126;
+    border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; display:flex; flex-direction:column; gap:9px; text-align:left;
   }
+  .setCard .setHead{font-size:8px; letter-spacing:3px; color:var(--neon);}
+  .setCard.danger{border-color:#7a2f40;}
+  .setCard.danger .setHead{color:var(--bad);}
+  .setRow{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:10.5px; letter-spacing:1.5px; color:var(--dim);
+  }
+  .setRow input[type=range]{flex:1; width:auto; min-width:0;}
+  #volVal{color:var(--txt); font-size:10px; min-width:32px; text-align:right;}
   .tog{flex:none; width:70px; padding:7px 0;}
   .tog.on{border-color:#2f7a40; color:#39ff6a; background:#123a1e;}
   .tog.off{border-color:#7a2f40; color:#ff4d6a; background:#2a0e18;}
@@ -296,9 +310,13 @@
       padding-left:max(6px, env(safe-area-inset-left));
       padding-right:max(6px, env(safe-area-inset-right));
     }
-    #stage{width:auto; max-width:none; flex:none; height:calc(100% - 0px);}
-    canvas#game{height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:520px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:none;}
+    #stage{width:auto; max-width:none; flex:none;}
+    canvas#game{
+      width:auto; height:auto;
+      max-height:calc(100vh - 12px); max-height:calc(100dvh - 12px);
+      max-width:calc(100vw - 196px); max-width:calc(100dvw - 196px);
+    }
+    #panel{flex:1; min-width:170px; max-width:300px; height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:none;}
     #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
@@ -318,8 +336,12 @@
       padding-right:max(6px, env(safe-area-inset-bottom));
     }
     #stage{width:auto; max-width:none; flex:none;}
-    canvas#game{height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:520px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:none;}
+    canvas#game{
+      width:auto; height:auto;
+      max-height:calc(100vw - 12px); max-height:calc(100dvw - 12px);
+      max-width:calc(100vh - 196px); max-width:calc(100dvh - 196px);
+    }
+    #panel{flex:1; min-width:170px; max-width:300px; height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:none;}
     #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
@@ -395,11 +417,20 @@
 
     <div id="settingsOverlay" class="overlay solid vcenter hidden">
       <div class="big" style="font-size:20px; letter-spacing:6px">SETTINGS</div>
-      <div class="setRow"><span>MUSIC</span><button id="setMusic" class="tog"></button></div>
-      <div class="setRow"><span>SOUND FX</span><button id="setSfx" class="tog"></button></div>
-      <div class="setRow"><span>SCREEN SHAKE</span><button id="setShake" class="tog"></button></div>
-      <div class="setRow"><span>VOLUME</span><input type="range" id="volSlider" min="0" max="100"></div>
-      <button id="resetSave" class="sell" style="flex:none; padding:9px 22px; margin-top:6px">RESET ALL PROGRESS</button>
+      <div class="setCard">
+        <div class="setHead">AUDIO</div>
+        <div class="setRow"><span>MUSIC</span><button id="setMusic" class="tog"></button></div>
+        <div class="setRow"><span>SOUND FX</span><button id="setSfx" class="tog"></button></div>
+        <div class="setRow"><span>VOLUME</span><input type="range" id="volSlider" min="0" max="100"><b id="volVal"></b></div>
+      </div>
+      <div class="setCard">
+        <div class="setHead">DISPLAY</div>
+        <div class="setRow"><span>SCREEN SHAKE</span><button id="setShake" class="tog"></button></div>
+      </div>
+      <div class="setCard danger">
+        <div class="setHead">DATA</div>
+        <div class="setRow"><span>Wipe records, cores & upgrades</span><button id="resetSave" class="sell tog"></button></div>
+      </div>
       <button id="settingsBack" class="cta">BACK</button>
     </div>
 
@@ -433,16 +464,15 @@
     </div>
     <div id="progWrap"><div id="progFill"></div></div>
     <div id="panelScroll">
-      <div class="secLbl">HEROES</div>
-      <div id="cards"></div>
-      <div class="secLbl">ABILITIES</div>
-      <div id="abils"></div>
-    </div>
-    <div id="panelBottom">
       <div id="next">
         <div class="nlbl" id="nextLbl">NEXT WAVE</div>
         <div id="nextIcons"></div>
       </div>
+      <div class="secLbl">HEROES</div>
+      <div id="cards"></div>
+    </div>
+    <div id="panelBottom">
+      <div id="abils"></div>
       <button id="waveBtn" class="pulse">START WAVE 1</button>
       <div id="foot">VECTOR DEFENSE</div>
     </div>
@@ -2319,7 +2349,8 @@ function refreshSettings(){
   const set=(id,on)=>{const b=$(id); b.textContent=on?'ON':'OFF'; b.classList.toggle('on',on); b.classList.toggle('off',!on);};
   set('setMusic',SAVE.music); set('setSfx',SAVE.sfx); set('setShake',SAVE.shake);
   $('volSlider').value=Math.round(vol*100);
-  $('resetSave').textContent=resetArmed?'TAP AGAIN TO CONFIRM':'RESET ALL PROGRESS';
+  $('volVal').textContent=Math.round(vol*100)+'%';
+  $('resetSave').textContent=resetArmed?'SURE?':'RESET';
 }
 function openSettings(fromId){
   settingsReturn=fromId; resetArmed=false;
@@ -2563,6 +2594,7 @@ $('muteBtn').onclick=()=>{muted=!muted; $('muteBtn').innerHTML=ic(muted?'sndOff'
 $('volSlider').oninput=e=>{
   vol=e.target.value/100;
   if(master) master.gain.value=vol;
+  $('volVal').textContent=Math.round(vol*100)+'%';
   SAVE.vol=vol; persist();
 };
 $('resumeBtn').onclick=()=>togglePause();
