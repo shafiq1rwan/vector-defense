@@ -160,6 +160,23 @@
     border:1px solid var(--mc,#4d8dff); color:var(--mc,#4d8dff); border-radius:20px;
   }
   #volRow{display:flex; gap:10px; align-items:center; font-size:10px; letter-spacing:2px; color:var(--dim);}
+  /* codex */
+  #codexTabs{width:100%; max-width:660px; flex:none;}
+  #codexTabs button.sel{border-color:#fff; background:#16265a; color:#fff;}
+  #codexBody{
+    width:100%; max-width:660px; flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:left;
+    align-content:start; padding:2px;
+  }
+  .cdx{
+    display:flex; gap:9px; align-items:flex-start;
+    background:#0a1126; border:1px solid var(--line); border-radius:8px;
+    padding:8px; font-size:10px; line-height:1.55; color:var(--dim);
+  }
+  .cdx canvas{flex:none; margin-top:2px;}
+  .cdx i{color:#9db8ff; font-style:normal;}
+  .cdx .wk{color:#39ff6a;} .cdx .rs{color:#ff4d6a;}
+  @media (max-width:520px){ #codexBody{grid-template-columns:1fr;} }
   input[type=range]{width:180px; accent-color:var(--neon);}
   .keysBox{font-size:10px; color:var(--dim); line-height:1.9; text-align:left;}
   .keysBox b{color:var(--txt); display:inline-block; min-width:52px;}
@@ -220,16 +237,26 @@
     <div id="titleOverlay" class="overlay">
       <div class="big">VECTOR<span style="color:#4d8dff">DEFENSE</span></div>
       <div id="bestLine"></div>
-      <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your squad and hold the line.</div>
-      <div class="roster" id="roster"></div>
-      <div class="roster" id="cast"></div>
+      <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
       <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">⬡ SHOP <b id="coreCount" style="color:#9db8ff"></b></span><span id="metaShop" class="selRow"></span></div>
-      <div class="sub" style="font-size:10px">
-        heroes <b>1–6</b> · abilities <b>Q/W/E</b> · <b>SPACE</b> wave · <b>F</b> speed · <b>P</b> pause · <b>T</b> targeting · hover enemies in NEXT WAVE for weaknesses
+      <div class="btnrow" style="gap:10px">
+        <button id="codexBtn" class="cta">📖 CODEX</button>
+        <button id="startBtn" class="cta">▶ &nbsp;DEPLOY</button>
       </div>
-      <button id="startBtn" class="cta">▶ &nbsp;DEPLOY</button>
+    </div>
+
+    <div id="codexOverlay" class="overlay hidden">
+      <div class="big" style="font-size:20px; letter-spacing:6px">📖 CODEX</div>
+      <div class="btnrow" id="codexTabs">
+        <button data-tab="heroes">HEROES</button>
+        <button data-tab="enemies">ENEMIES</button>
+        <button data-tab="biome">BIOME</button>
+        <button data-tab="controls">CONTROLS</button>
+      </div>
+      <div id="codexBody"></div>
+      <button id="codexBack" class="cta">← BACK</button>
     </div>
 
     <div id="endOverlay" class="overlay hidden">
@@ -254,6 +281,7 @@
       </div>
       <div class="btnrow" style="gap:10px">
         <button id="resumeBtn" class="cta">▶ RESUME</button>
+        <button id="pCodexBtn" class="cta">📖 CODEX</button>
         <button id="pRestartBtn" class="cta">↻ RESTART</button>
       </div>
     </div>
@@ -1777,26 +1805,6 @@ function buildUI(){
     b.onclick=()=>{ac(); useAbility(k);};
     ab.appendChild(b);
   }
-  /* title rosters */
-  const ros=$('roster'); ros.innerHTML='';
-  for(const k in TOWERS){
-    const d=TOWERS[k];
-    const el=document.createElement('div');
-    el.innerHTML=`<canvas width="44" height="44"></canvas><span style="color:${d.color};font-weight:700">${d.name}</span>`;
-    el.title=d.name+' '+d.title+' — '+d.desc;
-    ros.appendChild(el);
-    renderIcon(el.querySelector('canvas'),k,1.1);
-  }
-  const cast=$('cast'); cast.innerHTML='';
-  for(const k in ENEMIES){
-    if(k==='mite') continue;
-    const d=ENEMIES[k];
-    const el=document.createElement('div');
-    el.innerHTML=`<canvas width="30" height="30"></canvas><span style="color:${d.color};font-weight:700">${d.label}</span>`;
-    el.title=resTip(k);
-    cast.appendChild(el);
-    renderEnemyIcon(el.querySelector('canvas'),k,.75);
-  }
   /* map selector */
   const ms=$('mapSel'); ms.innerHTML='';
   MAPS.forEach((m,i)=>{
@@ -1858,6 +1866,115 @@ function buildShop(){
     box.appendChild(b);
   }
 }
+/* ============================== CODEX ============================== */
+const BIOME_LORE=[
+  ['portal','SPAWN PORTAL','Rift where the glyph swarm phases into the field. Every wave pours out of it.'],
+  ['core','THE CORE','The last light of the grid. Its outer ring shows remaining integrity — guard it.'],
+  ['bird','SKY GLIDERS','Chevron flocks that cross the battlefield. Harmless; they have seen many sieges.'],
+  ['firefly','EMBER MOTES','Stray sparks of loose energy drifting over the plains in slow loops.'],
+  ['crystal','DATA CRYSTALS','Crystallised memory shards jutting from the grid floor.'],
+  ['node','CIRCUIT NODES','Junction points of the old network — what the glyphs are really after.'],
+  ['shard','VOID SHARDS','Slow-spinning fragments of corrupted geometry. Do not stare too long.'],
+  ['ring','HALO RELAYS','Dashed beacon rings of the ancient defence grid, still pulsing.']
+];
+function renderBiomeIcon(cv,kind){
+  const c=cv.getContext('2d');
+  c.clearRect(0,0,cv.width,cv.height);
+  c.save(); c.translate(cv.width/2,cv.height/2); c.lineWidth=1.8;
+  if(kind==='portal'){
+    c.strokeStyle='#39ff6a'; glow(c,'#39ff6a',6);
+    for(let i=0;i<3;i++){ c.beginPath(); c.arc(0,0,11,i*TAU/3,i*TAU/3+1.6); c.stroke(); }
+    c.beginPath(); c.arc(0,0,5,0,TAU); c.stroke();
+  }else if(kind==='core'){
+    c.strokeStyle='#4d8dff'; glow(c,'#4d8dff',6);
+    poly(c,0,0,12,8,.3); c.stroke();
+    poly(c,0,0,7,8,-.4); c.stroke();
+    c.beginPath(); c.arc(0,0,3,0,TAU); c.stroke();
+  }else if(kind==='bird'){
+    c.strokeStyle='#8fb4ff';
+    c.beginPath(); c.moveTo(-10,-2); c.lineTo(-4,2); c.lineTo(2,-2); c.stroke();
+    c.beginPath(); c.moveTo(0,6); c.lineTo(6,10); c.lineTo(12,6); c.stroke();
+  }else if(kind==='firefly'){
+    const cols=['#aef3ff','#ffe9a8','#c9ffd2'];
+    [[-8,-4],[2,6],[9,-6]].forEach((p,i)=>{
+      c.fillStyle=cols[i]; glow(c,cols[i],5);
+      c.beginPath(); c.arc(p[0],p[1],2,0,TAU); c.fill();
+    });
+  }else if(kind==='crystal'){
+    c.strokeStyle='#7db2ff';
+    c.beginPath(); c.moveTo(-8,9); c.lineTo(-4,-9); c.lineTo(0,9); c.closePath(); c.stroke();
+    c.beginPath(); c.moveTo(2,9); c.lineTo(7,-3); c.lineTo(11,9); c.closePath(); c.stroke();
+  }else if(kind==='node'){
+    c.strokeStyle='#4d8dff';
+    c.beginPath(); c.arc(0,0,5,0,TAU); c.stroke();
+    c.beginPath();
+    c.moveTo(-12,0); c.lineTo(-5,0); c.moveTo(5,0); c.lineTo(12,0);
+    c.moveTo(0,-12); c.lineTo(0,-5); c.moveTo(0,5); c.lineTo(0,12);
+    c.stroke();
+  }else if(kind==='shard'){
+    c.strokeStyle='#9a6bff'; c.rotate(.5);
+    c.beginPath(); c.moveTo(0,-11); c.lineTo(5,0); c.lineTo(0,11); c.lineTo(-5,0); c.closePath(); c.stroke();
+  }else if(kind==='ring'){
+    c.strokeStyle='#3a6dd0'; c.setLineDash([4,4]);
+    c.beginPath(); c.arc(0,0,11,0,TAU); c.stroke();
+    c.setLineDash([]);
+  }
+  noGlow(c); c.restore();
+}
+function codexHeroes(){
+  return Object.keys(TOWERS).map(k=>{
+    const d=TOWERS[k], s=lvlStat(d,1);
+    return `<div class="cdx"><canvas width="44" height="44" data-hero="${k}"></canvas><div>
+      <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
+      ${d.desc}<br>
+      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s`} · <i>${DT_NAMES[d.dtype]}</i><br>
+      <span style="color:#c46bff">★ ${SPECS[k][0].n} / ${SPECS[k][1].n}</span></div></div>`;
+  }).join('');
+}
+function codexEnemies(){
+  return Object.keys(ENEMIES).map(k=>{
+    const d=ENEMIES[k], weak=[], res=[];
+    for(const t in d.res)(d.res[t]>1?weak:res).push(DT_NAMES[t]);
+    const traits=[d.split&&'splits on death',d.shield&&'blocks first '+d.shield+' hits',
+      d.phase&&'phases untargetable',d.heal&&'heals nearby allies',d.bossLike&&'BOSS — shield · spawns · EMP']
+      .filter(Boolean).join(' · ');
+    return `<div class="cdx"><canvas width="38" height="38" data-enemy="${k}"></canvas><div>
+      <b style="color:${d.color}">${d.label}</b> <span style="font-size:9px">${d.desc}</span><br>
+      <b>HP</b> ${d.hp} · <b>SPD</b> ${d.speed} · <b>$</b>${d.reward}<br>
+      ${weak.length?`<span class="wk">weak: ${weak.join(', ')}</span> `:''}${res.length?`<span class="rs">resists: ${res.join(', ')}</span>`:''}
+      ${traits?`<br><i>${traits}</i>`:''}</div></div>`;
+  }).join('');
+}
+function codexBiome(){
+  return BIOME_LORE.map(([kind,name,lore])=>
+    `<div class="cdx"><canvas width="38" height="38" data-biome="${kind}"></canvas><div>
+      <b style="color:#9db8ff">${name}</b><br>${lore}</div></div>`).join('');
+}
+function codexControls(){
+  return `<div class="cdx" style="grid-column:1/-1"><div>
+    <b>1–6</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave (early = bonus credits)<br>
+    <b>F</b> game speed · <b>P</b> pause · <b>T</b> targeting mode · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
+    <b style="color:#9db8ff">TOUCH</b> — tap a hero card, then press the map and drag: the tower floats above
+    your finger; release to build. Same gesture aims the orbital strike. Tap the card again to stop placing.<br><br>
+    <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for ⚡combo credits · max-level towers unlock a
+    ★ specialization · towers earn XP and rank stars from kills · check NEXT WAVE icons for enemy weaknesses.</div></div>`;
+}
+let codexReturn='titleOverlay';
+function showCodexTab(tab){
+  $('codexBody').innerHTML =
+    tab==='heroes'?codexHeroes():tab==='enemies'?codexEnemies():tab==='biome'?codexBiome():codexControls();
+  document.querySelectorAll('#codexTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab));
+  document.querySelectorAll('#codexBody canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.1));
+  document.querySelectorAll('#codexBody canvas[data-enemy]').forEach(cv=>renderEnemyIcon(cv,cv.dataset.enemy,.9));
+  document.querySelectorAll('#codexBody canvas[data-biome]').forEach(cv=>renderBiomeIcon(cv,cv.dataset.biome));
+}
+function openCodex(fromId){
+  codexReturn=fromId;
+  $(fromId).classList.add('hidden');
+  $('codexOverlay').classList.remove('hidden');
+  showCodexTab('heroes');
+}
+
 function updateBestLine(){
   $('bestLine').textContent = SAVE.bestWave
     ? 'BEST WAVE '+SAVE.bestWave+' · BEST COMBO ⚡×'+(SAVE.bestCombo||0)+' · WINS '+(SAVE.wins||0)
@@ -2067,6 +2184,13 @@ $('volSlider').oninput=e=>{
   SAVE.vol=vol; persist();
 };
 $('resumeBtn').onclick=()=>togglePause();
+$('codexBtn').onclick=()=>openCodex('titleOverlay');
+$('pCodexBtn').onclick=()=>openCodex('pauseOverlay');
+$('codexBack').onclick=()=>{
+  $('codexOverlay').classList.add('hidden');
+  $(codexReturn).classList.remove('hidden');
+};
+document.querySelectorAll('#codexTabs button').forEach(b=>b.onclick=()=>showCodexTab(b.dataset.tab));
 $('pRestartBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').textContent='⏸';
   reset();
