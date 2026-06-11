@@ -548,7 +548,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.1';
+const VERSION='4.2';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -659,31 +659,33 @@ function genProps(){
     });
     grove.push({key, x:c*CELL, y:r*CELL, items});
   }
-  /* ruins prefer the dead outskirts beyond the buildable band */
+  /* ruins prefer the dead outskirts beyond the buildable band.
+     Each claims a 2x2 cell footprint so buildings dwarf the flora. */
   ruins=[];
+  const cellFree=k=>!blocked.has(k)&&!used.has(k);
   const outskirts=[];
-  for(let c=0;c<COLS;c++)for(let r=0;r<ROWS;r++){
+  for(let c=0;c<COLS-1;c++)for(let r=0;r<ROWS-1;r++){
     const key=c+','+r;
     if(!blocked.has(key)&&!buildable.has(key)&&!used.has(key)) outskirts.push(key);
   }
   tries=0;
-  while(ruins.length<8 && tries<400){
+  while(ruins.length<7 && tries<400){
     tries++;
     let key;
     if(outskirts.length){
       key=outskirts.splice(Math.floor(Math.random()*outskirts.length),1)[0];
     }else{
-      const c=Math.floor(Math.random()*COLS), r=Math.floor(Math.random()*ROWS);
-      key=c+','+r;
-      if(blocked.has(key)||used.has(key)) continue;
+      key=Math.floor(Math.random()*(COLS-1))+','+Math.floor(Math.random()*(ROWS-1));
     }
-    used.add(key);
     const [rc,rr]=key.split(',').map(Number);
-    const burning=ruins.length>=2&&ruins.length<5;   /* three of the eight still burn */
-    ruins.push({key, x:rc*CELL+CELL/2, y:rr*CELL+CELL/2,
+    const keys=[key,(rc+1)+','+rr,rc+','+(rr+1),(rc+1)+','+(rr+1)];
+    if(keys.some(k=>!cellFree(k))) continue;
+    keys.forEach(k=>used.add(k));
+    const burning=ruins.length>=2&&ruins.length<5;   /* three of the seven still burn */
+    ruins.push({key, keys, x:(rc+1)*CELL, y:(rr+1)*CELL,
       kind:burning?['tower','block','husk'][Math.floor(Math.random()*3)]
                   :['tower','pylon','husk','block'][Math.floor(Math.random()*4)],
-      seed:Math.random()*10, big:.85+Math.random()*.45,
+      seed:Math.random()*10, big:1.8+Math.random()*.4,
       fire:burning, drone:ruins.length<2});
   }
 }
@@ -1832,10 +1834,10 @@ function drawPlantCluster(c,g){
 
 /* ruins of the long dark — dead architecture, some of it still burning */
 function drawRuin(c,ru){
-  if(occ.has(ru.key)) return;
+  if(ru.keys.some(k=>occ.has(k))) return;
   c.save(); c.translate(ru.x,ru.y); c.scale(ru.big,ru.big);
   const t=time, base=ru.fire?.92:.75;
-  c.lineWidth=1.7; c.globalAlpha=base;
+  c.lineWidth=2/ru.big; c.globalAlpha=base;        /* ~2px strokes regardless of scale */
   const dim='#5e77ad', dark='#3a4a7a';
   c.strokeStyle=dim;
   const flick=Math.sin(t*6.3+ru.seed*7)*Math.sin(t*1.3+ru.seed*3)>.62;
@@ -1913,7 +1915,7 @@ function drawRuin(c,ru){
     const a=t*1.3+ru.seed;
     const dx=Math.cos(a)*14, dy=-19+Math.sin(a*1.7)*4;
     c.globalAlpha=.85;
-    c.strokeStyle='#8fa3cf'; c.lineWidth=1.3;
+    c.strokeStyle='#8fa3cf'; c.lineWidth=1.6/ru.big;
     poly(c,dx,dy,3.2,3,a); c.stroke();
     if(Math.sin(t*9+ru.seed)>0){ c.fillStyle='#6bffb0'; c.beginPath(); c.arc(dx,dy,1.1,0,TAU); c.fill(); }
   }
