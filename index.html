@@ -175,6 +175,36 @@
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
   .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
   .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
+  /* campaign map */
+  #campMap{
+    position:relative; width:100%; max-width:680px; height:290px; flex:none;
+    background:#070b16; border:1px solid var(--line); border-radius:10px;
+  }
+  #campMap svg{position:absolute; inset:0; width:100%; height:100%;}
+  .cnode{
+    position:absolute; transform:translate(-50%,-50%);
+    width:46px; height:46px; border-radius:50%; border:2px solid var(--neon);
+    background:#0a1126; color:var(--neon); font-size:13px; font-weight:800;
+    cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:0; flex:none; line-height:1; letter-spacing:0;
+  }
+  .cnode .cstars{font-size:8px; color:var(--gold); letter-spacing:1px; margin-top:2px; min-height:8px;}
+  .cnode.lockedN{opacity:.35; border-style:dashed; cursor:not-allowed;}
+  .cnode.cur{animation:pul 1.4s infinite;}
+  .cnode.selN{border-color:#fff; color:#fff;}
+  #briefBox{
+    width:100%; max-width:680px; background:#0a1126; border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; text-align:left; font-size:11px; color:var(--dim);
+    display:flex; flex-direction:column; gap:6px;
+  }
+  #briefBox.hidden{display:none;}
+  #briefTitle{font-size:13px; letter-spacing:1px;}
+  #briefMeta{font-size:9px; letter-spacing:1.5px; color:#9db8ff;}
+  #briefText{min-height:32px; line-height:1.6; white-space:pre-wrap;}
+  #launchBtn{align-self:flex-end; flex:none; padding:9px 28px;}
+  .card.locked{opacity:.3; filter:saturate(.25);}
+  .card .lockB{position:absolute; top:2px; right:3px; color:#9db8ff;}
+  .card .lockB.hidden{display:none;}
   .sub{color:var(--dim); font-size:11.5px; max-width:640px; line-height:1.6;}
   #bestLine{font-size:10px; letter-spacing:2px; color:var(--gold);}
   .roster{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
@@ -376,12 +406,26 @@
       <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
       <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
-      <div class="btnrow" style="gap:10px">
+      <div class="btnrow" style="gap:10px; flex-wrap:wrap; justify-content:center">
+        <button id="campBtn" class="cta">CAMPAIGN</button>
+        <button id="startBtn" class="cta">QUICK PLAY</button>
         <button id="codexBtn" class="cta">CODEX</button>
         <button id="shopBtn" class="cta">SHOP</button>
-        <button id="startBtn" class="cta">DEPLOY</button>
       </div>
       <span id="verTag"></span>
+    </div>
+
+    <div id="campOverlay" class="overlay solid vcenter hidden">
+      <div class="big" style="font-size:18px; letter-spacing:6px">CAMPAIGN</div>
+      <div id="campStars" class="sub"></div>
+      <div id="campMap"></div>
+      <div id="briefBox" class="hidden">
+        <div id="briefTitle"></div>
+        <div id="briefMeta"></div>
+        <div id="briefText"></div>
+        <button id="launchBtn" class="cta">LAUNCH</button>
+      </div>
+      <button id="campBack" class="cta">BACK</button>
     </div>
 
     <div id="shopOverlay" class="overlay solid vcenter hidden">
@@ -482,7 +526,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='3.6';
+const VERSION='4.0';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -509,7 +553,8 @@ const ICONS={
   bolt:'<path d="M9.5 1L3.5 9h3.4l-1.2 6 6-8H8.3z"/>',
   coin:'<circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5v7M5.8 6.2h3.4M5.8 9.8h3.4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
   horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>',
-  gear:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.6 1.6M11.2 11.2l1.6 1.6M12.8 3.2l-1.6 1.6M4.8 11.2l-1.6 1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>'
+  gear:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.6 1.6M11.2 11.2l1.6 1.6M12.8 3.2l-1.6 1.6M4.8 11.2l-1.6 1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>',
+  lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
@@ -519,6 +564,7 @@ let SAVE=loadSave();
 SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
 SAVE.cores=SAVE.cores||0;
 SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!==false;
+SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
@@ -629,6 +675,45 @@ const canBuild=(c,r)=>{
   const k=c+','+r;
   return c>=0&&c<COLS&&r>=0&&r<ROWS&&buildable.has(k)&&!occ.has(k);
 };
+
+/* ============================== CAMPAIGN ============================== */
+const INTRO="LUMA: The grid has been dark for a hundred cycles. Tonight the spawn gates reopened, and the glyphs walk again. You are all we have, Commander.";
+const EPILOGUE="The gates collapse behind it. One by one, the old relays hum back to life. LUMA: \"It's over, Commander. You brought the dawn back online.\"";
+const CAMPAIGN=[
+  {id:0, act:1, name:'FIRST CONTACT',   map:0, diff:0, waves:5,  mod:null,    unlock:null,
+    brief:"Glyph scouts are probing the serpent road. Show them this grid still has teeth."},
+  {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:8,  mod:null,    unlock:null,
+    brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
+  {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:8,  mod:null,    unlock:'tesla',
+    brief:"A storm answers our distress call. Win here, and VOLTA the Stormcaller joins your roster."},
+  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:10, mod:'fast',  unlock:null,
+    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave ten."},
+  {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:10, mod:null,    unlock:'sniper',
+    brief:"A deadeye watches this siege from the ridge line. Break it, and REX shoots for you."},
+  {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:12, mod:'horde', unlock:null,
+    brief:"A swarm without end. Thin them with fire and frost before they drown the core."},
+  {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:15, mod:null,    unlock:'aura',
+    brief:"Fifteen waves. Hold the line, Commander, and LUMA herself will stand with you."},
+  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:15, mod:'regen', unlock:null,
+    brief:"These ones knit themselves back together as they walk. Hit harder than they heal."},
+  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:15, mod:null,    unlock:null,
+    brief:"The void spiral. Even light walks carefully here. Trust your towers."},
+  {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:15, mod:'wealth',unlock:null,
+    brief:"Their war chest marches with the column. Take it from them, bolt by bolt."},
+  {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:15, mod:'horde', unlock:null,
+    brief:"Everything they have, all at once. Breaking point — theirs, or ours."},
+  {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:20, mod:null,    unlock:null,
+    brief:"The OVERMIND PRIME walks. Twenty waves between it and the core. End this, Commander — for the grid."}
+];
+const NODE_POS=[[7,46],[17,30],[28,44],[39,28],[50,42],[60,26],[70,40],[79,24],[88,38],[80,11],[63,8],[45,12]];
+const ACT_COL=['#4d8dff','#ffa53a','#ff3af0'];
+const BASE_HEROES=['archer','frost','cannon'];
+let campNode=null;
+function nodeOpen(i){ return i===0 || (SAVE.camp.stars[CAMPAIGN[i-1].id]||0)>0; }
+function heroUnlocked(k){
+  if(BASE_HEROES.includes(k)) return true;
+  return CAMPAIGN.some(n=>n.unlock===k && (SAVE.camp.stars[n.id]||0)>0);
+}
 
 /* ============================== DIFFICULTY ============================== */
 const DIFFS=[
@@ -769,7 +854,9 @@ function makeWave(n){
   let hpMul=(1+(n-1)*.22+Math.pow(Math.max(0,n-8),2)*.012)*DIFF().hp;
   let rewardMul=(1+n*.04)*DIFF().reward;
   let spdMul=1;
-  const mod=modFor(n);
+  const mod=(campNode&&campNode.mod)
+    ? (n>=3 ? MODS.find(m=>m.id===campNode.mod) : null)
+    : modFor(n);
   if(mod){
     if(mod.id==='fast') spdMul=1.4;
     if(mod.id==='wealth') rewardMul*=1.5;
@@ -790,10 +877,13 @@ let waveActive=false, spawnQueue=[], waveT=0, curWave=null, interT=0;
 let placing=null, selTower=null;
 let time=0, shake=0, leakFlash=0;
 let combo=0, comboT=0, comboPop=0, bestCombo=0, kills=0;
+let finalWave=FINAL_WAVE;
 let soldAny=false, usedTypes=new Set();
 const mouse={x:-99,y:-99,inside:false};
 
 function reset(){
+  finalWave=campNode?campNode.waves:FINAL_WAVE;
+  updateCardLocks();
   money=DIFF().money+SAVE.meta.cap*30; lives=maxLives(); wave=0;
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
@@ -1172,7 +1262,7 @@ function update(dt){
       towers.forEach(t=>t.waveDmg=0);
       SND.coinBig(); bumpStat('moneyV');
       $('progFill').style.width='100%';
-      if(wave>=FINAL_WAVE && !endless){ winGame(); return; }
+      if(wave>=finalWave && !endless){ winGame(); return; }
       const wb=$('waveBtn');
       wb.disabled=false; wb.classList.add('pulse');
       interT=INTERMISSION;
@@ -2003,7 +2093,7 @@ function draw(){
 function refreshUI(){
   $('moneyV').textContent=Math.floor(money);
   $('livesV').textContent=lives;
-  $('waveV').textContent=endless?wave+'/∞':wave+'/'+FINAL_WAVE;
+  $('waveV').textContent=endless?wave+'/∞':wave+'/'+finalWave;
   for(const k in TOWERS){
     const card=$('card_'+k);
     if(card) card.classList.toggle('poor',money<TOWERS[k].cost);
@@ -2082,6 +2172,7 @@ function showTowerInfo(t){
   if(maxed&&!t.spec){ $('specA').onclick=()=>buySpec(0); $('specB').onclick=()=>buySpec(1); }
 }
 function selectCard(type){
+  if(campNode && !heroUnlocked(type)){SND.deny(); return;}   /* locked until earned in the campaign */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
   placing=type; selTower=null; aiming=null; dragMode=null; hidePop();
@@ -2121,7 +2212,7 @@ function buildUI(){
     const d=TOWERS[k];
     const card=document.createElement('div');
     card.className='card'; card.id='card_'+k;
-    card.innerHTML=`<span class="key">${d.key}</span><canvas width="46" height="46"></canvas>
+    card.innerHTML=`<span class="key">${d.key}</span><span class="lockB hidden">${ic('lock',10)}</span><canvas width="46" height="46"></canvas>
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
     card.onclick=()=>selectCard(k);
     wrap.appendChild(card);
@@ -2173,7 +2264,10 @@ function buildUI(){
   });
   /* svg icons on static buttons */
   $('codexBtn').innerHTML=ic('book')+'CODEX';
-  $('startBtn').innerHTML=ic('play')+'DEPLOY';
+  $('campBtn').innerHTML=ic('star')+'CAMPAIGN';
+  $('startBtn').innerHTML=ic('play')+'QUICK PLAY';
+  $('campBack').innerHTML=ic('back')+'BACK';
+  $('launchBtn').innerHTML=ic('play')+'LAUNCH';
   $('codexBack').innerHTML=ic('back')+'BACK';
   $('restartBtn').innerHTML=ic('retry')+'RETRY';
   $('menuBtn').innerHTML=ic('home')+'MENU';
@@ -2396,7 +2490,7 @@ function updateBestLine(){
 function updateNextPreview(){
   const n=wave+1;
   const lbl=$('nextLbl'), box=$('nextIcons');
-  if(wave>=FINAL_WAVE && !endless){
+  if(wave>=finalWave && !endless){
     lbl.textContent='NEXT WAVE'; box.innerHTML='<span style="font-size:10px;color:#6b7fb3">—</span>';
     $('waveBtn').classList.remove('bossWarn');
     return;
@@ -2481,10 +2575,32 @@ function loseGame(){
 }
 function winGame(){
   gameOver=true; const earned=recordEnd(true);
-  $('endTitle').textContent='CORE SECURED';
+  $('endTitle').textContent=campNode?'MISSION COMPLETE':'CORE SECURED';
   $('endTitle').style.textShadow='0 0 18px #39ff6a';
-  $('endSub').innerHTML=`All <b>${FINAL_WAVE} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
-  $('continueBtn').style.display='block';
+  const cb=$('continueBtn');
+  if(campNode){
+    const leaks=maxLives()-lives;
+    const stars=leaks<=0?3:leaks<=3?2:1;
+    const prev=SAVE.camp.stars[campNode.id]||0;
+    let bonus=0;
+    if(stars>prev){ bonus=(stars-prev)*3; SAVE.cores+=bonus; SAVE.camp.stars[campNode.id]=stars; persist(); }
+    const unlockNote=(campNode.unlock&&prev===0)
+      ? `<br><b style="color:#39ff6a">NEW HERO UNLOCKED — ${TOWERS[campNode.unlock].name} ${TOWERS[campNode.unlock].title}!</b>`:'';
+    const fin=campNode.id===CAMPAIGN.length-1?`<br><i style="color:#9db8ff">${EPILOGUE}</i>`:'';
+    $('endSub').innerHTML=`<b>${campNode.name}</b> complete — <b style="color:#ffd34d">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</b><br>
+      Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${unlockNote}${fin}`;
+    const next=CAMPAIGN[campNode.id+1];
+    if(next){
+      cb.style.display='block';
+      cb.innerHTML=ic('play')+'NEXT MISSION';
+      cb.onclick=()=>{ ac(); $('endOverlay').classList.add('hidden'); launchMission(next.id); };
+    }else cb.style.display='none';
+  }else{
+    $('endSub').innerHTML=`All <b>${finalWave} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
+    cb.style.display='block';
+    cb.innerHTML=ic('inf')+'ENDLESS';
+    cb.onclick=goEndless;
+  }
   showMedals();
   $('endOverlay').classList.remove('hidden');
   SND.coinBig();
@@ -2602,8 +2718,11 @@ $('codexBtn').onclick=()=>openCodex('titleOverlay');
 $('pHomeBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   running=false; gameOver=false;
+  const wasCamp=!!campNode;
+  exitCampaign();
   reset();
-  $('titleOverlay').classList.remove('hidden');
+  if(wasCamp) openCampaign();
+  else $('titleOverlay').classList.remove('hidden');
   SND.sell();
 };
 $('settingsBtn').onclick=()=>{ac(); openSettings('titleOverlay');};
@@ -2637,6 +2756,8 @@ $('pRestartBtn').onclick=()=>{
 };
 $('startBtn').onclick=()=>{
   ac();
+  exitCampaign();
+  reset();
   $('titleOverlay').classList.add('hidden');
   running=true;
   SND.wave();
@@ -2644,21 +2765,124 @@ $('startBtn').onclick=()=>{
 $('restartBtn').onclick=()=>{
   ac();
   $('endOverlay').classList.add('hidden');
+  gameOver=false;
   reset();
 };
 $('menuBtn').onclick=()=>{
   $('endOverlay').classList.add('hidden');
-  running=false;
+  running=false; gameOver=false;
+  const wasCamp=!!campNode;
+  exitCampaign();
   reset();
-  $('titleOverlay').classList.remove('hidden');
+  if(wasCamp) openCampaign();
+  else $('titleOverlay').classList.remove('hidden');
 };
-$('continueBtn').onclick=()=>{
+function goEndless(){
   ac();
   endless=true; gameOver=false;
   $('endOverlay').classList.add('hidden');
   const wb=$('waveBtn');
   wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE '+(wave+1);
   refreshUI(); updateNextPreview();
+}
+$('continueBtn').onclick=goEndless;
+
+/* ============================== CAMPAIGN UI ============================== */
+function exitCampaign(){
+  campNode=null;
+  diffIndex=SAVE.diff!=null?SAVE.diff:1;
+  finalWave=FINAL_WAVE;
+}
+let typeTimer=null;
+function typeText(el,txt){
+  clearInterval(typeTimer);
+  el.textContent='';
+  let i=0;
+  typeTimer=setInterval(()=>{
+    el.textContent=txt.slice(0,++i);
+    if(i>=txt.length) clearInterval(typeTimer);
+  },14);
+}
+let selNode=0;
+function buildCampaign(){
+  const map=$('campMap');
+  let total=0;
+  CAMPAIGN.forEach(n=>total+=SAVE.camp.stars[n.id]||0);
+  $('campStars').innerHTML='★ '+total+' / '+(CAMPAIGN.length*3)+' — clear missions to unlock heroes and earn bonus cores';
+  const pts=NODE_POS.map(p=>p[0]+','+p[1]).join(' ');
+  map.innerHTML=`<svg viewBox="0 0 100 56" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="#1b2a55" stroke-width="1" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+  CAMPAIGN.forEach((n,i)=>{
+    const st=SAVE.camp.stars[n.id]||0, open=nodeOpen(i);
+    const el=document.createElement('button');
+    el.className='cnode'+(open?'':' lockedN')+((open&&!st)?' cur':'');
+    el.style.left=NODE_POS[i][0]+'%';
+    el.style.top=(NODE_POS[i][1]/56*100)+'%';
+    el.style.borderColor=open?ACT_COL[n.act-1]:'#3a4a7a';
+    el.style.color=open?ACT_COL[n.act-1]:'#3a4a7a';
+    el.innerHTML=open
+      ? '<b>'+(i+1)+'</b><span class="cstars">'+'★'.repeat(st)+'</span>'
+      : ic('lock',13);
+    el.onclick=()=>{ if(!open){SND.deny(); return;} selectNode(i); };
+    el.dataset.node=i;
+    map.appendChild(el);
+  });
+  $('briefBox').classList.add('hidden');
+}
+function selectNode(i){
+  selNode=i;
+  const n=CAMPAIGN[i];
+  document.querySelectorAll('.cnode').forEach(b=>b.classList.toggle('selN',+b.dataset.node===i));
+  $('briefBox').classList.remove('hidden');
+  $('briefTitle').innerHTML=`<b style="color:${ACT_COL[n.act-1]}">${String(i+1).padStart(2,'0')} · ${n.name}</b>`;
+  $('briefMeta').innerHTML=
+    MAPS[n.map].name+' · '+DIFFS[n.diff].label+' · '+n.waves+' WAVES'
+    +(n.mod?' · '+MODS.find(m=>m.id===n.mod).label+' WAVES':'')
+    +(n.unlock?' · UNLOCKS '+TOWERS[n.unlock].name:'');
+  typeText($('briefText'), (i===0&&!SAVE.camp.intro) ? INTRO+'\n\n'+n.brief : n.brief);
+  SND.place();
+}
+function launchMission(i){
+  const n=CAMPAIGN[i];
+  if(!nodeOpen(i)){SND.deny(); return;}
+  campNode=n;
+  diffIndex=n.diff;
+  buildMap(n.map);
+  reset();
+  $('campOverlay').classList.add('hidden');
+  $('titleOverlay').classList.add('hidden');
+  running=true; paused=false; gameOver=false;
+  SND.wave();
+}
+function openCampaign(){
+  $('titleOverlay').classList.add('hidden');
+  buildCampaign();
+  $('campOverlay').classList.remove('hidden');
+  /* auto-select the first unbeaten mission */
+  let first=CAMPAIGN.findIndex(n=>!(SAVE.camp.stars[n.id]>0));
+  if(first<0) first=CAMPAIGN.length-1;
+  selectNode(first);
+}
+function updateCardLocks(){
+  for(const k in TOWERS){
+    const card=$('card_'+k);
+    if(!card) continue;
+    const locked=!!campNode && !heroUnlocked(k);
+    card.classList.toggle('locked',locked);
+    const b=card.querySelector('.lockB');
+    if(b) b.classList.toggle('hidden',!locked);
+  }
+}
+$('campBtn').onclick=()=>{ac(); openCampaign();};
+$('campBack').onclick=()=>{
+  $('campOverlay').classList.add('hidden');
+  $('titleOverlay').classList.remove('hidden');
+};
+$('launchBtn').onclick=()=>{
+  ac();
+  if(!SAVE.camp.intro){ SAVE.camp.intro=true; persist(); }
+  launchMission(selNode);
 };
 
 /* ============================== MAIN LOOP ============================== */
