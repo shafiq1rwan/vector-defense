@@ -115,6 +115,10 @@
   #towerPop.hidden{display:none;}
   #towerPop b{color:var(--txt);}
   #towerPop .ttl{font-size:12px; color:#fff; letter-spacing:1px; padding-right:20px;}
+  #towerPop .popFace{
+    float:left; width:36px; height:46px; margin:1px 8px 2px 0;
+    border:1px solid #233a6e; border-radius:6px; background:#070d1f;
+  }
   #towerPop .popX{
     position:absolute; top:4px; right:4px;
     width:22px; height:22px; min-width:22px; padding:0; flex:none;
@@ -644,7 +648,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.9';
+const VERSION='5.0';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2641,7 +2645,7 @@ function showTowerInfo(t){
   const uc=maxed?0:upCost(d,t.level);
   const refund=Math.round(t.invested*(.7+.1*SAVE.meta.sal));
   const specInfo=t.spec?SPECS[t.type].find(x=>x.id===t.spec):null;
-  let html=`<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
+  let html=`${d.footprint?'':`<canvas class="popFace" width="92" height="118"></canvas>`}<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
   html+= d.aura
     ? `<b>BUFF</b> +${Math.round(s.auraDmg*100)}% dmg · +${Math.round(s.auraRate*100)}% rate · <b>RNG</b> ${s.range}<br>`
@@ -2665,6 +2669,8 @@ function showTowerInfo(t){
   const pop=$('towerPop');
   pop.innerHTML=html;
   pop.classList.remove('hidden');
+  const pf=pop.querySelector('.popFace');
+  if(pf) renderHeroPortrait(pf,t.type);
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
   if(!d.aura&&!d.income) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
   $('upBtn').onclick=()=>{
@@ -2944,7 +2950,10 @@ function renderBiomeIcon(cv,kind){
 function codexHeroes(){
   return Object.keys(TOWERS).map(k=>{
     const d=TOWERS[k], s=lvlStat(d,1);
-    return `<div class="cdx"><canvas width="44" height="44" data-hero="${k}"></canvas><div>
+    const art=d.footprint
+      ? `<canvas width="44" height="44" data-hero="${k}"></canvas>`
+      : `<canvas width="92" height="118" data-portrait="${k}" style="width:44px;height:56px"></canvas>`;
+    return `<div class="cdx">${art}<div>
       <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
       ${d.desc}<br>
       ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income}/wave · footprint ${d.footprint[0]}×${d.footprint[1]}`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
@@ -3047,6 +3056,7 @@ function showCodexTab(tab){
     :tab==='records'?codexRecords():codexControls();
   document.querySelectorAll('#codexTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab));
   document.querySelectorAll('#codexBody canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,TOWERS[cv.dataset.hero].footprint?.55:1.1));
+  document.querySelectorAll('#codexBody canvas[data-portrait]').forEach(cv=>renderHeroPortrait(cv,cv.dataset.portrait));
   document.querySelectorAll('#codexBody canvas[data-enemy]').forEach(cv=>renderEnemyIcon(cv,cv.dataset.enemy,.9));
   document.querySelectorAll('#codexBody canvas[data-biome]').forEach(cv=>renderBiomeIcon(cv,cv.dataset.biome));
 }
@@ -3165,8 +3175,9 @@ function winGame(){
     const prev=SAVE.camp.stars[campNode.id]||0;
     let bonus=0;
     if(stars>prev){ bonus=(stars-prev)*3; SAVE.cores+=bonus; SAVE.camp.stars[campNode.id]=stars; persist(); }
-    const unlockNote=(campNode.unlock&&prev===0)
-      ? `<br><b style="color:#39ff6a">NEW HERO UNLOCKED — ${TOWERS[campNode.unlock].name} ${TOWERS[campNode.unlock].title}!</b>`:'';
+    const uk=campNode.unlock;
+    const unlockNote=(uk&&prev===0)
+      ? `<br>${TOWERS[uk].footprint?'':`<canvas id="unlockFace" width="92" height="118" style="width:38px;height:49px;vertical-align:middle;margin-right:5px"></canvas>`}<b style="color:#39ff6a">NEW ${TOWERS[uk].footprint?'STRUCTURE':'HERO'} UNLOCKED — ${TOWERS[uk].name} ${TOWERS[uk].title}!</b>`:'';
     const fin=campNode.id===CAMPAIGN.length-1?`<br><i style="color:#9db8ff">${EPILOGUE}</i>`:'';
     $('endSub').innerHTML=`<b>${campNode.name}</b> complete — <b style="color:#ffd34d">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</b><br>
       Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${unlockNote}${fin}`;
@@ -3184,6 +3195,8 @@ function winGame(){
   }
   showMedals();
   $('endOverlay').classList.remove('hidden');
+  const uf=$('unlockFace');
+  if(uf) renderHeroPortrait(uf,campNode.unlock);
   SND.coinBig();
 }
 
@@ -3403,90 +3416,176 @@ function typeText(el,txt){
   },14);
 }
 
-/* LUMA — animated storyteller portrait beside the mission briefing.
-   Same vector language as the field: strokes, glow, flat fills. */
+/* ============================== HERO PORTRAITS ============================== */
+/* Android busts for every hero, in the LUMA vector style: strokes, glow,
+   flat fills. drawHeroBust draws into a 92x118 coordinate space. */
 let lumaRAF=null;
-function drawLumaPortrait(){
-  const cv=$('lumaCv'); if(!cv) return;
-  const c=cv.getContext('2d');
-  const t=performance.now()/1000, talk=lumaTalk;
-  c.setTransform(2,0,0,2,0,0);                     /* 2x backing for crisp phone DPR */
-  c.clearRect(0,0,92,118);
-  const gold='#ffd34d', skin='#9db8ff', cyan='#aef3ff', dk='#3a4a7a';
-
-  /* transmission flicker — the whole frame dips for a beat now and then */
-  c.globalAlpha=Math.sin(t*9.3)*Math.sin(t*2.7)>.992 ? .5 : 1;
-
-  /* corner brackets */
+function drawPortraitFrame(c,t){
   c.strokeStyle='#2c478f'; c.lineWidth=1.5;
   for(const [bx,by,sx,sy] of [[4,4,1,1],[88,4,-1,1],[4,114,1,-1],[88,114,-1,-1]]){
     c.beginPath(); c.moveTo(bx+8*sx,by); c.lineTo(bx,by); c.lineTo(bx,by+8*sy); c.stroke();
   }
-
+  c.fillStyle='rgba(174,243,255,.06)';
+  c.fillRect(3,(t*26)%118,86,2);
+}
+function drawHeroBust(c,key,t,talk,still){
+  const col=TOWERS[key].color;
+  const skin='#9db8ff', cyan='#aef3ff', dk='#3a4a7a', A=c.globalAlpha;
   c.save();
-  c.translate(46,58+Math.sin(t*1.1)*1.4);          /* idle breathing bob */
-  c.rotate(Math.sin(t*.6)*.015);
+  c.translate(46,58+(still?0:Math.sin(t*1.1)*1.4));
+  if(!still) c.rotate(Math.sin(t*.6)*.015);
 
-  /* shoulders + collar */
+  /* shoulders + collar (BRUNO is built like a wall) */
+  const sw=key==='cannon'?1.18:1;
   c.strokeStyle=dk; c.lineWidth=2;
-  c.beginPath(); c.moveTo(-34,52); c.lineTo(-22,38); c.lineTo(22,38); c.lineTo(34,52); c.stroke();
+  c.beginPath(); c.moveTo(-34*sw,52); c.lineTo(-22*sw,38); c.lineTo(22*sw,38); c.lineTo(34*sw,52); c.stroke();
   c.beginPath(); c.moveTo(-8,32); c.lineTo(-9,40); c.moveTo(8,32); c.lineTo(9,40); c.stroke();
-  /* chest core — pulses, beats harder while she speaks */
-  const pul=.5+.5*Math.sin(t*(talk?7:2.6));
-  c.fillStyle=gold; glow(c,gold,6+5*pul); c.globalAlpha*= .55+.45*pul;
+  /* chest core — beats harder while speaking */
+  const pul=still?.8:.5+.5*Math.sin(t*(talk?7:2.6));
+  c.fillStyle=col; glow(c,col,6+5*pul); c.globalAlpha=A*(.55+.45*pul);
   c.beginPath(); c.moveTo(0,42); c.lineTo(4,47); c.lineTo(0,52); c.lineTo(-4,47); c.closePath(); c.fill();
-  noGlow(c); c.globalAlpha=Math.sin(t*9.3)*Math.sin(t*2.7)>.992?.5:1;
+  noGlow(c); c.globalAlpha=A;
 
-  /* face plate */
+  /* face plate + machine seams */
   c.strokeStyle=skin; c.lineWidth=1.6;
   c.beginPath();
   c.moveTo(-19,-10); c.lineTo(-18,8); c.lineTo(-11,20); c.lineTo(-4,25);
   c.lineTo(4,25); c.lineTo(11,20); c.lineTo(18,8); c.lineTo(19,-10);
   c.stroke();
-  /* cheek seam — she is, after all, a machine */
   c.strokeStyle=dk; c.lineWidth=1.2;
   c.beginPath(); c.moveTo(12,10); c.lineTo(15,16); c.stroke();
-  c.beginPath(); c.moveTo(-1,9); c.lineTo(-2.5,13); c.stroke();      /* nose hint */
+  c.beginPath(); c.moveTo(-1,9); c.lineTo(-2.5,13); c.stroke();
 
-  /* hair — angular bob, flat fill */
-  c.fillStyle='#152348'; c.strokeStyle=gold; c.lineWidth=1.8;
-  c.beginPath();
-  c.moveTo(-23,18); c.lineTo(-26,-14); c.lineTo(-14,-30); c.lineTo(14,-30);
-  c.lineTo(26,-14); c.lineTo(23,18); c.lineTo(17,13); c.lineTo(20,-10);
-  c.lineTo(11,-21); c.lineTo(-11,-21); c.lineTo(-20,-10); c.lineTo(-17,13);
-  c.closePath(); c.fill(); c.stroke();
-  /* swept bangs */
-  c.beginPath(); c.moveTo(-17,-12); c.lineTo(-7,-16); c.lineTo(1,-11); c.lineTo(10,-16); c.lineTo(17,-11); c.stroke();
-  /* antenna fin + tip light (blinks fast while transmitting) */
-  c.beginPath(); c.moveTo(24,-16); c.lineTo(30,-26); c.stroke();
-  if(Math.sin(t*(talk?16:4))>0){ c.fillStyle=cyan; glow(c,cyan,5); c.beginPath(); c.arc(30,-26,1.6,0,TAU); c.fill(); noGlow(c); }
+  /* headgear — each hero's signature silhouette */
+  c.fillStyle='#152348'; c.strokeStyle=col; c.lineWidth=1.8;
+  if(key==='aura'){                                  /* LUMA — angular bob + antenna */
+    c.beginPath();
+    c.moveTo(-23,18); c.lineTo(-26,-14); c.lineTo(-14,-30); c.lineTo(14,-30);
+    c.lineTo(26,-14); c.lineTo(23,18); c.lineTo(17,13); c.lineTo(20,-10);
+    c.lineTo(11,-21); c.lineTo(-11,-21); c.lineTo(-20,-10); c.lineTo(-17,13);
+    c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-17,-12); c.lineTo(-7,-16); c.lineTo(1,-11); c.lineTo(10,-16); c.lineTo(17,-11); c.stroke();
+    c.beginPath(); c.moveTo(24,-16); c.lineTo(30,-26); c.stroke();
+    if(still||Math.sin(t*(talk?16:4))>0){ c.fillStyle=cyan; glow(c,cyan,5); c.beginPath(); c.arc(30,-26,1.6,0,TAU); c.fill(); noGlow(c); }
+  }else if(key==='archer'){                          /* SLY — scout hood + arrow crest */
+    c.beginPath();
+    c.moveTo(-23,18); c.lineTo(-25,-12); c.lineTo(0,-33); c.lineTo(25,-12); c.lineTo(23,18);
+    c.lineTo(16,12); c.lineTo(18,-8); c.lineTo(0,-24); c.lineTo(-18,-8); c.lineTo(-16,12);
+    c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-4,-25); c.lineTo(0,-29); c.lineTo(4,-25); c.stroke();
+  }else if(key==='frost'){                           /* GLACE — crystal crown */
+    c.beginPath();
+    c.moveTo(-20,4); c.lineTo(-24,-22); c.lineTo(-11,-11);
+    c.lineTo(-6,-13); c.lineTo(0,-34); c.lineTo(6,-13);
+    c.lineTo(11,-11); c.lineTo(24,-22); c.lineTo(20,4);
+    c.lineTo(14,-5); c.lineTo(-14,-5); c.closePath();
+    c.fill(); c.stroke();
+    c.fillStyle=col;
+    c.beginPath(); c.moveTo(0,-11); c.lineTo(2.5,-8); c.lineTo(0,-5); c.lineTo(-2.5,-8); c.closePath(); c.fill();
+  }else if(key==='cannon'){                          /* BRUNO — riveted siege helmet */
+    c.beginPath();
+    c.moveTo(-21,2); c.lineTo(-21,-15); c.lineTo(-13,-24); c.lineTo(13,-24);
+    c.lineTo(21,-15); c.lineTo(21,2); c.lineTo(15,-2); c.lineTo(15,-14);
+    c.lineTo(-15,-14); c.lineTo(-15,-2); c.closePath();
+    c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(0,-24); c.lineTo(0,-14); c.stroke();
+    c.fillStyle=col;
+    for(const rx of [-17,0,17]) c.fillRect(rx-1.2,-7,2.4,2.4);
+    c.strokeStyle=col; c.lineWidth=3;
+    c.beginPath(); c.moveTo(-14,-4); c.lineTo(14,-4); c.stroke();   /* brow plate */
+    c.strokeStyle=dk; c.lineWidth=1.4;
+    c.strokeRect(-21,2,6,13); c.strokeRect(15,2,6,13);              /* jaw guards */
+  }else if(key==='tesla'){                           /* VOLTA — storm spikes + goggles */
+    c.beginPath();
+    c.moveTo(-21,8); c.lineTo(-23,-12); c.lineTo(-15,-25); c.lineTo(-10,-13);
+    c.lineTo(-4,-31); c.lineTo(2,-13); c.lineTo(9,-27); c.lineTo(14,-12);
+    c.lineTo(22,-20); c.lineTo(21,8);
+    c.lineTo(15,2); c.lineTo(16,-8); c.lineTo(-16,-8); c.lineTo(-15,2);
+    c.closePath(); c.fill(); c.stroke();
+  }else if(key==='sniper'){                          /* REX — peaked cap + scar */
+    c.beginPath();
+    c.moveTo(-20,-6); c.lineTo(-18,-21); c.lineTo(14,-21); c.lineTo(19,-8); c.closePath();
+    c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-21,-6); c.lineTo(23,-6); c.stroke();   /* brim */
+    c.strokeStyle=dk; c.lineWidth=1.3;
+    c.beginPath(); c.moveTo(-14,11); c.lineTo(-10,16); c.moveTo(-14,16); c.lineTo(-10,11); c.stroke();
+  }
 
-  /* eyes — glowing lenses, periodic blink, slow gaze drift */
+  /* eyes — glowing lenses with periodic blink and gaze drift */
   const bph=(t*.92)%3.3;
-  const open=bph<.22 ? Math.max(.1,Math.abs(Math.cos(bph/.22*Math.PI))) : 1;
-  const gz=Math.sin(t*.4)*1.5;
-  c.fillStyle=cyan; glow(c,cyan,7);
-  c.fillRect(-15+gz,1-2.2*open,10,4.4*open);
-  c.fillRect(5+gz,1-2.2*open,10,4.4*open);
-  noGlow(c);
-  /* brow lines */
-  c.strokeStyle=skin; c.lineWidth=1.4;
-  c.beginPath(); c.moveTo(-15,-5); c.lineTo(-5,-6); c.moveTo(5,-6); c.lineTo(15,-5); c.stroke();
+  const open=still?1:bph<.22?Math.max(.1,Math.abs(Math.cos(bph/.22*Math.PI))):1;
+  const gz=still?0:Math.sin(t*.4)*1.5;
+  if(key==='tesla'){
+    c.strokeStyle=col; c.lineWidth=1.6; glow(c,col,6);
+    c.beginPath(); c.arc(-10+gz,2,5.6,0,TAU); c.stroke();
+    c.beginPath(); c.arc(10+gz,2,5.6,0,TAU); c.stroke();
+    c.beginPath(); c.moveTo(-4.4+gz,2); c.lineTo(4.4+gz,2); c.stroke();
+    c.fillStyle=cyan;
+    c.fillRect(-11.5+gz,2-1.6*open,3.2,3.2*open);
+    c.fillRect(8.3+gz,2-1.6*open,3.2,3.2*open);
+    noGlow(c);
+  }else if(key==='sniper'){
+    c.fillStyle=cyan; glow(c,cyan,7);
+    c.fillRect(-15+gz,1-2.2*open,10,4.4*open);
+    noGlow(c);
+    c.strokeStyle=col; c.lineWidth=1.5; glow(c,col,6);
+    c.beginPath(); c.arc(10,2,6,0,TAU); c.stroke();
+    c.beginPath();
+    c.moveTo(4,2); c.lineTo(6.5,2); c.moveTo(13.5,2); c.lineTo(16,2);
+    c.moveTo(10,-4); c.lineTo(10,-1.5); c.moveTo(10,5.5); c.lineTo(10,8);
+    c.stroke();
+    c.fillStyle='#ffb3be'; c.beginPath(); c.arc(10,2,1.2+open,0,TAU); c.fill();
+    noGlow(c);
+  }else{
+    const eh=(key==='archer'?3.4:4.4)*open;
+    c.fillStyle=cyan; glow(c,cyan,7);
+    c.fillRect(-15+gz,1-eh/2,10,eh);
+    c.fillRect(5+gz,1-eh/2,10,eh);
+    noGlow(c);
+  }
+  if(key!=='cannon'&&key!=='tesla'){
+    c.strokeStyle=skin; c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(-15,-5); c.lineTo(-5,-6);
+    if(key!=='sniper'){ c.moveTo(5,-6); c.lineTo(15,-5); }
+    c.stroke();
+  }
 
-  /* mouth — equalizer bar while speaking, soft line at rest */
-  c.fillStyle=cyan;
-  if(talk){
+  /* mouth — SLY keeps his behind a scout mask */
+  if(key==='archer'){
+    c.strokeStyle=dk; c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(-9,15); c.lineTo(9,15); c.moveTo(-7,19); c.lineTo(7,19); c.stroke();
+  }else if(talk&&!still){
     const mh=1.5+4*Math.abs(Math.sin(t*10.7))*(.35+.65*Math.abs(Math.sin(t*3.9+1.3)));
-    glow(c,cyan,4); c.fillRect(-5,19-mh/2,10,mh); noGlow(c);
+    c.fillStyle=cyan; glow(c,cyan,4); c.fillRect(-5,19-mh/2,10,mh); noGlow(c);
   }else{
     c.strokeStyle=cyan; c.lineWidth=1.4;
-    c.beginPath(); c.moveTo(-4,19); c.quadraticCurveTo(0,20.5,4,19); c.stroke();
+    c.beginPath();
+    if(key==='cannon'){ c.moveTo(-5,19); c.lineTo(5,19); }
+    else{ c.moveTo(-4,19); c.quadraticCurveTo(0,20.5,4,19); }
+    c.stroke();
   }
   c.restore();
-
-  /* scanline sweep */
-  c.fillStyle='rgba(174,243,255,.06)';
-  c.fillRect(3,(t*26)%118,86,2);
+}
+/* static render for codex / popups / unlock banners */
+function renderHeroPortrait(cv,key){
+  const c=cv.getContext('2d');
+  const s=cv.width/92;
+  c.setTransform(s,0,0,s,0,0);
+  c.clearRect(0,0,92,118);
+  drawPortraitFrame(c,2.1);
+  drawHeroBust(c,key,2.1,false,true);
+}
+/* LUMA live on the campaign screen */
+function drawLumaPortrait(){
+  const cv=$('lumaCv'); if(!cv) return;
+  const c=cv.getContext('2d');
+  const t=performance.now()/1000;
+  c.setTransform(2,0,0,2,0,0);                     /* 2x backing for crisp phone DPR */
+  c.clearRect(0,0,92,118);
+  /* transmission flicker — the whole frame dips for a beat now and then */
+  c.globalAlpha=Math.sin(t*9.3)*Math.sin(t*2.7)>.992 ? .5 : 1;
+  drawPortraitFrame(c,t);
+  drawHeroBust(c,'aura',t,lumaTalk,false);
   c.globalAlpha=1;
 }
 function lumaLoop(){
