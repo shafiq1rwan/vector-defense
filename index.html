@@ -175,33 +175,43 @@
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
   .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
   .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
-  /* campaign map */
+  /* campaign map — compact */
+  #campOverlay{gap:7px;}
+  #campOverlay .big{font-size:15px; letter-spacing:5px;}
+  #campStars{font-size:10px;}
   #campMap{
-    position:relative; width:100%; max-width:680px; height:290px; flex:none;
+    position:relative; width:100%; max-width:620px; height:200px; flex:none;
     background:#070b16; border:1px solid var(--line); border-radius:10px;
   }
   #campMap svg{position:absolute; inset:0; width:100%; height:100%;}
   .cnode{
     position:absolute; transform:translate(-50%,-50%);
-    width:46px; height:46px; border-radius:50%; border:2px solid var(--neon);
-    background:#0a1126; color:var(--neon); font-size:13px; font-weight:800;
+    width:38px; height:38px; border-radius:50%; border:2px solid var(--neon);
+    background:#0a1126; color:var(--neon); font-size:12px; font-weight:800;
     cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:0; flex:none; line-height:1; letter-spacing:0;
   }
-  .cnode .cstars{font-size:8px; color:var(--gold); letter-spacing:1px; margin-top:2px; min-height:8px;}
+  .cnode .cstars{font-size:7px; color:var(--gold); letter-spacing:1px; margin-top:1px; min-height:7px;}
   .cnode.lockedN{opacity:.35; border-style:dashed; cursor:not-allowed;}
   .cnode.cur{animation:pul 1.4s infinite;}
   .cnode.selN{border-color:#fff; color:#fff;}
   #briefBox{
-    width:100%; max-width:680px; background:#0a1126; border:1px solid var(--line);
-    border-radius:10px; padding:10px 12px; text-align:left; font-size:11px; color:var(--dim);
-    display:flex; flex-direction:column; gap:6px;
+    width:100%; max-width:620px; background:#0a1126; border:1px solid var(--line);
+    border-radius:10px; padding:8px 10px; text-align:left; font-size:10.5px; color:var(--dim);
+    display:flex; flex-direction:column; gap:4px;
   }
   #briefBox.hidden{display:none;}
-  #briefTitle{font-size:13px; letter-spacing:1px;}
-  #briefMeta{font-size:9px; letter-spacing:1.5px; color:#9db8ff;}
-  #briefText{min-height:32px; line-height:1.6; white-space:pre-wrap;}
-  #launchBtn{align-self:flex-end; flex:none; padding:9px 28px;}
+  #briefTitle{font-size:12px; letter-spacing:1px;}
+  #briefMeta{font-size:8.5px; letter-spacing:1.5px; color:#9db8ff;}
+  #briefText{min-height:24px; line-height:1.55; white-space:pre-wrap;}
+  #launchBtn{align-self:flex-end; flex:none; padding:7px 24px;}
+  @media (max-width:1100px){
+    #campMap{height:158px;}
+    .cnode{width:32px; height:32px; font-size:10px;}
+    #briefText{min-height:18px;}
+    #campOverlay .big{font-size:13px;}
+  }
+  .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
   .card.locked{opacity:.3; filter:saturate(.25);}
   .card .lockB{position:absolute; top:2px; right:3px; color:#9db8ff;}
   .card .lockB.hidden{display:none;}
@@ -585,9 +595,12 @@ const META=[
 const MAPS=[
   {name:'SERPENT', coreBack:150, path:[[-40,100],[620,100],[620,300],[180,300],[180,420],[840,420]]},
   {name:'GAUNTLET', coreBack:120, path:[[-40,60],[700,60],[700,220],[100,220],[100,380],[700,380],[700,560]]},
-  {name:'ORBIT', coreBack:60, path:[[-40,140],[660,140],[660,420],[140,420],[140,260],[460,260]]}
+  {name:'ORBIT', coreBack:60, path:[[-40,140],[660,140],[660,420],[140,420],[140,260],[460,260]]},
+  /* tutorial-only straight road — hidden from quick play */
+  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,260],[840,260]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
+if(MAPS[mapIndex].hidden) mapIndex=0;
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL=null, CORE=null;
 const stars=[], props=[];
 /* flora clusters scattered around the field — pure scenery, hidden under placed towers */
@@ -637,7 +650,8 @@ function genProps(){
   }
 }
 function buildMap(i){
-  mapIndex=i; SAVE.map=i; persist();
+  mapIndex=i;
+  if(!MAPS[i].hidden){ SAVE.map=i; persist(); }
   const m=MAPS[i];
   PATH=m.path.map(p=>({x:p[0],y:p[1]}));
   SEGS=[]; PATH_LEN=0;
@@ -683,8 +697,8 @@ const canBuild=(c,r)=>{
 const INTRO="LUMA: The grid has been dark for a hundred cycles. Tonight the spawn gates reopened, and the glyphs walk again. You are all we have, Commander.";
 const EPILOGUE="The gates collapse behind it. One by one, the old relays hum back to life. LUMA: \"It's over, Commander. You brought the dawn back online.\"";
 const CAMPAIGN=[
-  {id:0, act:1, name:'FIRST CONTACT',   map:0, diff:0, waves:5,  mod:null,    unlock:null,
-    brief:"Glyph scouts are probing the serpent road. Show them this grid still has teeth."},
+  {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:5,  mod:null,    unlock:null,
+    brief:"A straight stretch of the old supply road — perfect ground to learn the trade. Deploy a hero beside the lane, let the kills pay you, and call the waves when you're ready."},
   {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:8,  mod:null,    unlock:null,
     brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
   {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:8,  mod:null,    unlock:'tesla',
@@ -2091,16 +2105,29 @@ function draw(){
     ctx.globalAlpha=1;
   }
 
-  /* hints */
-  if(running && wave===0 && !gameOver){
-    ctx.globalAlpha=.55+.3*Math.sin(time*3);
-    ctx.fillStyle='#9db8ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
-    glow(ctx,'#4d8dff',8);
-    if(towers.length===0)
-      ctx.fillText(placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'1) PICK A HERO (KEYS 1-6)   2) DEPLOY ON THE MAP',W/2,H-18);
-    else
-      ctx.fillText('PRESS SPACE OR HIT ▶ TO START THE WAVE',W/2,H-18);
-    noGlow(ctx); ctx.globalAlpha=1;
+  /* hints (richer step-by-step on the tutorial mission) */
+  {
+    const tut=campNode&&campNode.id===0;
+    let msg=null;
+    if(running&&!gameOver){
+      if(wave===0){
+        if(tut) msg=towers.length===0
+          ? (placing?'PRESS & DRAG ON THE FIELD — RELEASE TO BUILD BESIDE THE ROAD':'STEP 1 — TAP THE GLOWING HERO CARD ON THE RIGHT')
+          : 'STEP 2 — KILLS PAY CREDITS. ADD TOWERS, THEN HIT START WAVE';
+        else msg=towers.length===0
+          ? (placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'1) PICK A HERO (KEYS 1-6)   2) DEPLOY ON THE MAP')
+          : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
+      }else if(tut&&wave===1&&!waveActive){
+        msg='STEP 3 — SPEND YOUR BOUNTY, THEN CALL THE NEXT WAVE EARLY FOR BONUS CREDITS';
+      }
+    }
+    if(msg){
+      ctx.globalAlpha=.55+.3*Math.sin(time*3);
+      ctx.fillStyle='#9db8ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
+      glow(ctx,'#4d8dff',8);
+      ctx.fillText(msg,W/2,H-18);
+      noGlow(ctx); ctx.globalAlpha=1;
+    }
   }
   ctx.restore();
 }
@@ -2114,6 +2141,9 @@ function refreshUI(){
     const card=$('card_'+k);
     if(card) card.classList.toggle('poor',money<TOWERS[k].cost);
   }
+  /* tutorial: spotlight the first hero card until something is built */
+  const c0=$('card_archer');
+  if(c0) c0.classList.toggle('tut', !!(campNode&&campNode.id===0&&running&&wave===0&&towers.length===0&&!placing));
   if(selTower){
     const b=$('upBtn');
     if(b && selTower.level<MAX_LVL) b.disabled = money<upCost(selTower.def,selTower.level);
@@ -2249,6 +2279,7 @@ function buildUI(){
   /* map selector */
   const ms=$('mapSel'); ms.innerHTML='';
   MAPS.forEach((m,i)=>{
+    if(m.hidden) return;
     const el=document.createElement('div');
     el.className='mapOpt'+(i===mapIndex?' sel':'');
     el.id='map_'+i;
@@ -2712,6 +2743,7 @@ document.addEventListener('keydown',e=>{
 function togglePause(){
   if(gameOver||!running) return;
   paused=!paused;
+  if(paused) $('pHomeBtn').innerHTML=campNode?ic('back')+'WORLD MAP':ic('home')+'MENU';
   $('pauseOverlay').classList.toggle('hidden',!paused);
   $('pauseBtn').innerHTML=ic(paused?'play':'pause');
 }
