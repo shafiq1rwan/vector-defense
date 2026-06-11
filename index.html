@@ -67,6 +67,7 @@
   .bump{animation:bump .25s ease;}
   @keyframes bump{40%{transform:scale(1.25);}}
   #progWrap{height:5px; background:#0a1126; border:1px solid var(--line); border-radius:4px; overflow:hidden; flex:none;}
+  .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
   #progFill{height:100%; width:0%; background:#5a96f0; transition:width .25s;}
   #next{background:#0a1126; border:1px solid var(--line); border-radius:8px; padding:5px 8px;}
   #next .nlbl{font-size:8px; letter-spacing:2px; color:var(--dim);}
@@ -86,8 +87,8 @@
   .card.sel{border-color:#fff; box-shadow:0 0 10px rgba(77,141,255,.5);}
   .card.poor{opacity:.38; cursor:not-allowed;}
   .card canvas{display:block; margin:0 auto;}
-  .card .nm{font-size:9px; font-weight:700; letter-spacing:.5px;}
-  .card .cost{font-size:9px; color:var(--gold);}
+  .card .nm{font-size:10px; font-weight:700; letter-spacing:.5px;}
+  .card .cost{font-size:9.5px; color:var(--gold);}
   .card .key{
     position:absolute; top:2px; left:4px; font-size:8px; color:var(--dim);
     border:1px solid var(--line); border-radius:3px; padding:0 2px;
@@ -431,17 +432,19 @@
       <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
     </div>
     <div id="progWrap"><div id="progFill"></div></div>
-    <div id="next">
-      <div class="nlbl" id="nextLbl">NEXT WAVE</div>
-      <div id="nextIcons"></div>
-    </div>
     <div id="panelScroll">
+      <div class="secLbl">HEROES</div>
       <div id="cards"></div>
+      <div class="secLbl">ABILITIES</div>
       <div id="abils"></div>
     </div>
     <div id="panelBottom">
+      <div id="next">
+        <div class="nlbl" id="nextLbl">NEXT WAVE</div>
+        <div id="nextIcons"></div>
+      </div>
       <button id="waveBtn" class="pulse">START WAVE 1</button>
-      <div id="foot">VECTOR DEFENSE v3.4</div>
+      <div id="foot">VECTOR DEFENSE</div>
     </div>
   </div>
 </div>
@@ -584,6 +587,11 @@ function buildMap(i){
       const c=rc+dc, r=rr+dr, k=c+','+r;
       if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!blocked.has(k)) buildable.add(k);
     }
+  }
+  /* ...but never right at the spawn mouth — no camping the portal */
+  for(const k of [...buildable]){
+    const [c,r]=k.split(',').map(Number);
+    if(Math.hypot(c*CELL+CELL/2-PORTAL.x, r*CELL+CELL/2-PORTAL.y)<=110) buildable.delete(k);
   }
   genProps();
 }
@@ -2053,11 +2061,11 @@ function buildUI(){
     const d=TOWERS[k];
     const card=document.createElement('div');
     card.className='card'; card.id='card_'+k;
-    card.innerHTML=`<span class="key">${d.key}</span><canvas width="40" height="40"></canvas>
+    card.innerHTML=`<span class="key">${d.key}</span><canvas width="46" height="46"></canvas>
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
     card.onclick=()=>selectCard(k);
     wrap.appendChild(card);
-    renderIcon(card.querySelector('canvas'),k,1.05);
+    renderIcon(card.querySelector('canvas'),k,1.2);
   }
   /* ability buttons */
   const ab=$('abils'); ab.innerHTML='';
