@@ -696,8 +696,8 @@ const ENEMIES={
     phase:true, label:'GHOST', desc:'periodically untargetable', res:{phys:.7,energy:1.3}},
   statik:{hp:95, speed:50, reward:20, lives:1, r:10, color:'#ffe14d', shape:'spark',
     empBurst:70, label:'STATIK', desc:'EMP-bursts your towers when it dies', res:{energy:.6,ice:1.3}},
-  boss:{hp:1900, speed:21, reward:160, lives:5, r:21, color:'#ff3af0', shape:'oct',
-    bossLike:true, label:'OVERMIND', desc:'wave boss', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
+  boss:{hp:1900, speed:21, reward:160, lives:5, r:22, color:'#ff3af0', shape:'golem',
+    bossLike:true, label:'OVERMIND', desc:'ancient war golem', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
 };
 const DT_NAMES={phys:'physical',ice:'frost',expl:'explosive',energy:'energy'};
 function resTip(type){
@@ -1398,6 +1398,27 @@ function drawEnemyShape(c,shape,r,col,ang,wob,extra){
     poly(c,0,0,r,3,ang+wob); c.stroke();
     poly(c,0,0,r,3,ang+wob+Math.PI);
   }
+  else if(shape==='golem'){
+    /* upright stone golem: slab torso, blocky head, swinging arms, glowing core */
+    const step=Math.sin((extra||0)*2.2);
+    c.beginPath();
+    c.moveTo(-r*.62,-r*.15); c.lineTo(-r*.45,-r*.62); c.lineTo(r*.45,-r*.62);
+    c.lineTo(r*.62,-r*.15); c.lineTo(r*.5,r*.45); c.lineTo(-r*.5,r*.45);
+    c.closePath(); c.stroke();
+    c.beginPath(); c.moveTo(-r*.15,-r*.3); c.lineTo(-r*.02,-r*.05); c.lineTo(-r*.12,r*.2); c.stroke(); /* crack */
+    c.beginPath();
+    c.moveTo(-r*.28,-r*.62); c.lineTo(-r*.2,-r*.98); c.lineTo(r*.2,-r*.98); c.lineTo(r*.28,-r*.62);
+    c.stroke();
+    for(const s of [-1,1]){                                   /* arms swing alternately */
+      c.save(); c.translate(s*r*.62,-r*.3); c.rotate(step*.3*s);
+      c.beginPath(); c.rect(s===1?0:-r*.32, 0, r*.32, r*.8); c.stroke();
+      c.restore();
+    }
+    c.beginPath();                                            /* leg stubs */
+    c.rect(-r*.42,r*.45,r*.3,r*.34); c.rect(r*.12,r*.45,r*.3,r*.34);
+    c.stroke();
+    poly(c,0,-r*.08,r*.22,3,(extra||0)*2);                    /* spinning core, stroked below */
+  }
   else if(shape==='oct') poly(c,0,0,r,8,extra||0);
   else if(shape==='cross'){
     c.beginPath();
@@ -1446,13 +1467,21 @@ function drawEnemy(c,e){
     c.globalAlpha=e.phased?.35:1;
   }
   /* eyes */
-  const ex=Math.cos(ang)*d.r*.35, ey=Math.sin(ang)*d.r*.35;
   c.fillStyle='#fff';
-  const off=d.r*.3;
-  c.beginPath();
-  c.arc(ex-Math.sin(ang)*off,ey+Math.cos(ang)*off,d.r*.14+.8,0,TAU);
-  c.arc(ex+Math.sin(ang)*off,ey-Math.cos(ang)*off,d.r*.14+.8,0,TAU);
-  c.fill();
+  if(d.shape==='golem'){
+    const look=Math.cos(ang)*d.r*.08;
+    c.beginPath();
+    c.arc(look-d.r*.1,-d.r*.78,2,0,TAU);
+    c.arc(look+d.r*.1,-d.r*.78,2,0,TAU);
+    c.fill();
+  }else{
+    const ex=Math.cos(ang)*d.r*.35, ey=Math.sin(ang)*d.r*.35;
+    const off=d.r*.3;
+    c.beginPath();
+    c.arc(ex-Math.sin(ang)*off,ey+Math.cos(ang)*off,d.r*.14+.8,0,TAU);
+    c.arc(ex+Math.sin(ang)*off,ey-Math.cos(ang)*off,d.r*.14+.8,0,TAU);
+    c.fill();
+  }
   if(e.slowT>0&&!frozen){
     c.strokeStyle='#3ad6ff'; c.globalAlpha=.8; c.lineWidth=1;
     poly(c,0,0,d.r+4,6,time*2); c.stroke();
@@ -1479,8 +1508,9 @@ function drawEnemy(c,e){
 function drawProp(c,p){
   if(occ.has(p.key)) return;
   c.save(); c.translate(p.x,p.y); c.scale(p.big,p.big);
-  const tw=.25+.15*Math.sin(time*1.4+p.seed*4);
-  c.globalAlpha=tw+.15; c.lineWidth=1.4;
+  const tw=.55+.2*Math.sin(time*1.4+p.seed*4);
+  c.globalAlpha=tw; c.lineWidth=1.7;
+  glow(c,'#4d8dff',4);
   if(p.kind==='crystal'){
     c.strokeStyle='#7db2ff';
     c.beginPath(); c.moveTo(-6,8); c.lineTo(-3,-7); c.lineTo(0,8); c.closePath(); c.stroke();
