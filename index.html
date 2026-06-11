@@ -467,6 +467,9 @@ const MAPS=[
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), PORTAL=null, CORE=null;
 const stars=[], props=[];
+/* the four top cells beside the spawn are an overgrown grove — scenery only, no towers */
+const GROVE_CELLS=[[0,0],[1,0],[2,0],[3,0]];
+let grove=[];
 
 function pointAt(d){
   d=Math.max(0,Math.min(PATH_LEN,d));
@@ -515,6 +518,18 @@ function buildMap(i){
     }
   }
   PORTAL=pointAt(46); CORE=pointAt(PATH_LEN-m.coreBack);
+  grove=GROVE_CELLS.map(([cx,cy])=>{
+    blocked.add(cx+','+cy);
+    const items=[];
+    const n=4+Math.floor(Math.random()*2);
+    for(let i=0;i<n;i++) items.push({
+      /* rooted along the cell bottom so they stay visible under the floating HUD buttons */
+      ox:3+Math.random()*26, oy:24+Math.random()*12,
+      kind:['grass','grass','fern','flower'][Math.floor(Math.random()*4)],
+      seed:Math.random()*10, s:.6+Math.random()*.7
+    });
+    return {x:cx*CELL, y:cy*CELL, items};
+  });
   genProps();
 }
 
@@ -1399,6 +1414,49 @@ function drawProp(c,p){
   }
   c.restore(); c.globalAlpha=1;
 }
+/* spawn grove — swaying vector flora on the reserved cells */
+function drawPlantCluster(c,g){
+  for(const it of g.items){
+    const sway=Math.sin(time*1.6+it.seed)*.14+Math.sin(time*.7+it.seed*2)*.06;
+    c.save(); c.translate(g.x+it.ox,g.y+it.oy);
+    c.lineWidth=1.4; c.globalAlpha=.85;
+    if(it.kind==='grass'){
+      c.strokeStyle='#2fae54'; glow(c,'#39ff6a',4);
+      for(let b=0;b<3;b++){
+        const a=(b-1)*.35+sway, h=(7+it.s*5);
+        c.beginPath(); c.moveTo(b*2.4-2.4,3);
+        c.quadraticCurveTo(b*2.4-2.4+a*4,-h*.5, b*2.4-2.4+a*9,-h);
+        c.stroke();
+      }
+    }else if(it.kind==='fern'){
+      c.strokeStyle='#3cc96a'; glow(c,'#39ff6a',4);
+      const h=9+it.s*6;
+      c.save(); c.rotate(sway*.5);
+      c.beginPath(); c.moveTo(0,3); c.quadraticCurveTo(sway*6,-h*.5,sway*10,-h); c.stroke();
+      for(let l=1;l<=3;l++){
+        const ly=3-l*(h+3)/3.2, lx=sway*6*(l/3);
+        c.beginPath(); c.moveTo(lx,ly); c.lineTo(lx-4+l*.5,ly-2); c.stroke();
+        c.beginPath(); c.moveTo(lx,ly); c.lineTo(lx+4-l*.5,ly-2); c.stroke();
+      }
+      c.restore();
+    }else{ /* flower */
+      c.strokeStyle='#2fae54'; glow(c,'#39ff6a',4);
+      const h=8+it.s*4;
+      c.beginPath(); c.moveTo(0,3); c.quadraticCurveTo(sway*5,-h*.5,sway*9,-h); c.stroke();
+      const fx=sway*9, fy=-h;
+      c.strokeStyle='#ff7ad0'; glow(c,'#ff7ad0',5);
+      for(let p2=0;p2<5;p2++){
+        const a=p2/5*TAU+time*.3+it.seed;
+        c.beginPath(); c.arc(fx+Math.cos(a)*2.6,fy+Math.sin(a)*2.6,1.1,0,TAU); c.stroke();
+      }
+      c.fillStyle='#ffd34d';
+      c.beginPath(); c.arc(fx,fy,1.2,0,TAU); c.fill();
+    }
+    noGlow(c); c.restore();
+  }
+  c.globalAlpha=1;
+}
+
 /* moving biome */
 const FLOCKS=[
   {y:40, n:6, spd:46, off:0, dir:1, gapMul:2.6},
@@ -1473,6 +1531,7 @@ function draw(){
   }
 
   for(const p of props) drawProp(ctx,p);
+  for(const g of grove) drawPlantCluster(ctx,g);
 
   /* road */
   const road=()=>{ctx.beginPath();ctx.moveTo(PATH[0].x,PATH[0].y);for(let i=1;i<PATH.length;i++)ctx.lineTo(PATH[i].x,PATH[i].y);ctx.stroke();};
@@ -2035,6 +2094,7 @@ function buildShop(){
 }
 /* ============================== CODEX ============================== */
 const BIOME_LORE=[
+  ['plant','SPAWN GROVE','Bioluminescent flora rooted in the cells beside the rift. Too overgrown to build on.'],
   ['portal','SPAWN PORTAL','Rift where the glyph swarm phases into the field. Every wave pours out of it.'],
   ['core','THE CORE','The last light of the grid. Its outer ring shows remaining integrity — guard it.'],
   ['bird','SKY GLIDERS','Chevron flocks that cross the battlefield. Harmless; they have seen many sieges.'],
@@ -2085,6 +2145,19 @@ function renderBiomeIcon(cv,kind){
     c.strokeStyle='#3a6dd0'; c.setLineDash([4,4]);
     c.beginPath(); c.arc(0,0,11,0,TAU); c.stroke();
     c.setLineDash([]);
+  }else if(kind==='plant'){
+    c.strokeStyle='#2fae54'; glow(c,'#39ff6a',4);
+    for(let b=0;b<3;b++){
+      const a=(b-1)*.4;
+      c.beginPath(); c.moveTo(b*3-3,10);
+      c.quadraticCurveTo(b*3-3+a*5,0, b*3-3+a*10,-9);
+      c.stroke();
+    }
+    c.strokeStyle='#ff7ad0';
+    for(let p2=0;p2<5;p2++){
+      const a=p2/5*TAU;
+      c.beginPath(); c.arc(8+Math.cos(a)*2.4,-8+Math.sin(a)*2.4,1,0,TAU); c.stroke();
+    }
   }
   noGlow(c); c.restore();
 }
