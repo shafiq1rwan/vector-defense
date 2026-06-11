@@ -160,6 +160,7 @@
     border:1px solid var(--mc,#4d8dff); color:var(--mc,#4d8dff); border-radius:20px;
   }
   #volRow{display:flex; gap:10px; align-items:center; font-size:10px; letter-spacing:2px; color:var(--dim);}
+  svg.ic{vertical-align:-2px; margin-right:3px; flex:none;}
   /* codex */
   #codexTabs{width:100%; max-width:660px; flex:none;}
   #codexTabs button.sel{border-color:#fff; background:#16265a; color:#fff;}
@@ -240,15 +241,15 @@
       <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
       <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
-      <div class="selRow"><span class="lbl">⬡ SHOP <b id="coreCount" style="color:#9db8ff"></b></span><span id="metaShop" class="selRow"></span></div>
+      <div class="selRow"><span class="lbl"><svg class="ic" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#9db8ff" stroke-width="1.4"><path d="M8 1.2l5.9 3.4v6.8L8 14.8l-5.9-3.4V4.6z"/></svg>SHOP <b id="coreCount" style="color:#9db8ff"></b></span><span id="metaShop" class="selRow"></span></div>
       <div class="btnrow" style="gap:10px">
-        <button id="codexBtn" class="cta">📖 CODEX</button>
-        <button id="startBtn" class="cta">▶ &nbsp;DEPLOY</button>
+        <button id="codexBtn" class="cta">CODEX</button>
+        <button id="startBtn" class="cta">DEPLOY</button>
       </div>
     </div>
 
     <div id="codexOverlay" class="overlay hidden">
-      <div class="big" style="font-size:20px; letter-spacing:6px">📖 CODEX</div>
+      <div class="big" style="font-size:20px; letter-spacing:6px">CODEX</div>
       <div class="btnrow" id="codexTabs">
         <button data-tab="heroes">HEROES</button>
         <button data-tab="enemies">ENEMIES</button>
@@ -256,7 +257,7 @@
         <button data-tab="controls">CONTROLS</button>
       </div>
       <div id="codexBody"></div>
-      <button id="codexBack" class="cta">← BACK</button>
+      <button id="codexBack" class="cta">BACK</button>
     </div>
 
     <div id="endOverlay" class="overlay hidden">
@@ -264,14 +265,14 @@
       <div class="sub" id="endSub"></div>
       <div id="medals"></div>
       <div class="btnrow" style="gap:10px">
-        <button id="restartBtn" class="cta">↻ RETRY</button>
-        <button id="menuBtn" class="cta">⌂ MENU</button>
-        <button id="continueBtn" class="cta" style="display:none">∞ ENDLESS</button>
+        <button id="restartBtn" class="cta">RETRY</button>
+        <button id="menuBtn" class="cta">MENU</button>
+        <button id="continueBtn" class="cta" style="display:none">ENDLESS</button>
       </div>
     </div>
 
     <div id="pauseOverlay" class="overlay hidden">
-      <div class="big" style="font-size:26px">⏸ PAUSED</div>
+      <div class="big" style="font-size:26px">PAUSED</div>
       <div id="volRow">VOLUME <input type="range" id="volSlider" min="0" max="100"></div>
       <div class="keysBox">
         <b>1–6</b> select hero &nbsp; <b>Q/W/E</b> abilities<br>
@@ -280,9 +281,9 @@
         <b>SHIFT+click</b> place multiple towers
       </div>
       <div class="btnrow" style="gap:10px">
-        <button id="resumeBtn" class="cta">▶ RESUME</button>
-        <button id="pCodexBtn" class="cta">📖 CODEX</button>
-        <button id="pRestartBtn" class="cta">↻ RESTART</button>
+        <button id="resumeBtn" class="cta">RESUME</button>
+        <button id="pCodexBtn" class="cta">CODEX</button>
+        <button id="pRestartBtn" class="cta">RESTART</button>
       </div>
     </div>
   </div>
@@ -302,13 +303,13 @@
     <div id="cards"></div>
     <div id="abils"></div>
     <div id="info"></div>
-    <button id="waveBtn" class="pulse">▶ START WAVE 1</button>
+    <button id="waveBtn" class="pulse">START WAVE 1</button>
     <div class="btnrow">
-      <button id="pauseBtn">⏸</button>
-      <button id="speedBtn">⏩ 1×</button>
-      <button id="muteBtn">🔊</button>
+      <button id="pauseBtn"></button>
+      <button id="speedBtn"></button>
+      <button id="muteBtn"></button>
     </div>
-    <div id="foot">VECTOR DEFENSE v3.1</div>
+    <div id="foot">VECTOR DEFENSE v3.3</div>
   </div>
 </div>
 
@@ -319,6 +320,30 @@ const W=800, H=512, CELL=32, COLS=25, ROWS=16, FINAL_WAVE=20, INTERMISSION=14, M
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
+
+/* inline SVG line-icons — stroke/fill currentColor so they match each button */
+const ICONS={
+  play:'<path d="M4.5 2.5l9 5.5-9 5.5z"/>',
+  pause:'<path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/>',
+  ff:'<path d="M2 3.5L7 8l-5 4.5zM8 3.5L13 8l-5 4.5z"/>',
+  sndOn:'<path d="M2 6h3l4-3.5v11L5 10H2z"/><path d="M11.5 5c1.8 1.7 1.8 4.3 0 6" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  sndOff:'<path d="M2 6h3l4-3.5v11L5 10H2z"/><path d="M10.5 5.5l4 5M14.5 5.5l-4 5" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  book:'<path d="M2.5 2.5h5v11h-5zM8.5 2.5h5v11h-5z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5h2M4 7h2M10 5h2M10 7h2" stroke="currentColor" stroke-width="1"/>',
+  back:'<path d="M9 3L4 8l5 5M4.5 8H14" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+  retry:'<path d="M13.2 9A5.3 5.3 0 1 1 11 3.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 1.2l3 2.4-3.6 1.4z"/>',
+  home:'<path d="M2 8l6-5.5L14 8M4 7v6.5h8V7" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  inf:'<circle cx="4.8" cy="8" r="2.7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="11.2" cy="8" r="2.7" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  target:'<circle cx="8" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1v3M8 12v3M1 8h3M12 8h3" stroke="currentColor" stroke-width="1.4"/>',
+  up:'<path d="M8 2l5.5 6.5H10v5H6v-5H2.5z"/>',
+  x:'<path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  hex:'<path d="M8 1.2l5.9 3.4v6.8L8 14.8l-5.9-3.4V4.6z" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  star:'<path d="M8 1.5l1.9 4 4.4.5-3.3 3 .9 4.4L8 11.2 4.1 13.4l.9-4.4-3.3-3 4.4-.5z" fill="none" stroke="currentColor" stroke-width="1.2"/>',
+  warn:'<path d="M8 2l6.8 11.5H1.2z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 6.2v3.6M8 11.6v1.2" stroke="currentColor" stroke-width="1.5"/>',
+  bolt:'<path d="M9.5 1L3.5 9h3.4l-1.2 6 6-8H8.3z"/>',
+  coin:'<circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5v7M5.8 6.2h3.4M5.8 9.8h3.4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
+  horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>'
+};
+const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
 /* ============================== SAVE ============================== */
 function loadSave(){ try{return JSON.parse(localStorage.getItem('vectordef')||'{}');}catch(e){return {};} }
@@ -506,10 +531,10 @@ function resTip(type){
 
 /* ============================== WAVES & MODIFIERS ============================== */
 const MODS=[
-  {id:'fast',  label:'⚡ FAST',  desc:'+40% enemy speed'},
-  {id:'regen', label:'♻ REGEN', desc:'enemies regenerate'},
-  {id:'horde', label:'☠ HORDE', desc:'+50% enemies, -15% HP'},
-  {id:'wealth',label:'💰 WEALTH',desc:'+50% rewards'}
+  {id:'fast',  label:'FAST',  icon:'bolt',  desc:'+40% enemy speed'},
+  {id:'regen', label:'REGEN', icon:'retry', desc:'enemies regenerate'},
+  {id:'horde', label:'HORDE', icon:'horde', desc:'+50% enemies, -15% HP'},
+  {id:'wealth',label:'WEALTH',icon:'coin',  desc:'+50% rewards'}
 ];
 function modFor(n){
   if(n<4||n%5===0) return null;
@@ -565,10 +590,10 @@ function reset(){
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
   cds={strike:0,nova:0,surge:0}; aiming=null; surgeT=0; dragMode=null;
-  $('speedBtn').textContent='⏩ 1×';
+  $('speedBtn').innerHTML=ic('ff')+'1×';
   $('progFill').style.width='0%';
   const wb=$('waveBtn');
-  wb.disabled=false; wb.classList.add('pulse'); wb.textContent='▶ START WAVE 1';
+  wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE 1';
   refreshUI(); setInfo(null); updateNextPreview();
 }
 
@@ -741,11 +766,11 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
       if(o.src.rank<MAX_RANK && o.src.xp>=XP_T[o.src.rank]){
         o.src.rank++;
         ring(o.src.x,o.src.y,22,'#ffd34d',.5);
-        addText(o.src.x,o.src.y-22,'★ RANK '+o.src.rank,'#ffd34d');
+        addText(o.src.x,o.src.y-22,'RANK '+o.src.rank+' UP!','#ffd34d');
         SND.upgrade();
       }
     }
-    addText(e.x,e.y-14,'+'+rw+(extra?' ⚡'+extra:''), extra?'#ffe14d':'#ffd34d');
+    addText(e.x,e.y-14,'+'+rw+(extra?' +'+extra:''), extra?'#ffe14d':'#ffd34d');
     spray(e.x,e.y,e.def.color,e.def.r*2,170,.6);
     ring(e.x,e.y,e.def.r*2,e.def.color,.3);
     if(e.def.split && e.wref){
@@ -862,13 +887,13 @@ function useAbility(k){
     for(const e of enemies){ if(!e.dead){e.slowT=Math.max(e.slowT,2.5); e.slowF=0;
       ring(e.x,e.y,e.def.r+8,'#3ad6ff',.4);} }
     ring(W/2,H/2,80,'#3ad6ff',.5);
-    addText(W/2,H/2-40,'❄ FROST NOVA ❄','#3ad6ff',true);
+    addText(W/2,H/2-40,'— FROST NOVA —','#3ad6ff',true);
     SND.nova(); shake=Math.max(shake,4);
   }
   if(k==='surge'){
     cds.surge=abilityCd('surge'); surgeT=8;
     for(const t of towers) ring(t.x,t.y,20,'#c46bff',.4);
-    addText(W/2,H/2-40,'⚡ OVERDRIVE ⚡','#c46bff',true);
+    addText(W/2,H/2-40,'— OVERDRIVE —','#c46bff',true);
     SND.ability();
   }
 }
@@ -898,7 +923,7 @@ function update(dt){
   if(!waveActive && interT>0 && !gameOver){
     interT-=dt;
     if(interT<=0){ interT=0; startWave(); }
-    else $('waveBtn').textContent='▶ WAVE '+(wave+1)+' IN '+Math.ceil(interT)+'s · EARLY +'+(Math.ceil(interT)*3);
+    else $('waveBtn').textContent='WAVE '+(wave+1)+' IN '+Math.ceil(interT)+'s · EARLY +'+(Math.ceil(interT)*3);
   }
 
   /* spawning */
@@ -995,7 +1020,7 @@ function update(dt){
         }
         if(zapped){
           ring(e.x,e.y,110,'#ffe14d',.5);
-          addText(e.x,e.y-30,'⚡ EMP — '+zapped+' TOWERS DOWN','#ffe14d');
+          addText(e.x,e.y-30,'EMP! '+zapped+' TOWERS DOWN','#ffe14d');
           shake=Math.max(shake,4);
           SND.leak();
         }
@@ -1097,6 +1122,16 @@ function poly(c,x,y,r,n,rot=0){
 }
 function glow(c,color,blur){ c.shadowColor=color; c.shadowBlur=blur; }
 function noGlow(c){ c.shadowBlur=0; }
+/* small vector lightning bolt (unit-sized, scaled by s) */
+function drawBolt(c,x,y,s,color){
+  c.save(); c.translate(x,y); c.scale(s,s);
+  c.fillStyle=color;
+  c.beginPath();
+  c.moveTo(.22,-1); c.lineTo(-.45,.12); c.lineTo(-.06,.12);
+  c.lineTo(-.22,1); c.lineTo(.45,-.12); c.lineTo(.06,-.12);
+  c.closePath(); c.fill();
+  c.restore();
+}
 
 function drawTowerBody(c,type,level,angle,t,firing){
   const def=TOWERS[type], col=def.color;
@@ -1501,9 +1536,8 @@ function draw(){
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
     if(t.empT>0){
       ctx.globalAlpha=1;
-      ctx.fillStyle='#ffe14d'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
       glow(ctx,'#ffe14d',6);
-      ctx.fillText('⚡',0,-18);
+      drawBolt(ctx,0,-20,6,'#ffe14d');
       noGlow(ctx);
     }
     ctx.restore(); ctx.globalAlpha=1;
@@ -1590,9 +1624,11 @@ function draw(){
   if(combo>=2 && comboT>0){
     const pop=1+Math.max(0,comboPop)*1.2;
     ctx.save(); ctx.translate(W-80,46); ctx.scale(pop,pop);
+    glow(ctx,'#ffd34d',14);
+    drawBolt(ctx,-26,-7,11,'#ffe14d');
     ctx.font='bold 22px monospace'; ctx.textAlign='center';
-    ctx.fillStyle='#ffe14d'; glow(ctx,'#ffd34d',14);
-    ctx.fillText('⚡×'+combo,0,0);
+    ctx.fillStyle='#ffe14d';
+    ctx.fillText('×'+combo,6,0);
     noGlow(ctx);
     ctx.fillStyle='rgba(255,211,77,.6)'; ctx.font='bold 9px monospace';
     ctx.fillText('COMBO',0,13);
@@ -1622,7 +1658,7 @@ function draw(){
       }
       ctx.strokeStyle='rgba(255,58,240,.6)'; ctx.lineWidth=1; ctx.strokeRect(x-2,y-2,bw+4,12);
       ctx.fillStyle='#ff9af8'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
-      ctx.fillText('⚠ OVERMIND ⚠',W/2,y+22);
+      ctx.fillText('— OVERMIND —',W/2,y+22);
     }
   }
 
@@ -1633,7 +1669,7 @@ function draw(){
     const isBoss=wave%5===0;
     ctx.fillStyle=isBoss?'#ff7ad0':'#fff'; ctx.font='bold 26px monospace'; ctx.textAlign='center';
     glow(ctx,isBoss?'#ff3af0':'#4d8dff',20);
-    ctx.fillText(isBoss?'⚠ BOSS WAVE '+wave+' ⚠':'— WAVE '+wave+' —',W/2,62-slide);
+    ctx.fillText(isBoss?'!! BOSS WAVE '+wave+' !!':'— WAVE '+wave+' —',W/2,62-slide);
     noGlow(ctx);
     if(curWave&&curWave.mod){
       ctx.fillStyle='#ffd34d'; ctx.font='bold 13px monospace';
@@ -1648,7 +1684,7 @@ function draw(){
     ctx.fillStyle='#9db8ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
     glow(ctx,'#4d8dff',8);
     if(towers.length===0)
-      ctx.fillText(placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'① PICK A HERO (KEYS 1–6) → ② DEPLOY ON THE MAP',W/2,H-18);
+      ctx.fillText(placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'1) PICK A HERO (KEYS 1-6)   2) DEPLOY ON THE MAP',W/2,H-18);
     else
       ctx.fillText('PRESS SPACE OR HIT ▶ TO START THE WAVE',W/2,H-18);
     noGlow(ctx); ctx.globalAlpha=1;
@@ -1682,7 +1718,7 @@ function refreshUI(){
   }
 }
 function setInfo(html){
-  $('info').innerHTML=html||`<span style="opacity:.6">Select a hero to deploy, or click a tower to upgrade / sell / retarget.<br><br>💡 Chain kills for <b style="color:#ffd34d">⚡combo credits</b>. Max-level towers unlock a <b style="color:#c46bff">specialization</b>.</span>`;
+  $('info').innerHTML=html||`<span style="opacity:.6">Select a hero to deploy, or click a tower to upgrade / sell / retarget.<br><br>Tip: chain kills for <b style="color:#ffd34d">combo credits</b>. Max-level towers unlock a <b style="color:#c46bff">specialization</b>.</span>`;
 }
 function showCardInfo(type){
   const d=TOWERS[type], s=lvlStat(d,1);
@@ -1705,15 +1741,15 @@ function showTowerInfo(t){
     : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b>
       · <b style="color:#ffd34d">${'★'.repeat(t.rank)||'☆'}</b>${t.rank<MAX_RANK?` <span style="font-size:9px">(${Math.floor(t.xp)}/${XP_T[t.rank]} XP)</span>`:' MAX'}<br>`;
   html+=`<div class="btnrow" style="margin-top:5px">
-      ${d.aura?'':`<button id="targetBtn">🎯 ${MODES[t.mode]}</button>`}
-      <button class="up" id="upBtn" ${maxed||money<uc?'disabled':''}>${maxed?'MAX':'⬆ $'+uc}</button>
-      <button class="sell" id="sellBtn">✕ $${refund}</button>
+      ${d.aura?'':`<button id="targetBtn">${ic('target',11)}${MODES[t.mode]}</button>`}
+      <button class="up" id="upBtn" ${maxed||money<uc?'disabled':''}>${maxed?'MAX':ic('up',11)+'$'+uc}</button>
+      <button class="sell" id="sellBtn">${ic('x',10)}$${refund}</button>
     </div>`;
   if(maxed && !t.spec){
     const cc=specCost(d), sp=SPECS[t.type];
     html+=`<div class="btnrow" style="margin-top:5px">
-      <button class="specBtn" id="specA" ${money<cc?'disabled':''}>★ ${sp[0].n} $${cc}<small>${sp[0].d}</small></button>
-      <button class="specBtn" id="specB" ${money<cc?'disabled':''}>★ ${sp[1].n} $${cc}<small>${sp[1].d}</small></button>
+      <button class="specBtn" id="specA" ${money<cc?'disabled':''}>${ic('star',11)}${sp[0].n} $${cc}<small>${sp[0].d}</small></button>
+      <button class="specBtn" id="specB" ${money<cc?'disabled':''}>${ic('star',11)}${sp[1].n} $${cc}<small>${sp[1].d}</small></button>
     </div>`;
   }
   setInfo(html);
@@ -1837,6 +1873,19 @@ function buildUI(){
     };
     ds.appendChild(b);
   });
+  /* svg icons on static buttons */
+  $('codexBtn').innerHTML=ic('book')+'CODEX';
+  $('startBtn').innerHTML=ic('play')+'DEPLOY';
+  $('codexBack').innerHTML=ic('back')+'BACK';
+  $('restartBtn').innerHTML=ic('retry')+'RETRY';
+  $('menuBtn').innerHTML=ic('home')+'MENU';
+  $('continueBtn').innerHTML=ic('inf')+'ENDLESS';
+  $('resumeBtn').innerHTML=ic('play')+'RESUME';
+  $('pCodexBtn').innerHTML=ic('book')+'CODEX';
+  $('pRestartBtn').innerHTML=ic('retry')+'RESTART';
+  $('pauseBtn').innerHTML=ic('pause');
+  $('speedBtn').innerHTML=ic('ff')+'1×';
+  $('muteBtn').innerHTML=ic('sndOn');
   buildShop();
   updateBestLine();
   $('volSlider').value=Math.round(vol*100);
@@ -1855,7 +1904,7 @@ function buildShop(){
     b.disabled=!maxed&&SAVE.cores<cost;
     if(maxed) b.disabled=true;
     b.innerHTML=`${m.name} <span class="pips">${'●'.repeat(rank)}${'○'.repeat(m.max-rank)}</span>
-      <small>${m.desc}${maxed?' — MAX':' · <b class="mcost">⬡'+cost+'</b>'}</small>`;
+      <small>${m.desc}${maxed?' — MAX':' · <b class="mcost">'+ic('hex',8)+cost+'</b>'}</small>`;
     b.title=m.desc+(maxed?' (maxed out)':' — costs '+cost+' cores');
     b.onclick=()=>{
       if(maxed||SAVE.cores<cost) return;
@@ -1956,7 +2005,7 @@ function codexControls(){
     <b>F</b> game speed · <b>P</b> pause · <b>T</b> targeting mode · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
     <b style="color:#9db8ff">TOUCH</b> — tap a hero card, then press the map and drag: the tower floats above
     your finger; release to build. Same gesture aims the orbital strike. Tap the card again to stop placing.<br><br>
-    <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for ⚡combo credits · max-level towers unlock a
+    <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits · max-level towers unlock a
     ★ specialization · towers earn XP and rank stars from kills · check NEXT WAVE icons for enemy weaknesses.</div></div>`;
 }
 let codexReturn='titleOverlay';
@@ -1977,7 +2026,7 @@ function openCodex(fromId){
 
 function updateBestLine(){
   $('bestLine').textContent = SAVE.bestWave
-    ? 'BEST WAVE '+SAVE.bestWave+' · BEST COMBO ⚡×'+(SAVE.bestCombo||0)+' · WINS '+(SAVE.wins||0)
+    ? 'BEST WAVE '+SAVE.bestWave+' · BEST COMBO ×'+(SAVE.bestCombo||0)+' · WINS '+(SAVE.wins||0)
     : 'NO RECORDS YET — GOOD LUCK, COMMANDER';
 }
 function updateNextPreview(){
@@ -1991,7 +2040,7 @@ function updateNextPreview(){
   const wv=makeWave(n), counts={};
   for(const s of wv.spawns) counts[s.type]=(counts[s.type]||0)+1;
   const hasBoss=!!counts.boss;
-  lbl.innerHTML='NEXT WAVE '+n+(hasBoss?' — <b>⚠ BOSS</b>':'')+(wv.mod?' — <em>'+wv.mod.label+'</em>':'');
+  lbl.innerHTML='NEXT WAVE '+n+(hasBoss?' — <b>'+ic('warn',9)+'BOSS</b>':'')+(wv.mod?' — <em>'+ic(wv.mod.icon,9)+wv.mod.label+'</em>':'');
   if(wv.mod) lbl.title=wv.mod.desc; else lbl.title='';
   $('waveBtn').classList.toggle('bossWarn',hasBoss);
   box.innerHTML='';
@@ -2030,7 +2079,7 @@ function callWave(){
 function earnedMedals(){
   const m=[];
   if(lives===maxLives()) m.push(['FLAWLESS CORE','#39ff6a']);
-  if(bestCombo>=10) m.push(['COMBO MASTER ⚡×'+bestCombo,'#ffd34d']);
+  if(bestCombo>=10) m.push(['COMBO MASTER ×'+bestCombo,'#ffd34d']);
   if(usedTypes.size>=6) m.push(['FULL ARSENAL','#4d8dff']);
   if(!soldAny&&towers.length>0) m.push(['DIAMOND HANDS','#3ad6ff']);
   if(money>=500) m.push(['TYCOON','#ffd34d']);
@@ -2043,7 +2092,7 @@ function showMedals(){
   for(const [name,color] of earnedMedals()){
     const el=document.createElement('span');
     el.className='medal'; el.style.setProperty('--mc',color);
-    el.textContent='🏅 '+name;
+    el.innerHTML=ic('star',9)+name;
     box.appendChild(el);
   }
 }
@@ -2060,7 +2109,7 @@ function loseGame(){
   gameOver=true; const earned=recordEnd(false);
   $('endTitle').textContent='CORE LOST';
   $('endTitle').style.textShadow='0 0 18px #ff4d6a';
-  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b><br>⬡ Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
+  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
   $('continueBtn').style.display='none';
   showMedals();
   $('endOverlay').classList.remove('hidden');
@@ -2070,7 +2119,7 @@ function winGame(){
   gameOver=true; const earned=recordEnd(true);
   $('endTitle').textContent='CORE SECURED';
   $('endTitle').style.textShadow='0 0 18px #39ff6a';
-  $('endSub').innerHTML=`All <b>${FINAL_WAVE} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>⬡ Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
+  $('endSub').innerHTML=`All <b>${FINAL_WAVE} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
   $('continueBtn').style.display='block';
   showMedals();
   $('endOverlay').classList.remove('hidden');
@@ -2168,16 +2217,16 @@ function togglePause(){
   if(gameOver||!running) return;
   paused=!paused;
   $('pauseOverlay').classList.toggle('hidden',!paused);
-  $('pauseBtn').textContent=paused?'▶':'⏸';
+  $('pauseBtn').innerHTML=ic(paused?'play':'pause');
 }
 function toggleSpeed(){
   speedMult=speedMult===1?2:speedMult===2?3:1;
-  $('speedBtn').textContent='⏩ '+speedMult+'×';
+  $('speedBtn').innerHTML=ic('ff')+speedMult+'×';
 }
 $('waveBtn').onclick=()=>{ac(); callWave();};
 $('pauseBtn').onclick=()=>{ac(); togglePause();};
 $('speedBtn').onclick=()=>{ac(); toggleSpeed();};
-$('muteBtn').onclick=()=>{muted=!muted; $('muteBtn').textContent=muted?'🔇':'🔊';};
+$('muteBtn').onclick=()=>{muted=!muted; $('muteBtn').innerHTML=ic(muted?'sndOff':'sndOn');};
 $('volSlider').oninput=e=>{
   vol=e.target.value/100;
   if(master) master.gain.value=vol;
@@ -2192,7 +2241,7 @@ $('codexBack').onclick=()=>{
 };
 document.querySelectorAll('#codexTabs button').forEach(b=>b.onclick=()=>showCodexTab(b.dataset.tab));
 $('pRestartBtn').onclick=()=>{
-  paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').textContent='⏸';
+  paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   reset();
 };
 $('startBtn').onclick=()=>{
@@ -2217,7 +2266,7 @@ $('continueBtn').onclick=()=>{
   endless=true; gameOver=false;
   $('endOverlay').classList.add('hidden');
   const wb=$('waveBtn');
-  wb.disabled=false; wb.classList.add('pulse'); wb.textContent='▶ START WAVE '+(wave+1);
+  wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE '+(wave+1);
   refreshUI(); updateNextPreview();
 };
 
