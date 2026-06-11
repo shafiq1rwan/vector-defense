@@ -6,8 +6,8 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 
 ## Features
 
-- **Story campaign** — 12 missions across 3 acts on a constellation world map, with LUMA-voiced briefings, 1–3 star ratings, and heroes earned by clearing missions, ending in a showdown with the OVERMIND PRIME
-- **Quick Play** — free choice of 3 maps × 3 difficulties, with endless mode after wave 20
+- **Story campaign** — 12 missions across 3 acts on a constellation world map, with briefings delivered by LUMA herself — an animated android storyteller portrait that talks as the text types — 1–3 star ratings, star-milestone rewards, and heroes earned by clearing missions, ending in a showdown with the OVERMIND PRIME
+- **Quick Play** — dedicated setup screen with glowing road previews of all 3 maps and difficulty cards showing the real numbers; endless mode after wave 20
 - **6 hero towers** — SLY (archer), GLACE (frost), BRUNO (cannon), VOLTA (tesla), REX (sniper), LUMA (support aura with a visible buff glow on boosted towers), each with two specialization branches at max level and veterancy ranks earned from kills
 - **11 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
 - **Structures** — multi-cell relics of the old grid: the 2×1 REACTOR (credit income each wave) and the 2×2 BASTION siege fortress, both reawakened through the campaign
@@ -34,4 +34,6 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 | P | Pause |
 | Shift+click | Place multiple towers |
 
-Built with HTML5 Canvas + WebAudio. Single file, ~3k lines, zero dependencies.
+Built with HTML5 Canvas + WebAudio. Single file, ~3.5k lines, zero dependencies.
+
+By **Saiss & Claude**.
