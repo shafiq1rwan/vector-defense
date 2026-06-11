@@ -173,6 +173,15 @@
     border:1px solid var(--mc,#4d8dff); color:var(--mc,#4d8dff); border-radius:20px;
   }
   svg.ic{vertical-align:-2px; margin-right:3px; flex:none;}
+  /* floating stage controls */
+  #hudTL,#hudTR{position:absolute; top:8px; z-index:3; display:flex; gap:6px;}
+  #hudTL{left:8px;} #hudTR{right:8px;}
+  #hudTL button,#hudTR button{
+    flex:none; min-width:38px; height:34px; padding:0 9px;
+    background:rgba(10,17,38,.88);
+  }
+  #hudTL button svg,#hudTR button svg{margin:0 2px 0 0; vertical-align:middle;}
+  #backBtn.arm{border-color:#d02f5f; color:#ff4d6a; background:#470c23;}
   /* settings */
   .gearBtn{
     position:absolute; top:10px; right:10px; z-index:6;
@@ -261,6 +270,14 @@
 <div id="wrap">
   <div id="stage">
     <canvas id="game" width="800" height="512"></canvas>
+    <div id="hudTL">
+      <button id="backBtn" title="Quit to menu"></button>
+      <button id="pauseBtn" title="Pause"></button>
+      <button id="muteBtn" title="Mute"></button>
+    </div>
+    <div id="hudTR">
+      <button id="speedBtn" title="Game speed"></button>
+    </div>
 
     <div id="titleOverlay" class="overlay">
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
@@ -345,12 +362,7 @@
     </div>
     <div id="panelBottom">
       <button id="waveBtn" class="pulse">START WAVE 1</button>
-      <div class="btnrow">
-        <button id="pauseBtn"></button>
-        <button id="speedBtn"></button>
-        <button id="muteBtn"></button>
-      </div>
-      <div id="foot">VECTOR DEFENSE v3.3</div>
+      <div id="foot">VECTOR DEFENSE v3.4</div>
     </div>
   </div>
 </div>
@@ -1930,6 +1942,7 @@ function buildUI(){
   $('pauseBtn').innerHTML=ic('pause');
   $('speedBtn').innerHTML=ic('ff')+'1×';
   $('muteBtn').innerHTML=ic(muted?'sndOff':'sndOn');
+  $('backBtn').innerHTML=ic('home',13);
   $('settingsBtn').innerHTML=ic('gear',15);
   $('settingsBack').innerHTML=ic('back')+'BACK';
   $('pSettingsBtn').innerHTML=ic('gear',11)+'SETTINGS';
@@ -2306,6 +2319,27 @@ $('volSlider').oninput=e=>{
   vol=e.target.value/100;
   if(master) master.gain.value=vol;
   SAVE.vol=vol; persist();
+};
+/* quit to menu — two-tap confirm so a stray tap can't end a run */
+let backTimer=null;
+$('backBtn').onclick=()=>{
+  if(!running) return;
+  ac();
+  const b=$('backBtn');
+  if(!b.classList.contains('arm')){
+    b.classList.add('arm');
+    SND.deny();
+    clearTimeout(backTimer);
+    backTimer=setTimeout(()=>b.classList.remove('arm'),2500);
+    return;
+  }
+  clearTimeout(backTimer);
+  b.classList.remove('arm');
+  paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
+  running=false; gameOver=false;
+  reset();
+  $('titleOverlay').classList.remove('hidden');
+  SND.sell();
 };
 $('resumeBtn').onclick=()=>togglePause();
 $('codexBtn').onclick=()=>openCodex('titleOverlay');
