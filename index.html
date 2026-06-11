@@ -749,30 +749,30 @@ function anchorFor(type){
 const INTRO="LUMA: The grid has been dark for a hundred cycles. Tonight the spawn gates reopened, and the glyphs walk again. You are all we have, Commander.";
 const EPILOGUE="The gates collapse behind it. One by one, the old relays hum back to life. LUMA: \"It's over, Commander. You brought the dawn back online.\"";
 const CAMPAIGN=[
-  {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:5,  mod:null,    unlock:null,
+  {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:3,  mod:null,    unlock:null,
     brief:"A straight stretch of the old supply road — perfect ground to learn the trade. Deploy a hero beside the lane, let the kills pay you, and call the waves when you're ready."},
-  {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:8,  mod:null,    unlock:null,
-    brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
-  {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:8,  mod:null,    unlock:'tesla',
+  {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:5,  mod:null,    unlock:null,
+    brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count. And Commander... something big walks at the back of their column."},
+  {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:6,  mod:null,    unlock:'tesla',
     brief:"A storm answers our distress call. Win here, and VOLTA the Stormcaller joins your roster."},
-  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:10, mod:'fast',  unlock:'reactor',
-    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave ten, and our engineers will reignite a buried GRID REACTOR: old power for a new war."},
-  {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:10, mod:null,    unlock:'sniper',
+  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:7,  mod:'fast',  unlock:'reactor',
+    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave seven, and our engineers will reignite a buried GRID REACTOR: old power for a new war."},
+  {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:8,  mod:null,    unlock:'sniper',
     brief:"A deadeye watches this siege from the ridge line. Break it, and REX shoots for you."},
-  {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:12, mod:'horde', unlock:null,
+  {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:9,  mod:'horde', unlock:null,
     brief:"A swarm without end. Thin them with fire and frost before they drown the core."},
-  {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:15, mod:null,    unlock:'aura',
-    brief:"Fifteen waves. Hold the line, Commander, and LUMA herself will stand with you."},
-  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:15, mod:'regen', unlock:null,
+  {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:10, mod:null,    unlock:'aura',
+    brief:"Ten waves. Hold the line, Commander, and LUMA herself will stand with you."},
+  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:10, mod:'regen', unlock:null,
     brief:"These ones knit themselves back together as they walk. Hit harder than they heal."},
-  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:15, mod:null,    unlock:'bastion',
+  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:11, mod:null,    unlock:'bastion',
     brief:"The void spiral — even light walks carefully here. Beneath it sleeps a BASTION of the first war. Survive, and we wake it for you."},
-  {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:15, mod:'wealth',unlock:null,
+  {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:12, mod:'wealth',unlock:null,
     brief:"Their war chest marches with the column. Take it from them, bolt by bolt."},
-  {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:15, mod:'horde', unlock:null,
+  {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:12, mod:'horde', unlock:null,
     brief:"Everything they have, all at once. Breaking point — theirs, or ours."},
-  {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:20, mod:null,    unlock:null,
-    brief:"The OVERMIND PRIME walks. Twenty waves between it and the core. End this, Commander — for the grid."}
+  {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:15, mod:null,    unlock:null,
+    brief:"The OVERMIND PRIME walks. Fifteen waves between it and the core. End this, Commander — for the grid."}
 ];
 const NODE_POS=[[5,38],[13,20],[21,42],[29,22],[38,40],[46,20],[54,42],[62,22],[70,40],[78,18],[86,40],[94,24]];
 const ACT_COL=['#4d8dff','#ffa53a','#ff3af0'];
