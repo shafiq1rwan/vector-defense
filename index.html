@@ -572,7 +572,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.4';
+const VERSION='4.5';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2031,11 +2031,7 @@ function draw(){
   ctx.restore();
   ctx.strokeStyle='#0c1430'; ctx.lineWidth=32; road();
   ctx.strokeStyle='#101c42'; ctx.lineWidth=24; road();
-  ctx.strokeStyle='rgba(77,141,255,.45)'; ctx.lineWidth=2;
-  ctx.setLineDash([10,26]); ctx.lineDashOffset=-time*52; road();
-  ctx.strokeStyle='rgba(130,190,255,.22)'; ctx.lineWidth=5;
-  ctx.setLineDash([4,44]); ctx.lineDashOffset=-time*100; road();
-  ctx.setLineDash([]);
+  ctx.strokeStyle='rgba(77,141,255,.20)'; ctx.lineWidth=2; road();
   for(let i=1;i<PATH.length-1;i++){
     const p=PATH[i];
     ctx.strokeStyle='rgba(120,170,255,.5)'; ctx.lineWidth=1.5;
