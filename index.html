@@ -614,6 +614,8 @@ let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL
 const stars=[], props=[];
 /* flora clusters scattered around the field — pure scenery, hidden under placed towers */
 let grove=[];
+/* ruins of the long dark — dead structures on the outskirts */
+let ruins=[];
 
 function pointAt(d){
   d=Math.max(0,Math.min(PATH_LEN,d));
@@ -656,6 +658,31 @@ function genProps(){
       seed:Math.random()*10, s:.8+Math.random()*.8
     });
     grove.push({key, x:c*CELL, y:r*CELL, items});
+  }
+  /* ruins prefer the dead outskirts beyond the buildable band */
+  ruins=[];
+  const outskirts=[];
+  for(let c=0;c<COLS;c++)for(let r=0;r<ROWS;r++){
+    const key=c+','+r;
+    if(!blocked.has(key)&&!buildable.has(key)&&!used.has(key)) outskirts.push(key);
+  }
+  tries=0;
+  while(ruins.length<8 && tries<400){
+    tries++;
+    let key;
+    if(outskirts.length){
+      key=outskirts.splice(Math.floor(Math.random()*outskirts.length),1)[0];
+    }else{
+      const c=Math.floor(Math.random()*COLS), r=Math.floor(Math.random()*ROWS);
+      key=c+','+r;
+      if(blocked.has(key)||used.has(key)) continue;
+    }
+    used.add(key);
+    const [rc,rr]=key.split(',').map(Number);
+    ruins.push({key, x:rc*CELL+CELL/2, y:rr*CELL+CELL/2,
+      kind:['tower','pylon','husk','wall'][Math.floor(Math.random()*4)],
+      seed:Math.random()*10, big:.85+Math.random()*.45,
+      drone:ruins.length<2});
   }
 }
 function buildMap(i,persistSel=true){
@@ -1801,6 +1828,56 @@ function drawPlantCluster(c,g){
   c.globalAlpha=1;
 }
 
+/* ruins of the long dark — dim dead silhouettes with dying lights */
+function drawRuin(c,ru){
+  if(occ.has(ru.key)) return;
+  c.save(); c.translate(ru.x,ru.y); c.scale(ru.big,ru.big);
+  c.lineWidth=1.4; c.globalAlpha=.55;
+  const t=time, dim='#3d4f80', dark='#2a3760';
+  c.strokeStyle=dim;
+  const flick=Math.sin(t*6.3+ru.seed*7)*Math.sin(t*1.3+ru.seed*3)>.62;
+  if(ru.kind==='tower'){
+    c.strokeRect(-5,-2,10,18);
+    c.beginPath(); c.moveTo(-2,4); c.lineTo(2,9); c.lineTo(-1,13); c.stroke();      /* crack */
+    c.save(); c.translate(0,-2); c.rotate(-.35);                                     /* toppled head */
+    c.beginPath(); c.moveTo(-7,0); c.lineTo(-5,-8); c.lineTo(5,-8); c.lineTo(7,0); c.stroke();
+    c.restore();
+    if(flick){ c.fillStyle='#9db8ff'; c.globalAlpha=.85; c.fillRect(-1.5,-10,3,3); c.globalAlpha=.55; }
+  }else if(ru.kind==='pylon'){
+    c.beginPath();
+    c.moveTo(0,16); c.lineTo(0,-16);
+    c.moveTo(-8,-10); c.lineTo(8,-10);
+    c.moveTo(-5,-4); c.lineTo(5,-4);
+    c.stroke();
+    c.strokeStyle=dark;                                                              /* snapped cables */
+    c.beginPath(); c.moveTo(-8,-10); c.quadraticCurveTo(-11,2,-9,16); c.stroke();
+    c.beginPath(); c.moveTo(5,-4); c.quadraticCurveTo(9,6,7,16); c.stroke();
+    if(flick){ c.fillStyle='#b03a4a'; c.globalAlpha=.85; c.beginPath(); c.arc(0,-16,1.6,0,TAU); c.fill(); c.globalAlpha=.55; }
+  }else if(ru.kind==='husk'){
+    c.strokeRect(-15,-6,30,12);                                                      /* cold reactor housing */
+    c.beginPath(); c.arc(-7,0,5,0,TAU); c.stroke();
+    c.strokeStyle=dark;                                                              /* shattered coil */
+    c.beginPath(); c.arc(7,0,5,.6,2.4); c.stroke();
+    c.beginPath(); c.arc(7,0,5,3.6,5.2); c.stroke();
+    c.beginPath(); c.moveTo(-15,-9); c.lineTo(-10,-6); c.moveTo(-4,-9); c.lineTo(0,-6); c.stroke();
+  }else{ /* fallen wall run */
+    c.strokeRect(-15,2,9,10);
+    c.strokeRect(-4,-2,9,14);
+    c.save(); c.translate(9,8); c.rotate(.3); c.strokeRect(0,0,9,8); c.restore();
+    c.fillStyle=dark;
+    c.fillRect(-17,12,2,2); c.fillRect(4,13,2,2); c.fillRect(13,11,2,2);
+  }
+  if(ru.drone){                                                                      /* repair drone, still trying */
+    const a=t*1.3+ru.seed;
+    const dx=Math.cos(a)*13, dy=-18+Math.sin(a*1.7)*4;
+    c.globalAlpha=.8;
+    c.strokeStyle='#6b7fb3'; c.lineWidth=1.2;
+    poly(c,dx,dy,3,3,a); c.stroke();
+    if(Math.sin(t*9+ru.seed)>0){ c.fillStyle='#6bffb0'; c.beginPath(); c.arc(dx,dy,1,0,TAU); c.fill(); }
+  }
+  c.restore(); c.globalAlpha=1;
+}
+
 /* moving biome */
 const FLOCKS=[
   {y:40, n:6, spd:46, off:0, dir:1, gapMul:2.6},
@@ -1875,6 +1952,7 @@ function draw(){
   }
 
   for(const p of props) drawProp(ctx,p);
+  for(const ru of ruins) drawRuin(ctx,ru);
   for(const g of grove) drawPlantCluster(ctx,g);
 
   /* road */
@@ -2477,6 +2555,7 @@ function buildShop(){
 /* ============================== CODEX ============================== */
 const BIOME_LORE=[
   ['plant','GRID FLORA','Bioluminescent tufts scattered across the field. They politely make way for towers.'],
+  ['ruin','RUINS OF THE LONG DARK','Dead watchtowers, snapped pylons and cold reactor husks — what the grid lost in the hundred cycles. The repair drones never stopped trying.'],
   ['portal','SPAWN PORTAL','Rift where the glyph swarm phases into the field. Every wave pours out of it.'],
   ['core','THE CORE','The last light of the grid. Its outer ring shows remaining integrity — guard it.'],
   ['bird','SKY GLIDERS','Chevron flocks that cross the battlefield. Harmless; they have seen many sieges.'],
@@ -2527,6 +2606,13 @@ function renderBiomeIcon(cv,kind){
     c.strokeStyle='#3a6dd0'; c.setLineDash([4,4]);
     c.beginPath(); c.arc(0,0,11,0,TAU); c.stroke();
     c.setLineDash([]);
+  }else if(kind==='ruin'){
+    c.strokeStyle='#3d4f80';
+    c.strokeRect(-4,-1,8,12);
+    c.save(); c.translate(0,-1); c.rotate(-.35);
+    c.beginPath(); c.moveTo(-6,0); c.lineTo(-4,-7); c.lineTo(4,-7); c.lineTo(6,0); c.stroke();
+    c.restore();
+    c.fillStyle='#9db8ff'; c.fillRect(-1,-9,2,2);
   }else if(kind==='plant'){
     c.strokeStyle='#3a8fd0'; glow(c,'#4d8dff',4);
     for(let b=0;b<3;b++){
