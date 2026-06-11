@@ -579,6 +579,7 @@
       <div class="setCard">
         <div class="setHead">DISPLAY</div>
         <div class="setRow"><span>SCREEN SHAKE</span><button id="setShake" class="tog"></button></div>
+        <div class="setRow"><span>VIBRATION</span><button id="setHaptics" class="tog"></button></div>
       </div>
       <div class="setCard danger">
         <div class="setHead">DATA</div>
@@ -648,7 +649,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.10';
+const VERSION='4.11';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -686,6 +687,7 @@ let SAVE=loadSave();
 SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
 SAVE.cores=SAVE.cores||0;
 SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!==false;
+SAVE.haptics=SAVE.haptics!==false;
 SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
@@ -1029,7 +1031,7 @@ function pickRelic(id){
   const r=RELICS.find(x=>x.id===id);
   addText(W/2,200,r.n+' ONLINE','#ffd34d',true);
   renderRelicStrip();
-  SND.ability();
+  SND.ability(); vib(15);
 }
 function renderRelicStrip(){
   const box=$('relicStrip'); if(!box) return;
@@ -1143,6 +1145,9 @@ let running=false, paused=false, speedMult=1, muted=false, endless=false, gameOv
 let waveActive=false, spawnQueue=[], waveT=0, curWave=null, interT=0;
 let placing=null, selTower=null;
 let time=0, shake=0, leakFlash=0;
+let hitStop=0, shownMoney=0, heartT=0, coins=[];
+/* haptic feedback — Android Chrome supports navigator.vibrate; no-op elsewhere */
+const vib=p=>{ if(SAVE.haptics && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } };
 let combo=0, comboT=0, comboPop=0, bestCombo=0, kills=0;
 let finalWave=FINAL_WAVE;
 let soldAny=false, usedTypes=new Set();
@@ -1158,6 +1163,7 @@ function reset(){
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
   relics=[]; drafting=false; runBossKills=0;
+  hitStop=0; shownMoney=money; heartT=0; coins=[];
   openingDraftDue=totalStars()>=24;
   $('relicOverlay').classList.add('hidden');
   $('relicInfo').textContent='';
@@ -1212,6 +1218,7 @@ const SND={
   combo:n=>beep(620+n*60,1240+n*120,.09,'square',.08),
   coinBig:()=>{beep(520,1040,.12,'square',.09); beep(780,1560,.14,'square',.07);},
   leak:()=>beep(220,80,.4,'sawtooth',.16),
+  heart:()=>beep(90,45,.22,'sine',.3),
   place:()=>beep(300,600,.12,'triangle',.09),
   upgrade:()=>{beep(440,880,.1,'square',.08); beep(660,1320,.12,'square',.06);},
   sell:()=>beep(500,200,.15,'triangle',.08),
@@ -1281,6 +1288,21 @@ function spray(x,y,color,n,sp=140,life=.5,size=2.4){
   }
 }
 function addText(x,y,str,color,big){texts.push({x,y,str,color,life:1,big});}
+/* vector shatter — the enemy's outline breaks into spinning line fragments */
+const SHARD_N={tri:3,square:4,diamond:4,hex:6,cross:8,pent:5,spark:6,golem:7};
+function shatter(x,y,r,shape,color,ang=0,sp=1){
+  const n=SHARD_N[shape]||5, vs=[];
+  for(let i=0;i<n;i++){ const a=ang+i/n*TAU; vs.push({x:x+Math.cos(a)*r, y:y+Math.sin(a)*r}); }
+  for(let i=0;i<n;i++){
+    const v1=vs[i], v2=vs[(i+1)%n];
+    const mx=(v1.x+v2.x)/2, my=(v1.y+v2.y)/2;
+    const ox=mx-x, oy=my-y, ol=Math.hypot(ox,oy)||1;
+    parts.push({seg:true, x:mx, y:my, hx:(v2.x-v1.x)/2, hy:(v2.y-v1.y)/2,
+      vx:ox/ol*(70+Math.random()*90)*sp, vy:oy/ol*(70+Math.random()*90)*sp-30,
+      rot:0, vr:(Math.random()-.5)*9,
+      life:.45+Math.random()*.25, max:.7, color, size:2});
+  }
+}
 const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+Math.round(n);
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
@@ -1332,6 +1354,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
   const applied=dmg*mul;
   if(o.src){o.src.totalDmg+=applied; o.src.waveDmg+=applied;}
   e.hp-=applied; e.flash=.08;
+  if(applied>=55&&!o.quiet) hitStop=Math.max(hitStop,.04);   /* heavy hits land with a micro-freeze */
   if(relicHas('cryo')&&dtype!=='poison'&&e.hp>0&&Math.random()<.10){
     if(e.slowT<=0||e.slowF>.6) e.slowF=.6;
     e.slowT=Math.max(e.slowT,.7);
@@ -1356,8 +1379,12 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
       }
     }
     addText(e.x,e.y-14,'+'+rw+(extra?' +'+extra:''), extra?'#ffe14d':'#ffd34d');
-    spray(e.x,e.y,e.def.color,e.def.r*2,170,.6);
+    spray(e.x,e.y,e.def.color,Math.min(10,e.def.r),150,.45);
+    shatter(e.x,e.y,e.def.r,e.def.shape,e.def.color,e.wob||0);
     ring(e.x,e.y,e.def.r*2,e.def.color,.3);
+    const nC=e.def.bossLike?6:e.elite?4:2;
+    for(let i=0;i<nC&&coins.length<50;i++)
+      coins.push({x:e.x,y:e.y,vx:(Math.random()-.5)*140,vy:-90-Math.random()*70,t:0});
     if(e.def.split && e.wref){
       for(let i=0;i<e.def.split;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref);
     }
@@ -1367,6 +1394,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     if(e.elite){
       addText(e.x,e.y-28,'ELITE DOWN','#ffd34d');
       ring(e.x,e.y,e.def.r*2.6,'#ffd34d',.4);
+      vib(25);
     }
     /* STATIK death burst — disables nearby towers, so kill it at range */
     if(e.def.empBurst){
@@ -1387,6 +1415,9 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
         addText(e.x,e.y-44,'AEGIS +2','#39ff6a'); bumpStat('livesV');
       }
       shake=Math.max(shake,10); SND.coinBig(); SND.boom();
+      shatter(e.x,e.y,e.def.r*.55,'hex','#ff9af8',1,1.4);   /* second, inner burst */
+      hitStop=Math.max(hitStop,.12);
+      vib([30,40,70]);
     }
     else if(combo>=2) SND.combo(Math.min(combo,8));
     else if(!o.quiet) SND.kill();
@@ -1405,7 +1436,7 @@ function placeTower(type,c,r){
   towers.push(t);
   t.keys.forEach(k=>occ.set(k,t));
   money-=def.cost; usedTypes.add(type);
-  SND.place();
+  SND.place(); vib(12);
   spray(t.x,t.y,def.color,14,90,.45);
   ring(t.x,t.y,26,def.color,.35);
 }
@@ -1574,7 +1605,7 @@ function update(dt){
       if(mvps.length)
         addText(W/2,116,'MVP: '+mvps.map(t=>t.def.name+' '+fmt(t.waveDmg)).join('  ·  '),'#9db8ff');
       towers.forEach(t=>t.waveDmg=0);
-      SND.coinBig(); bumpStat('moneyV');
+      SND.coinBig(); bumpStat('moneyV'); vib(18);
       $('progFill').style.width='100%';
       if(wave>=finalWave && !endless){ winGame(); return; }
       const wb=$('waveBtn');
@@ -1662,7 +1693,7 @@ function update(dt){
       shake=Math.max(shake,6); leakFlash=1;
       addText(CORE.x,CORE.y-34,'-'+e.def.lives+' CORE','#ff4d6a',true);
       ring(CORE.x,CORE.y,30,'#ff4d6a',.4);
-      SND.leak(); bumpStat('livesV');
+      SND.leak(); bumpStat('livesV'); vib(45);
       if(lives<=0){ lives=0; loseGame(); return; }
     }
   }
@@ -1733,10 +1764,34 @@ function update(dt){
   /* fx */
   for(const b of beams) b.life-=dt;
   beams=beams.filter(b=>b.life>0);
-  for(const pt of parts){ pt.life-=dt; pt.x+=pt.vx*dt; pt.y+=pt.vy*dt; pt.vx*=.96; pt.vy*=.96; }
+  for(const pt of parts){ pt.life-=dt; pt.x+=pt.vx*dt; pt.y+=pt.vy*dt; pt.vx*=.96; pt.vy*=.96; if(pt.seg) pt.rot+=pt.vr*dt; }
   parts=parts.filter(p=>p.life>0);
   for(const tx of texts){ tx.life-=dt*.8; tx.y-=24*dt; }
   texts=texts.filter(t=>t.life>0);
+
+  /* bounty chips arc home to the credits counter */
+  for(const cn of coins){
+    cn.t+=dt;
+    const tx=W-14, ty=14;
+    const hx=tx-cn.x, hy=ty-cn.y, d=Math.hypot(hx,hy)||1;
+    const pull=Math.min(1,cn.t*1.6)*1500;
+    cn.vx+=hx/d*pull*dt; cn.vy+=hy/d*pull*dt;
+    const v=Math.hypot(cn.vx,cn.vy)||1, vm=Math.min(v,520);
+    cn.vx*=vm/v; cn.vy*=vm/v;
+    cn.x+=cn.vx*dt; cn.y+=cn.vy*dt;
+    if(Math.hypot(tx-cn.x,ty-cn.y)<18||cn.t>2.5){ cn.dead=true; bumpStat('moneyV'); }
+  }
+  coins=coins.filter(c=>!c.dead);
+
+  /* credits roll instead of jumping */
+  shownMoney+=(money-shownMoney)*Math.min(1,dt*8);
+  if(Math.abs(money-shownMoney)<1) shownMoney=money;
+
+  /* core under threat — heartbeat */
+  if(running&&!gameOver&&lives>0&&lives<=maxLives()*.25){
+    heartT-=dt;
+    if(heartT<=0){ heartT=1.1; SND.heart(); vib(35); }
+  }else heartT=0;
 
   refreshUI();
 }
@@ -2462,8 +2517,36 @@ function draw(){
 
   for(const p of parts){
     ctx.globalAlpha=p.life/p.max;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+    if(p.seg){
+      const cs=Math.cos(p.rot), sn=Math.sin(p.rot);
+      const hx=p.hx*cs-p.hy*sn, hy=p.hx*sn+p.hy*cs;
+      ctx.strokeStyle=p.color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(p.x-hx,p.y-hy); ctx.lineTo(p.x+hx,p.y+hy); ctx.stroke();
+    }else{
+      ctx.fillStyle=p.color;
+      ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  /* bounty chips */
+  for(const cn of coins){
+    ctx.save(); ctx.translate(cn.x,cn.y); ctx.rotate(cn.t*6);
+    ctx.fillStyle='#ffd34d'; glow(ctx,'#ffd34d',6);
+    ctx.fillRect(-2.5,-2.5,5,5);
+    noGlow(ctx); ctx.restore();
+  }
+
+  /* core heartbeat + flat border warning when integrity is critical */
+  if(running&&!gameOver&&lives>0&&lives<=maxLives()*.25){
+    const hb=(time%1.1)/1.1;
+    const th=Math.max(0,1-hb*4)+Math.max(0,1-Math.abs(hb-.32)*8)*.6;
+    ctx.strokeStyle='#ff4d6a';
+    ctx.globalAlpha=.25+.45*th; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(CORE.x,CORE.y,26+th*8,0,TAU); ctx.stroke();
+    ctx.globalAlpha=.10+.16*th; ctx.lineWidth=6;
+    ctx.strokeRect(3,3,W-6,H-6);
+    ctx.globalAlpha=1;
   }
   ctx.globalAlpha=1;
 
@@ -2612,7 +2695,7 @@ function draw(){
 
 /* ============================== UI ============================== */
 function refreshUI(){
-  $('moneyV').textContent=Math.floor(money);
+  $('moneyV').textContent=Math.floor(shownMoney);
   $('livesV').textContent=lives;
   $('waveV').textContent=endless?wave+'/∞':wave+'/'+finalWave;
   for(const k in TOWERS){
@@ -2994,7 +3077,7 @@ function codexControls(){
 let settingsReturn='titleOverlay', resetArmed=false;
 function refreshSettings(){
   const set=(id,on)=>{const b=$(id); b.textContent=on?'ON':'OFF'; b.classList.toggle('on',on); b.classList.toggle('off',!on);};
-  set('setMusic',SAVE.music); set('setSfx',SAVE.sfx); set('setShake',SAVE.shake);
+  set('setMusic',SAVE.music); set('setSfx',SAVE.sfx); set('setShake',SAVE.shake); set('setHaptics',SAVE.haptics);
   $('volSlider').value=Math.round(vol*100);
   $('volVal').textContent=Math.round(vol*100)+'%';
   $('resetSave').textContent=resetArmed?'SURE?':'RESET';
@@ -3012,7 +3095,7 @@ function toggleSetting(key){
 function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
-  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,
+  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,
         camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0}};
   vol=.8; if(master) master.gain.value=vol;
   diffIndex=1; resetArmed=false;
@@ -3340,6 +3423,7 @@ $('settingsBack').onclick=()=>{
 $('setMusic').onclick=()=>toggleSetting('music');
 $('setSfx').onclick=()=>toggleSetting('sfx');
 $('setShake').onclick=()=>toggleSetting('shake');
+$('setHaptics').onclick=()=>{ toggleSetting('haptics'); if(SAVE.haptics) vib(20); };
 $('resetSave').onclick=()=>doResetSave();
 $('codexBack').onclick=()=>{
   $('codexOverlay').classList.add('hidden');
@@ -3768,7 +3852,9 @@ $('launchBtn').onclick=()=>{
 let last=performance.now();
 function frame(now){
   let dt=Math.min(.05,(now-last)/1000); last=now;
-  if(running&&!paused&&!gameOver&&!drafting){
+  if(hitStop>0){
+    hitStop=Math.max(0,hitStop-dt);          /* the world holds its breath */
+  }else if(running&&!paused&&!gameOver&&!drafting){
     for(let i=0;i<speedMult;i++) update(dt);
   }else{
     time+=dt;
