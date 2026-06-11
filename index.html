@@ -141,6 +141,14 @@
   .mapOpt.sel{border-color:#fff; color:#fff;}
   .diffOpt{flex:none; padding:7px 16px; font-size:10px;}
   .diffOpt.sel{border-color:#fff; background:#16265a; color:#fff;}
+  .metaOpt{
+    flex:none; padding:5px 8px; font-size:8.5px; letter-spacing:.5px; line-height:1.4;
+    background:#101a36; border-color:#2a3f7a; min-width:88px;
+  }
+  .metaOpt .pips{color:#4d8dff; letter-spacing:2px;}
+  .metaOpt .mcost{color:#9db8ff;}
+  .metaOpt.maxed{border-color:#39ff6a; color:#39ff6a; opacity:.8;}
+  .metaOpt small{display:block; font-weight:400; color:var(--dim); font-size:8px;}
   .overlay button.cta{flex:none; padding:11px 34px; font-size:14px;}
   #medals{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px;}
   .medal{
@@ -186,6 +194,7 @@
       <div class="roster" id="cast"></div>
       <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
       <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
+      <div class="selRow"><span class="lbl">⬡ SHOP <b id="coreCount" style="color:#9db8ff"></b></span><span id="metaShop" class="selRow"></span></div>
       <div class="sub" style="font-size:10px">
         heroes <b>1–6</b> · abilities <b>Q/W/E</b> · <b>SPACE</b> wave · <b>F</b> speed · <b>P</b> pause · <b>T</b> targeting · hover enemies in NEXT WAVE for weaknesses
       </div>
@@ -240,7 +249,7 @@
       <button id="speedBtn">⏩ 1×</button>
       <button id="muteBtn">🔊</button>
     </div>
-    <div id="foot">VECTOR DEFENSE v3.0</div>
+    <div id="foot">VECTOR DEFENSE v3.1</div>
   </div>
 </div>
 
@@ -255,8 +264,19 @@ const $=id=>document.getElementById(id);
 /* ============================== SAVE ============================== */
 function loadSave(){ try{return JSON.parse(localStorage.getItem('vectordef')||'{}');}catch(e){return {};} }
 let SAVE=loadSave();
+SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
+SAVE.cores=SAVE.cores||0;
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
+
+/* permanent upgrades bought with ⬡ cores earned each run */
+const META=[
+  {id:'cap', name:'START CAPITAL', desc:'+30 starting credits', max:4, costs:[3,5,8,12]},
+  {id:'rec', name:'RECHARGE',      desc:'-12% ability cooldowns', max:3, costs:[4,7,11]},
+  {id:'bul', name:'BULWARK',       desc:'+2 core integrity', max:3, costs:[4,6,9]},
+  {id:'sal', name:'SALVAGE',       desc:'+10% sell refund', max:2, costs:[5,9]},
+  {id:'bou', name:'BOUNTY',        desc:'+5% kill rewards', max:3, costs:[3,6,10]}
+];
 
 /* ============================== MAPS ============================== */
 const MAPS=[
@@ -326,6 +346,8 @@ const DIFFS=[
 ];
 let diffIndex=SAVE.diff!=null?SAVE.diff:1;
 const DIFF=()=>DIFFS[diffIndex];
+const maxLives=()=>DIFF().lives+SAVE.meta.bul*2;
+const abilityCd=k=>Math.round(ABILITIES[k].cd*(1-.12*SAVE.meta.rec));
 
 /* ============================== HERO TOWERS ============================== */
 const TOWERS={
@@ -474,7 +496,7 @@ let soldAny=false, usedTypes=new Set();
 const mouse={x:-99,y:-99,inside:false};
 
 function reset(){
-  money=DIFF().money; lives=DIFF().lives; wave=0;
+  money=DIFF().money+SAVE.meta.cap*30; lives=maxLives(); wave=0;
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
@@ -549,6 +571,7 @@ function spray(x,y,color,n,sp=140,life=.5,size=2.4){
   }
 }
 function addText(x,y,str,color,big){texts.push({x,y,str,color,life:1,big});}
+const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+Math.round(n);
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
 
@@ -558,7 +581,8 @@ function spawnEnemy(type,dist,w){
     reward:def.reward*w.rewardMul, baseSpd:def.speed*(w.spdMul||1),
     x:0,y:0,dist,slowT:0,slowF:1,healT:1.5,flash:0,dead:false,wob:Math.random()*TAU,
     shieldHits:def.shield||0,maxShield:def.shield||0,phaseClock:Math.random()*4.2,
-    poisonT:0,poisonDps:0,brittleT:0,phased:false};
+    poisonT:0,poisonDps:0,brittleT:0,phased:false,
+    bossShield:def.bossLike?def.hp*w.hpMul*.25:0,mSpawnT:6,empPulseT:10};
   const p=pointAt(dist); e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
   enemies.push(e); return e;
 }
@@ -571,12 +595,29 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     if(!o.quiet) SND.hit();
     return;
   }
+  /* boss energy shield — soaks damage first; energy melts it, others barely scratch */
+  if(e.bossShield>0 && dtype!=='true' && dtype!=='poison'){
+    const absorbed=dmg*(dtype==='energy'?1.5:.35);
+    e.bossShield-=absorbed; e.flash=.06;
+    if(o.src){o.src.totalDmg+=absorbed; o.src.waveDmg+=absorbed;}
+    if(e.bossShield<=0){
+      e.bossShield=0;
+      addText(e.x,e.y-30,'SHIELD DOWN','#3ad6ff');
+      ring(e.x,e.y,e.def.r+16,'#3ad6ff',.45);
+      spray(e.x,e.y,'#3ad6ff',16,150,.5);
+      SND.tesla();
+    }
+    if(!o.quiet) SND.hit();
+    return;
+  }
   let mul=(dtype==='true'||dtype==='poison')?1:(e.def.res[dtype]||1);
   if(e.brittleT>0) mul*=1.3;
-  e.hp-=dmg*mul; e.flash=.08;
+  const applied=dmg*mul;
+  if(o.src){o.src.totalDmg+=applied; o.src.waveDmg+=applied;}
+  e.hp-=applied; e.flash=.08;
   if(e.hp<=0){
     e.dead=true; kills++;
-    const rw=Math.round(e.reward);
+    const rw=Math.round(e.reward*(1+.05*SAVE.meta.bou));
     combo++; comboT=1.35; comboPop=.3;
     if(combo>bestCombo) bestCombo=combo;
     let extra=0;
@@ -598,7 +639,8 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
 function placeTower(type,c,r){
   const def=TOWERS[type];
   const t={type,def,c,r,x:c*CELL+16,y:r*CELL+16,level:1,cd:0,angle:-Math.PI/2,
-           invested:def.cost,flash:0,spawnT:.4,spec:null,mode:0,buffD:0,buffR:0};
+           invested:def.cost,flash:0,spawnT:.4,spec:null,mode:0,buffD:0,buffR:0,
+           empT:0,totalDmg:0,waveDmg:0};
   t.stats=computeStats(t);
   towers.push(t); occ.set(c+','+r,t);
   money-=def.cost; usedTypes.add(type);
@@ -634,23 +676,23 @@ function fire(t,target){
       }
     }
     for(const tar of targets)
-      projs.push({x:t.x,y:t.y,tx:tar.x,ty:tar.y,tgt:tar,speed:430,dmg,kind:'arrow',color:c,dtype,
+      projs.push({x:t.x,y:t.y,tx:tar.x,ty:tar.y,tgt:tar,speed:430,dmg,kind:'arrow',color:c,dtype,src:t,
                   poison:t.spec==='venom'?dmg*.5:0});
     SND.shoot();
   }else if(t.type==='frost'){
     const deep=t.spec==='deep';
-    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:310,dmg,kind:'shard',color:c,dtype,
+    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:310,dmg,kind:'shard',color:c,dtype,src:t,
                 slow:deep?.25:t.def.slow, slowDur:deep?2.4:t.def.slowDur, brittle:t.spec==='shatter'});
     SND.frost();
   }else if(t.type==='cannon'){
-    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:250,dmg,kind:'shell',color:c,dtype,
+    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:250,dmg,kind:'shell',color:c,dtype,src:t,
                 splash:s.splash, napalm:t.spec==='napalm'});
     SND.cannon();
   }else if(t.type==='tesla'){
     const falloff=t.spec==='super'?.9:.75;
     const hitlist=[target]; let cur=target, d2=dmg;
     const zap=e=>{
-      damageEnemy(e,d2,dtype);
+      damageEnemy(e,d2,dtype,{src:t});
       if(t.spec==='overload'&&Math.random()<.25&&!e.def.bossLike){e.slowT=Math.max(e.slowT,.5);e.slowF=0;}
     };
     zap(cur);
@@ -671,15 +713,15 @@ function fire(t,target){
       for(const e of enemies){
         if(e.dead) continue;
         const px=e.x-t.x,py=e.y-t.y,proj=px*ux+py*uy;
-        if(proj>0&&proj<=s.range&&Math.abs(px*uy-py*ux)<15) damageEnemy(e,dmg,dtype);
+        if(proj>0&&proj<=s.range&&Math.abs(px*uy-py*ux)<15) damageEnemy(e,dmg,dtype,{src:t});
       }
       beams.push({pts:[{x:t.x,y:t.y},{x:t.x+ux*s.range,y:t.y+uy*s.range}],color:c,life:.14,max:.14,jag:0});
     }else{
       if(t.spec==='exec'&&!target.def.bossLike&&target.hp<=target.maxHp*.25){
-        damageEnemy(target,1e9,'true');
+        damageEnemy(target,target.hp+1,'true',{src:t});
         addText(target.x,target.y-22,'EXECUTED','#ff4d6a');
       }else{
-        damageEnemy(target,dmg*(t.spec==='exec'&&target.def.bossLike?1.5:1),dtype);
+        damageEnemy(target,dmg*(t.spec==='exec'&&target.def.bossLike?1.5:1),dtype,{src:t});
       }
       beams.push({pts:[{x:t.x,y:t.y},{x:target.x,y:target.y}],color:c,life:.12,max:.12,jag:0});
     }
@@ -694,7 +736,7 @@ function useAbility(k){
   if(!running||gameOver||cds[k]>0){SND.deny(); return;}
   if(k==='strike'){ aiming=aiming==='strike'?null:'strike'; placing=null; cancelCardSel(); return; }
   if(k==='nova'){
-    cds.nova=ABILITIES.nova.cd;
+    cds.nova=abilityCd('nova');
     for(const e of enemies){ if(!e.dead){e.slowT=Math.max(e.slowT,2.5); e.slowF=0;
       ring(e.x,e.y,e.def.r+8,'#3ad6ff',.4);} }
     ring(W/2,H/2,80,'#3ad6ff',.5);
@@ -702,14 +744,14 @@ function useAbility(k){
     SND.nova(); shake=Math.max(shake,4);
   }
   if(k==='surge'){
-    cds.surge=ABILITIES.surge.cd; surgeT=8;
+    cds.surge=abilityCd('surge'); surgeT=8;
     for(const t of towers) ring(t.x,t.y,20,'#c46bff',.4);
     addText(W/2,H/2-40,'⚡ OVERDRIVE ⚡','#c46bff',true);
     SND.ability();
   }
 }
 function castStrike(x,y){
-  cds.strike=ABILITIES.strike.cd; aiming=null;
+  cds.strike=abilityCd('strike'); aiming=null;
   shake=Math.max(shake,9); leakFlash=0;
   ring(x,y,90,'#ffa53a',.4); ring(x,y,46,'#ffe14d',.3);
   spray(x,y,'#ffa53a',40,260,.7,3.4);
@@ -754,6 +796,10 @@ function update(dt){
       const bonus=20+wave*3;
       money+=bonus;
       addText(W/2,90,'WAVE '+wave+' CLEAR  +'+bonus,'#4d8dff',true);
+      const mvps=towers.filter(t=>t.waveDmg>0).sort((a,b)=>b.waveDmg-a.waveDmg).slice(0,3);
+      if(mvps.length)
+        addText(W/2,116,'MVP: '+mvps.map(t=>t.def.name+' '+fmt(t.waveDmg)).join('  ·  '),'#9db8ff');
+      towers.forEach(t=>t.waveDmg=0);
       SND.coinBig(); bumpStat('moneyV');
       $('progFill').style.width='100%';
       if(wave>=FINAL_WAVE && !endless){ winGame(); return; }
@@ -769,7 +815,7 @@ function update(dt){
     z.t-=dt;
     for(const e of enemies){
       if(e.dead) continue;
-      if(dist2(e,z)<=z.r*z.r) damageEnemy(e,z.dps*dt,'expl',{quiet:true});
+      if(dist2(e,z)<=z.r*z.r) damageEnemy(e,z.dps*dt,'expl',{quiet:true,src:z.src});
     }
   }
   zones=zones.filter(z=>z.t>0);
@@ -785,7 +831,7 @@ function update(dt){
     if(e.def.phase){ e.phaseClock+=dt; e.phased=(e.phaseClock%4.2)>3.0; }
     if(e.poisonT>0){
       e.poisonT-=dt;
-      damageEnemy(e,e.poisonDps*dt,'poison',{quiet:true});
+      damageEnemy(e,e.poisonDps*dt,'poison',{quiet:true,src:e.poisonSrc});
       if(e.dead) continue;
       if(Math.random()<dt*5) parts.push({x:e.x,y:e.y-8,vx:0,vy:-26,life:.35,max:.35,color:'#8aff5a',size:2});
     }
@@ -808,6 +854,31 @@ function update(dt){
       }
     }
     if(e.pulse>0) e.pulse-=dt;
+    if(e.def.bossLike){
+      e.mSpawnT-=dt;
+      if(e.mSpawnT<=0){
+        e.mSpawnT=6;
+        for(let i=0;i<2;i++) spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref);
+        ring(e.x,e.y,e.def.r+10,'#ffb6f9',.35);
+        addText(e.x,e.y-30,'SPAWNING','#ff9af8');
+        SND.spawn();
+      }
+      e.empPulseT-=dt;
+      if(e.empPulseT<=0){
+        e.empPulseT=10;
+        let zapped=0;
+        for(const t of towers){
+          if(t.def.aura) continue;
+          if(dist2(t,e)<=110*110){ t.empT=2; zapped++; spray(t.x,t.y,'#ffe14d',6,80,.4,2); }
+        }
+        if(zapped){
+          ring(e.x,e.y,110,'#ffe14d',.5);
+          addText(e.x,e.y-30,'⚡ EMP — '+zapped+' TOWERS DOWN','#ffe14d');
+          shake=Math.max(shake,4);
+          SND.leak();
+        }
+      }
+    }
     if(e.dist>=PATH_LEN){
       e.dead=true;
       lives-=e.def.lives;
@@ -837,6 +908,7 @@ function update(dt){
   for(const t of towers){
     if(t.flash>0) t.flash-=dt;
     if(t.spawnT>0) t.spawnT-=dt;
+    if(t.empT>0){ t.empT-=dt; continue; }
     if(t.def.aura) continue;
     t.cd-=dt;
     const tgt=acquire(t);
@@ -865,14 +937,14 @@ function update(dt){
         for(const e of enemies){
           if(e.dead) continue;
           const dd=Math.hypot(e.x-p.tx,e.y-p.ty);
-          if(dd<=p.splash) damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype);
+          if(dd<=p.splash) damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src});
         }
-        if(p.napalm) zones.push({x:p.tx,y:p.ty,r:40,t:3,max:3,dps:p.dmg*.5,color:'#ff6a2a'});
+        if(p.napalm) zones.push({x:p.tx,y:p.ty,r:40,t:3,max:3,dps:p.dmg*.5,color:'#ff6a2a',src:p.src});
       }else if(p.tgt && !p.tgt.dead){
-        damageEnemy(p.tgt,p.dmg,p.dtype);
+        damageEnemy(p.tgt,p.dmg,p.dtype,{src:p.src});
         if(p.slow&&!p.tgt.dead){ p.tgt.slowT=p.slowDur; p.tgt.slowF=p.slow; spray(p.tx,p.ty,p.color,5,70,.3,1.8); }
         if(p.brittle&&!p.tgt.dead) p.tgt.brittleT=2;
-        if(p.poison&&!p.tgt.dead){ p.tgt.poisonT=3; p.tgt.poisonDps=Math.max(p.tgt.poisonDps,p.poison); }
+        if(p.poison&&!p.tgt.dead){ p.tgt.poisonT=3; p.tgt.poisonDps=Math.max(p.tgt.poisonDps,p.poison); p.tgt.poisonSrc=p.src; }
       }
     }else{
       p.x+=dx/d*step; p.y+=dy/d*step; p.ang=Math.atan2(dy,dx);
@@ -1003,6 +1075,15 @@ function drawEnemy(c,e){
   }
   noGlow(c);
   c.setLineDash([]);
+  /* boss energy shield bubble */
+  if(e.bossShield>0){
+    c.strokeStyle='#3ad6ff'; c.lineWidth=2;
+    c.globalAlpha=.45+.2*Math.sin(time*6);
+    glow(c,'#3ad6ff',10);
+    c.beginPath(); c.arc(0,0,d.r+7,0,TAU); c.stroke();
+    noGlow(c);
+    c.globalAlpha=e.phased?.35:1;
+  }
   /* shield arc */
   if(e.shieldHits>0){
     c.strokeStyle='#cfeaff'; c.lineWidth=2.5;
@@ -1202,7 +1283,7 @@ function draw(){
       ctx.restore();
     }
     noGlow(ctx);
-    const frac=Math.max(0,lives)/DIFF().lives;
+    const frac=Math.max(0,lives)/maxLives();
     ctx.lineWidth=3;
     ctx.strokeStyle='rgba(255,255,255,.10)';
     ctx.beginPath(); ctx.arc(0,0,21,0,TAU); ctx.stroke();
@@ -1283,7 +1364,15 @@ function draw(){
       ctx.fillStyle='#fff';
       poly(ctx,10,-12,3,5,-Math.PI/2); ctx.fill();
     }
+    if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
+    if(t.empT>0){
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#ffe14d'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+      glow(ctx,'#ffe14d',6);
+      ctx.fillText('⚡',0,-18);
+      noGlow(ctx);
+    }
     ctx.restore(); ctx.globalAlpha=1;
   }
 
@@ -1386,14 +1475,18 @@ function draw(){
 
   /* boss bar */
   {
-    let hp=0,max=0;
-    for(const e of enemies) if(e.def.bossLike&&!e.dead){hp+=e.hp;max+=e.maxHp;}
+    let hp=0,max=0,sh=0,shMax=0;
+    for(const e of enemies) if(e.def.bossLike&&!e.dead){hp+=e.hp;max+=e.maxHp;sh+=e.bossShield;shMax+=e.maxHp*.25;}
     if(max>0){
       const bw=320, x=(W-bw)/2, y=16;
       ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(x-2,y-2,bw+4,12);
       ctx.fillStyle='#ff3af0'; glow(ctx,'#ff3af0',10);
       ctx.fillRect(x,y,bw*Math.max(0,hp/max),8);
       noGlow(ctx);
+      if(sh>0){
+        ctx.fillStyle='#3ad6ff';
+        ctx.fillRect(x,y+9,bw*Math.min(1,sh/shMax),2);
+      }
       ctx.strokeStyle='rgba(255,58,240,.6)'; ctx.lineWidth=1; ctx.strokeRect(x-2,y-2,bw+4,12);
       ctx.fillStyle='#ff9af8'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
       ctx.fillText('⚠ OVERMIND ⚠',W/2,y+22);
@@ -1470,13 +1563,13 @@ function showTowerInfo(t){
   const d=t.def, s=t.stats;
   const maxed=t.level>=MAX_LVL;
   const uc=maxed?0:upCost(d,t.level);
-  const refund=Math.round(t.invested*.7);
+  const refund=Math.round(t.invested*(.7+.1*SAVE.meta.sal));
   const specInfo=t.spec?SPECS[t.type].find(x=>x.id===t.spec):null;
   let html=`<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
   html+= d.aura
     ? `<b>BUFF</b> +${Math.round(s.auraDmg*100)}% dmg · +${Math.round(s.auraRate*100)}% rate · <b>RNG</b> ${s.range}<br>`
-    : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''}<br>`;
+    : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b><br>`;
   html+=`<div class="btnrow" style="margin-top:5px">
       ${d.aura?'':`<button id="targetBtn">🎯 ${MODES[t.mode]}</button>`}
       <button class="up" id="upBtn" ${maxed||money<uc?'disabled':''}>${maxed?'MAX':'⬆ $'+uc}</button>
@@ -1629,8 +1722,34 @@ function buildUI(){
     };
     ds.appendChild(b);
   });
+  buildShop();
   updateBestLine();
   $('volSlider').value=Math.round(vol*100);
+}
+function buildShop(){
+  const box=$('metaShop');
+  if(!box) return;
+  $('coreCount').textContent=SAVE.cores;
+  box.innerHTML='';
+  for(const m of META){
+    const rank=SAVE.meta[m.id];
+    const maxed=rank>=m.max;
+    const cost=maxed?0:m.costs[rank];
+    const b=document.createElement('button');
+    b.className='metaOpt'+(maxed?' maxed':'');
+    b.disabled=!maxed&&SAVE.cores<cost;
+    if(maxed) b.disabled=true;
+    b.innerHTML=`${m.name} <span class="pips">${'●'.repeat(rank)}${'○'.repeat(m.max-rank)}</span>
+      <small>${m.desc}${maxed?' — MAX':' · <b class="mcost">⬡'+cost+'</b>'}</small>`;
+    b.title=m.desc+(maxed?' (maxed out)':' — costs '+cost+' cores');
+    b.onclick=()=>{
+      if(maxed||SAVE.cores<cost) return;
+      SAVE.cores-=cost; SAVE.meta[m.id]++;
+      persist(); buildShop(); reset();
+      SND.upgrade();
+    };
+    box.appendChild(b);
+  }
 }
 function updateBestLine(){
   $('bestLine').textContent = SAVE.bestWave
@@ -1686,7 +1805,7 @@ function callWave(){
 }
 function earnedMedals(){
   const m=[];
-  if(lives===DIFF().lives) m.push(['FLAWLESS CORE','#39ff6a']);
+  if(lives===maxLives()) m.push(['FLAWLESS CORE','#39ff6a']);
   if(bestCombo>=10) m.push(['COMBO MASTER ⚡×'+bestCombo,'#ffd34d']);
   if(usedTypes.size>=6) m.push(['FULL ARSENAL','#4d8dff']);
   if(!soldAny&&towers.length>0) m.push(['DIAMOND HANDS','#3ad6ff']);
@@ -1708,23 +1827,26 @@ function recordEnd(won){
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
   if(won) SAVE.wins=(SAVE.wins||0)+1;
-  persist(); updateBestLine();
+  const earned=Math.max(1,Math.round((wave+(won?10:0))*[.6,1,1.5][diffIndex]));
+  SAVE.cores+=earned;
+  persist(); updateBestLine(); buildShop();
+  return earned;
 }
 function loseGame(){
-  gameOver=true; recordEnd(false);
+  gameOver=true; const earned=recordEnd(false);
   $('endTitle').textContent='CORE LOST';
   $('endTitle').style.textShadow='0 0 18px #ff4d6a';
-  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b>`;
+  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b><br>⬡ Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
   $('continueBtn').style.display='none';
   showMedals();
   $('endOverlay').classList.remove('hidden');
   SND.boom();
 }
 function winGame(){
-  gameOver=true; recordEnd(true);
+  gameOver=true; const earned=recordEnd(true);
   $('endTitle').textContent='CORE SECURED';
   $('endTitle').style.textShadow='0 0 18px #39ff6a';
-  $('endSub').innerHTML=`All <b>${FINAL_WAVE} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b>`;
+  $('endSub').innerHTML=`All <b>${FINAL_WAVE} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">⚡×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>⬡ Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
   $('continueBtn').style.display='block';
   showMedals();
   $('endOverlay').classList.remove('hidden');
