@@ -679,10 +679,12 @@ function genProps(){
     }
     used.add(key);
     const [rc,rr]=key.split(',').map(Number);
+    const burning=ruins.length>=2&&ruins.length<5;   /* three of the eight still burn */
     ruins.push({key, x:rc*CELL+CELL/2, y:rr*CELL+CELL/2,
-      kind:['tower','pylon','husk','wall'][Math.floor(Math.random()*4)],
+      kind:burning?['tower','block','husk'][Math.floor(Math.random()*3)]
+                  :['tower','pylon','husk','block'][Math.floor(Math.random()*4)],
       seed:Math.random()*10, big:.85+Math.random()*.45,
-      drone:ruins.length<2});
+      fire:burning, drone:ruins.length<2});
   }
 }
 function buildMap(i,persistSel=true){
@@ -1828,52 +1830,92 @@ function drawPlantCluster(c,g){
   c.globalAlpha=1;
 }
 
-/* ruins of the long dark — dim dead silhouettes with dying lights */
+/* ruins of the long dark — dead architecture, some of it still burning */
 function drawRuin(c,ru){
   if(occ.has(ru.key)) return;
   c.save(); c.translate(ru.x,ru.y); c.scale(ru.big,ru.big);
-  c.lineWidth=1.4; c.globalAlpha=.55;
-  const t=time, dim='#3d4f80', dark='#2a3760';
+  const t=time, base=ru.fire?.92:.75;
+  c.lineWidth=1.7; c.globalAlpha=base;
+  const dim='#5e77ad', dark='#3a4a7a';
   c.strokeStyle=dim;
   const flick=Math.sin(t*6.3+ru.seed*7)*Math.sin(t*1.3+ru.seed*3)>.62;
+  let fy=-14;                                          /* where flames sit, per kind */
   if(ru.kind==='tower'){
-    c.strokeRect(-5,-2,10,18);
-    c.beginPath(); c.moveTo(-2,4); c.lineTo(2,9); c.lineTo(-1,13); c.stroke();      /* crack */
-    c.save(); c.translate(0,-2); c.rotate(-.35);                                     /* toppled head */
-    c.beginPath(); c.moveTo(-7,0); c.lineTo(-5,-8); c.lineTo(5,-8); c.lineTo(7,0); c.stroke();
+    c.strokeRect(-6,-4,12,22);
+    c.beginPath(); c.moveTo(-6,2); c.lineTo(6,2); c.stroke();          /* floor line */
+    c.fillStyle=dark;
+    c.fillRect(-3.5,5,2.6,3.4); c.fillRect(1,5,2.6,3.4); c.fillRect(-3.5,11,2.6,3.4);
+    if(flick){ c.fillStyle='#9db8ff'; c.fillRect(1,11,2.6,3.4); }      /* one window flickers */
+    c.save(); c.translate(0,-4); c.rotate(-.35);                       /* toppled head */
+    c.beginPath(); c.moveTo(-8,0); c.lineTo(-6,-9); c.lineTo(6,-9); c.lineTo(8,0); c.stroke();
     c.restore();
-    if(flick){ c.fillStyle='#9db8ff'; c.globalAlpha=.85; c.fillRect(-1.5,-10,3,3); c.globalAlpha=.55; }
+    fy=-13;
   }else if(ru.kind==='pylon'){
     c.beginPath();
-    c.moveTo(0,16); c.lineTo(0,-16);
-    c.moveTo(-8,-10); c.lineTo(8,-10);
-    c.moveTo(-5,-4); c.lineTo(5,-4);
+    c.moveTo(0,18); c.lineTo(0,-17);
+    c.moveTo(-9,-11); c.lineTo(9,-11);
+    c.moveTo(-6,-4); c.lineTo(6,-4);
     c.stroke();
-    c.strokeStyle=dark;                                                              /* snapped cables */
-    c.beginPath(); c.moveTo(-8,-10); c.quadraticCurveTo(-11,2,-9,16); c.stroke();
-    c.beginPath(); c.moveTo(5,-4); c.quadraticCurveTo(9,6,7,16); c.stroke();
-    if(flick){ c.fillStyle='#b03a4a'; c.globalAlpha=.85; c.beginPath(); c.arc(0,-16,1.6,0,TAU); c.fill(); c.globalAlpha=.55; }
+    c.strokeStyle=dark;                                                /* snapped cables */
+    c.beginPath(); c.moveTo(-9,-11); c.quadraticCurveTo(-12,3,-10,18); c.stroke();
+    c.beginPath(); c.moveTo(6,-4); c.quadraticCurveTo(10,7,8,18); c.stroke();
+    if(flick){ c.fillStyle='#c4576a'; c.beginPath(); c.arc(0,-17,1.8,0,TAU); c.fill(); }
   }else if(ru.kind==='husk'){
-    c.strokeRect(-15,-6,30,12);                                                      /* cold reactor housing */
+    c.strokeRect(-16,-7,32,14);                                        /* cold reactor housing */
+    c.beginPath();
+    c.moveTo(-16,-7); c.lineTo(-11,-12); c.lineTo(11,-12); c.lineTo(16,-7);          /* roof */
+    c.stroke();
     c.beginPath(); c.arc(-7,0,5,0,TAU); c.stroke();
-    c.strokeStyle=dark;                                                              /* shattered coil */
+    c.strokeStyle=dark;                                                /* shattered coil */
     c.beginPath(); c.arc(7,0,5,.6,2.4); c.stroke();
     c.beginPath(); c.arc(7,0,5,3.6,5.2); c.stroke();
-    c.beginPath(); c.moveTo(-15,-9); c.lineTo(-10,-6); c.moveTo(-4,-9); c.lineTo(0,-6); c.stroke();
-  }else{ /* fallen wall run */
-    c.strokeRect(-15,2,9,10);
-    c.strokeRect(-4,-2,9,14);
-    c.save(); c.translate(9,8); c.rotate(.3); c.strokeRect(0,0,9,8); c.restore();
-    c.fillStyle=dark;
-    c.fillRect(-17,12,2,2); c.fillRect(4,13,2,2); c.fillRect(13,11,2,2);
+    fy=-12;
+  }else{ /* block — two-storey ruined building with a jagged roofline */
+    c.beginPath();
+    c.moveTo(-16,15); c.lineTo(-16,-9); c.lineTo(-9,-9); c.lineTo(-9,-15); c.lineTo(-1,-15);
+    c.lineTo(-1,-7); c.lineTo(7,-7); c.lineTo(7,-12); c.lineTo(11,-12); c.lineTo(16,-5);
+    c.lineTo(16,15); c.closePath(); c.stroke();
+    c.beginPath(); c.moveTo(-16,3); c.lineTo(16,3); c.stroke();        /* storey line */
+    c.fillStyle=dark;                                                  /* window grid */
+    for(const wx of [-13,-7,1,8]) for(const wy of [-3,6,10]){
+      if(wy===-3&&wx>4) continue;                                       /* collapsed corner */
+      if(Math.sin(t*2.6+ru.seed*9+wx*wy)>.93) c.fillStyle='#9db8ff';
+      c.fillRect(wx,wy,3.4,3.8);
+      c.fillStyle=dark;
+    }
+    fy=-15;
   }
-  if(ru.drone){                                                                      /* repair drone, still trying */
+  /* burning */
+  if(ru.fire){
+    const fx=ru.kind==='block'?-4:0;
+    for(let i=0;i<3;i++){
+      const h=8+3.5*Math.sin(t*8+ru.seed*5+i*2.4);
+      const ox=fx+(i-1)*5, lean=Math.sin(t*6+i*1.7+ru.seed)*2;
+      c.fillStyle=i===1?'#ffd34d':'#ff7a2f';
+      glow(c,'#ff7a2f',10);
+      c.globalAlpha=.85;
+      c.beginPath();
+      c.moveTo(ox-3,fy);
+      c.quadraticCurveTo(ox-1.5,fy-h*.55, ox+lean,fy-h);
+      c.quadraticCurveTo(ox+1.5,fy-h*.5, ox+3,fy);
+      c.closePath(); c.fill();
+    }
+    noGlow(c);
+    for(let k=0;k<3;k++){                                              /* rising embers */
+      const ph=(t*.7+k*.37+ru.seed)%1;
+      c.globalAlpha=(1-ph)*.9;
+      c.fillStyle='#ffd34d';
+      c.fillRect(fx+Math.sin(ph*7+k*3)*5, fy-6-ph*18, 1.7,1.7);
+    }
+    c.globalAlpha=base;
+  }
+  if(ru.drone){                                                        /* repair drone, still trying */
     const a=t*1.3+ru.seed;
-    const dx=Math.cos(a)*13, dy=-18+Math.sin(a*1.7)*4;
-    c.globalAlpha=.8;
-    c.strokeStyle='#6b7fb3'; c.lineWidth=1.2;
-    poly(c,dx,dy,3,3,a); c.stroke();
-    if(Math.sin(t*9+ru.seed)>0){ c.fillStyle='#6bffb0'; c.beginPath(); c.arc(dx,dy,1,0,TAU); c.fill(); }
+    const dx=Math.cos(a)*14, dy=-19+Math.sin(a*1.7)*4;
+    c.globalAlpha=.85;
+    c.strokeStyle='#8fa3cf'; c.lineWidth=1.3;
+    poly(c,dx,dy,3.2,3,a); c.stroke();
+    if(Math.sin(t*9+ru.seed)>0){ c.fillStyle='#6bffb0'; c.beginPath(); c.arc(dx,dy,1.1,0,TAU); c.fill(); }
   }
   c.restore(); c.globalAlpha=1;
 }
@@ -2555,7 +2597,7 @@ function buildShop(){
 /* ============================== CODEX ============================== */
 const BIOME_LORE=[
   ['plant','GRID FLORA','Bioluminescent tufts scattered across the field. They politely make way for towers.'],
-  ['ruin','RUINS OF THE LONG DARK','Dead watchtowers, snapped pylons and cold reactor husks — what the grid lost in the hundred cycles. The repair drones never stopped trying.'],
+  ['ruin','RUINS OF THE LONG DARK','Dead watchtowers, snapped pylons, hollow housing blocks and cold reactor husks — what the grid lost in the hundred cycles. Some still burn. The repair drones never stopped trying.'],
   ['portal','SPAWN PORTAL','Rift where the glyph swarm phases into the field. Every wave pours out of it.'],
   ['core','THE CORE','The last light of the grid. Its outer ring shows remaining integrity — guard it.'],
   ['bird','SKY GLIDERS','Chevron flocks that cross the battlefield. Harmless; they have seen many sieges.'],
