@@ -467,8 +467,8 @@ const MAPS=[
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), PORTAL=null, CORE=null;
 const stars=[], props=[];
-/* the four top cells beside the spawn are an overgrown grove — scenery only, no towers */
-const GROVE_CELLS=[[0,0],[1,0],[2,0],[3,0]];
+/* the 2x2 corner cells beside the spawn are an overgrown grove — scenery only, no towers */
+const GROVE_CELLS=[[0,0],[1,0],[0,1],[1,1]];
 let grove=[];
 
 function pointAt(d){
