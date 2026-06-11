@@ -611,7 +611,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.6';
+const VERSION='4.7';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2495,20 +2495,51 @@ function draw(){
     }
   }
 
-  /* wave banner */
-  if(waveActive && waveT<2.2){
-    const a=Math.min(1,(2.2-waveT)/.8), slide=Math.max(0,1-waveT*2.5)*30;
-    ctx.globalAlpha=a;
-    const isBoss=wave%5===0;
-    ctx.fillStyle=isBoss?'#ff7ad0':'#fff'; ctx.font='bold 26px monospace'; ctx.textAlign='center';
-    glow(ctx,isBoss?'#ff3af0':'#4d8dff',20);
-    ctx.fillText(isBoss?'!! BOSS WAVE '+wave+' !!':'— WAVE '+wave+' —',W/2,62-slide);
-    noGlow(ctx);
-    if(curWave&&curWave.mod){
-      ctx.fillStyle='#ffd34d'; ctx.font='bold 13px monospace';
-      ctx.fillText(curWave.mod.label+' — '+curWave.mod.desc,W/2,84-slide);
+  /* wave banner — comm-transmission bar that sweeps open from the center */
+  if(waveActive && waveT<2.6){
+    const T=waveT, isBoss=wave%5===0;
+    const ease=1-Math.pow(1-Math.min(1,T/.45),3);
+    const out=T>2.0?Math.min(1,(T-2.0)/.6):0;
+    const colMain=isBoss?'#ff3af0':'#4d8dff';
+    const y=58-out*16, bw=ease*230;
+    ctx.save();
+    ctx.globalAlpha=1-out;
+    ctx.fillStyle='rgba(6,10,20,.82)';
+    ctx.fillRect(W/2-bw,y-23,bw*2,46);
+    ctx.strokeStyle=colMain; ctx.lineWidth=1.5;
+    glow(ctx,colMain,9);
+    ctx.beginPath();
+    ctx.moveTo(W/2-bw,y-23); ctx.lineTo(W/2+bw,y-23);
+    ctx.moveTo(W/2-bw,y+23); ctx.lineTo(W/2+bw,y+23);
+    ctx.stroke();
+    ctx.fillStyle=colMain;
+    for(const s of [-1,1]){
+      ctx.beginPath();
+      ctx.moveTo(W/2+s*(bw+12),y); ctx.lineTo(W/2+s*(bw+4),y-5); ctx.lineTo(W/2+s*(bw+4),y+5);
+      ctx.closePath(); ctx.fill();
     }
-    ctx.globalAlpha=1;
+    noGlow(ctx);
+    if(ease>.6){
+      ctx.globalAlpha=(ease-.6)/.4*(1-out);
+      ctx.textAlign='center';
+      ctx.fillStyle=isBoss?'#ff9af8':'#9db8ff';
+      ctx.font='bold 8px monospace';
+      const sub=isBoss ? 'OVERMIND SIGNATURE DETECTED'
+        :(curWave&&curWave.mod) ? (curWave.mod.label+' PROTOCOL — '+curWave.mod.desc).toUpperCase()
+        :'HOSTILE COLUMN INBOUND';
+      ctx.fillText(sub,W/2,y-9);
+      ctx.fillStyle='#fff';
+      ctx.font='bold 23px monospace';
+      glow(ctx,colMain,14);
+      ctx.fillText((isBoss?'BOSS WAVE ':'WAVE ')+wave,W/2,y+14);
+      noGlow(ctx);
+      const nE=curWave?curWave.spawns.filter(s=>s.elite).length:0;
+      if(nE){
+        ctx.fillStyle='#ffd34d'; ctx.font='bold 9px monospace';
+        ctx.fillText(nE+' ELITE'+(nE>1?'S':'')+' IN COLUMN',W/2,y+35);
+      }
+    }
+    ctx.restore(); ctx.globalAlpha=1;
   }
 
   /* hints (richer step-by-step on the tutorial mission) */
