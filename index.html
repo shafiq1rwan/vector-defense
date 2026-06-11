@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#04060d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>VECTOR DEFENSE</title>
 <style>
   :root{
@@ -425,6 +428,7 @@ function computeStats(t){
   return s;
 }
 const MODES=['FIRST','LAST','STRONG','WEAK'];
+const XP_T=[120,350,800], MAX_RANK=3;   /* veterancy: +5% dmg, +3% rate per rank */
 
 /* ============================== ABILITIES ============================== */
 const ABILITIES={
@@ -541,11 +545,12 @@ function reset(){
 }
 
 /* ============================== AUDIO ============================== */
-let AC=null, master=null;
+let AC=null, master=null, musicGain=null;
 function ac(){
   if(!AC){
     AC=new (window.AudioContext||window.webkitAudioContext)();
     master=AC.createGain(); master.gain.value=vol; master.connect(AC.destination);
+    musicGain=AC.createGain(); musicGain.gain.value=.5; musicGain.connect(master);
   }
   if(AC.state==='suspended') AC.resume();
   return AC;
@@ -591,6 +596,55 @@ const SND={
   nova:()=>{beep(1600,300,.5,'sine',.12);},
   boom:()=>boom()
 };
+
+/* ============================== MUSIC ==============================
+   Lookahead sequencer over a 64-step (4 bar) grid. Intensity follows the
+   game: 1 = calm pulse, 2 = wave combat, 3 = boss (faster, darker key). */
+const MUSIC={step:0,next:0};
+const BASS_SEQ=[0,0,3,0, 0,0,-2,0, 0,0,3,5, 3,0,-2,-4];      /* semitones over A1, one per quarter */
+const ARP=[0,3,7,10,12,10,7,3];
+const ARP_BOSS=[0,1,7,8,12,8,7,1];
+const SEMI=n=>55*Math.pow(2,n/12);
+function mnote(freq,when,dur,type,v){
+  if(muted) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,when);
+  g.gain.setValueAtTime(0,when);
+  g.gain.linearRampToValueAtTime(v,when+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,when+dur);
+  o.connect(g).connect(musicGain);
+  o.start(when); o.stop(when+dur+.03);
+}
+function mhat(when,v){
+  if(muted) return;
+  const n=AC.sampleRate*.03, buf=AC.createBuffer(1,n,AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  const s=AC.createBufferSource(), g=AC.createGain(), f=AC.createBiquadFilter();
+  f.type='highpass'; f.frequency.value=5000;
+  g.gain.value=v; s.buffer=buf;
+  s.connect(f).connect(g).connect(musicGain); s.start(when);
+}
+function musicTick(){
+  if(!AC||!musicGain||AC.state!=='running') return;
+  const t=AC.currentTime;
+  if(MUSIC.next<t-.5) MUSIC.next=t+.05;          /* resync after tab sleep */
+  const boss=enemies&&enemies.some(e=>e.def.bossLike&&!e.dead);
+  const inten=boss?3:(running&&!gameOver&&waveActive)?2:1;
+  const sd=inten===3?.105:.125;
+  while(MUSIC.next<t+.3){
+    const s=MUSIC.step, when=MUSIC.next;
+    if(s%4===0)
+      mnote(SEMI(BASS_SEQ[(s/4)%16]+(inten===3?-2:0)),when,.22,'triangle',.07);
+    const arp=inten===3?ARP_BOSS:ARP;
+    const play=inten===3 ? true : inten===2 ? s%2===0 : s%4===2;
+    if(play)
+      mnote(220*Math.pow(2,arp[s%arp.length]/12),when,.12,'square',inten===1?.018:.03);
+    if(inten>=2 && s%4===2) mhat(when,.025);
+    if(inten===3 && s%16===0) mnote(SEMI(-5),when,1.6,'sawtooth',.022);
+    MUSIC.step=(MUSIC.step+1)%64;
+    MUSIC.next+=sd;
+  }
+}
 
 /* ============================== HELPERS ============================== */
 const dist2=(a,b)=>{const dx=a.x-b.x,dy=a.y-b.y;return dx*dx+dy*dy;};
@@ -653,6 +707,16 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     let extra=0;
     if(combo>=2){ extra=combo*2; money+=extra; }
     money+=rw;
+    /* veterancy XP for the killing tower */
+    if(o.src && o.src.rank!==undefined && !o.src.def.aura){
+      o.src.xp+=rw;
+      if(o.src.rank<MAX_RANK && o.src.xp>=XP_T[o.src.rank]){
+        o.src.rank++;
+        ring(o.src.x,o.src.y,22,'#ffd34d',.5);
+        addText(o.src.x,o.src.y-22,'★ RANK '+o.src.rank,'#ffd34d');
+        SND.upgrade();
+      }
+    }
     addText(e.x,e.y-14,'+'+rw+(extra?' ⚡'+extra:''), extra?'#ffe14d':'#ffd34d');
     spray(e.x,e.y,e.def.color,e.def.r*2,170,.6);
     ring(e.x,e.y,e.def.r*2,e.def.color,.3);
@@ -670,7 +734,7 @@ function placeTower(type,c,r){
   const def=TOWERS[type];
   const t={type,def,c,r,x:c*CELL+16,y:r*CELL+16,level:1,cd:0,angle:-Math.PI/2,
            invested:def.cost,flash:0,spawnT:.4,spec:null,mode:0,buffD:0,buffR:0,
-           empT:0,totalDmg:0,waveDmg:0};
+           empT:0,totalDmg:0,waveDmg:0,xp:0,rank:0};
   t.stats=computeStats(t);
   towers.push(t); occ.set(c+','+r,t);
   money-=def.cost; usedTypes.add(type);
@@ -691,7 +755,7 @@ function acquire(t){
 }
 function fire(t,target){
   const s=t.stats, c=t.def.color;
-  const dmgMul=(1+t.buffD)*(surgeT>0?1.6:1);
+  const dmgMul=(1+t.buffD)*(surgeT>0?1.6:1)*(1+.05*t.rank);
   const dmg=s.dmg*dmgMul, dtype=t.def.dtype;
   t.flash=.1;
   t.angle=Math.atan2(target.y-t.y,target.x-t.x);
@@ -948,7 +1012,7 @@ function update(dt){
       while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU;
       t.angle+=d*Math.min(1,dt*14);
       if(t.cd<=0){
-        t.cd=1/(t.stats.rate*(1+t.buffR)*(surgeT>0?1.5:1));
+        t.cd=1/(t.stats.rate*(1+t.buffR)*(surgeT>0?1.5:1)*(1+.03*t.rank));
         fire(t,tgt);
       }
     }
@@ -1401,6 +1465,10 @@ function draw(){
       ctx.fillStyle='#fff';
       poly(ctx,10,-12,3,5,-Math.PI/2); ctx.fill();
     }
+    if(t.rank>0){
+      ctx.fillStyle='#ffd34d';
+      for(let i=0;i<t.rank;i++){ poly(ctx,-11+i*6,-15,2.6,4,Math.PI/4); ctx.fill(); }
+    }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
     if(t.empT>0){
@@ -1606,7 +1674,8 @@ function showTowerInfo(t){
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
   html+= d.aura
     ? `<b>BUFF</b> +${Math.round(s.auraDmg*100)}% dmg · +${Math.round(s.auraRate*100)}% rate · <b>RNG</b> ${s.range}<br>`
-    : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b><br>`;
+    : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b>
+      · <b style="color:#ffd34d">${'★'.repeat(t.rank)||'☆'}</b>${t.rank<MAX_RANK?` <span style="font-size:9px">(${Math.floor(t.xp)}/${XP_T[t.rank]} XP)</span>`:' MAX'}<br>`;
   html+=`<div class="btnrow" style="margin-top:5px">
       ${d.aura?'':`<button id="targetBtn">🎯 ${MODES[t.mode]}</button>`}
       <button class="up" id="upBtn" ${maxed||money<uc?'disabled':''}>${maxed?'MAX':'⬆ $'+uc}</button>
@@ -2038,6 +2107,7 @@ function frame(now){
     time+=dt;
   }
   draw();
+  musicTick();
   requestAnimationFrame(frame);
 }
 
@@ -2049,6 +2119,11 @@ buildMap(mapIndex);
 buildUI();
 reset();
 requestAnimationFrame(frame);
+
+/* PWA: installable + offline (https only; no-op when opened from disk) */
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>

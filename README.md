@@ -10,8 +10,11 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Active abilities** — Orbital Strike, Frost Nova, Overdrive (Q/W/E)
 - **3 maps × 3 difficulties**, wave modifiers (fast / regen / horde / wealth), combo credit system
 - **Meta-progression** — earn ⬡ cores every run and buy permanent upgrades in the shop
+- **Tower veterancy** — towers earn XP per kill and gain ★ ranks with passive bonuses
+- **Procedural music** — WebAudio synth score that intensifies with combat and boss waves
 - **DPS scoreboard**, targeting modes, medals, persistent high scores (localStorage)
-- **Mobile-friendly** — responsive layout with touch support
+- **Mobile-friendly** — responsive layout, drag-to-place touch controls, auto-landscape in portrait
+- **Installable PWA** — "Add to Home Screen" for fullscreen offline play
 
 ## Controls
 
