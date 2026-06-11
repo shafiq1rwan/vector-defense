@@ -190,6 +190,23 @@
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
   }
+  /* portrait phones: auto-rotate the whole game into landscape so the grid stays big */
+  @media (orientation:portrait) and (max-width:700px){
+    body{overflow:hidden;}
+    #wrap{
+      position:fixed; top:0; left:0;
+      width:100vh; height:100vw;
+      transform:rotate(90deg) translateY(-100%);
+      transform-origin:top left;
+      flex-direction:row; align-items:flex-start; justify-content:center;
+      padding:6px; gap:8px;
+    }
+    #stage{width:auto; max-width:none; flex:none;}
+    canvas#game{height:calc(100vw - 12px); max-height:512px; width:auto;}
+    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); overflow-y:auto;}
+    #cards{grid-template-columns:repeat(3,1fr);}
+    .big{font-size:20px; letter-spacing:4px;}
+  }
 </style>
 </head>
 <body>
@@ -419,8 +436,8 @@ const ABILITIES={
     desc:'+60% tower damage & speed for 8s'}
 };
 let cds={strike:0,nova:0,surge:0}, aiming=null, surgeT=0;
-/* two-tap confirm state for touch input */
-let pendingCell=null, pendingStrike=null;
+/* touch drag-to-place: 'place' | 'strike' while a finger drag is active */
+let dragMode=null;
 
 /* ============================== ENEMY CAST ============================== */
 const ENEMIES={
@@ -515,7 +532,7 @@ function reset(){
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
-  cds={strike:0,nova:0,surge:0}; aiming=null; surgeT=0; pendingCell=null; pendingStrike=null;
+  cds={strike:0,nova:0,surge:0}; aiming=null; surgeT=0; dragMode=null;
   $('speedBtn').textContent='⏩ 1×';
   $('progFill').style.width='0%';
   const wb=$('waveBtn');
@@ -747,7 +764,7 @@ function fire(t,target){
 /* ============================== ABILITIES LOGIC ============================== */
 function useAbility(k){
   if(!running||gameOver||cds[k]>0){SND.deny(); return;}
-  if(k==='strike'){ aiming=aiming==='strike'?null:'strike'; placing=null; pendingCell=null; pendingStrike=null; cancelCardSel(); return; }
+  if(k==='strike'){ aiming=aiming==='strike'?null:'strike'; placing=null; dragMode=null; cancelCardSel(); return; }
   if(k==='nova'){
     cds.nova=abilityCd('nova');
     for(const e of enemies){ if(!e.dead){e.slowT=Math.max(e.slowT,2.5); e.slowF=0;
@@ -1328,11 +1345,11 @@ function draw(){
     drawTowerBody(ctx,placing,1,-Math.PI/2,time,false);
     ctx.restore();
     ctx.globalAlpha=1;
-    if(pendingCell){
+    if(dragMode==='place'){
       ctx.fillStyle=ok?'#39ff6a':'#ff4d6a';
-      ctx.font='bold 11px monospace'; ctx.textAlign='center';
+      ctx.font='bold 12px monospace'; ctx.textAlign='center';
       glow(ctx,ctx.fillStyle,8);
-      ctx.fillText(ok?'TAP AGAIN TO BUILD':'BLOCKED — PICK ANOTHER CELL',x,y-26);
+      ctx.fillText(ok?'RELEASE TO BUILD':'BLOCKED — KEEP DRAGGING',x,y-30);
       noGlow(ctx);
     }
   }
@@ -1347,7 +1364,7 @@ function draw(){
     ctx.moveTo(mouse.x,mouse.y-12); ctx.lineTo(mouse.x,mouse.y+12);
     ctx.stroke();
     ctx.fillStyle='rgba(255,165,58,.85)'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
-    ctx.fillText(pendingStrike?'TAP AGAIN TO FIRE':'CLICK TO STRIKE',mouse.x,mouse.y-100);
+    ctx.fillText(dragMode==='strike'?'RELEASE TO FIRE':'CLICK TO STRIKE',mouse.x,mouse.y-100);
   }
 
   /* range circles */
@@ -1535,7 +1552,7 @@ function draw(){
     ctx.fillStyle='#9db8ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
     glow(ctx,'#4d8dff',8);
     if(towers.length===0)
-      ctx.fillText(placing?'TAP AN OPEN CELL TO DEPLOY · SHIFT-CLICK = MULTI-PLACE':'① PICK A HERO (KEYS 1–6) → ② DEPLOY ON THE MAP',W/2,H-18);
+      ctx.fillText(placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'① PICK A HERO (KEYS 1–6) → ② DEPLOY ON THE MAP',W/2,H-18);
     else
       ctx.fillText('PRESS SPACE OR HIT ▶ TO START THE WAVE',W/2,H-18);
     noGlow(ctx); ctx.globalAlpha=1;
@@ -1633,7 +1650,7 @@ function showTowerInfo(t){
 function selectCard(type){
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
-  placing=type; selTower=null; aiming=null; pendingCell=null; pendingStrike=null;
+  placing=type; selTower=null; aiming=null; dragMode=null;
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
   $('card_'+type).classList.add('sel');
   showCardInfo(type);
@@ -1642,7 +1659,7 @@ function cancelCardSel(){
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
 }
 function cancelPlacing(){
-  placing=null; pendingCell=null; cancelCardSel();
+  placing=null; dragMode=null; cancelCardSel();
   if(!selTower) setInfo(null);
 }
 
@@ -1875,41 +1892,42 @@ function winGame(){
 }
 
 /* ============================== INPUT ============================== */
-function setMouse(e){
+function setMouse(e,lift=0){
   const r=cvs.getBoundingClientRect();
-  mouse.x=(e.clientX-r.left)*(W/r.width);
-  mouse.y=(e.clientY-r.top)*(H/r.height);
+  /* the portrait media query rotates the game 90°; detect it from the bounding box */
+  const rotated=(r.width<r.height)===(W>H);
+  const cx=e.clientX, cy=e.clientY-lift;   /* lift raises the point above the finger, in screen space */
+  if(!rotated){
+    mouse.x=(cx-r.left)*(W/r.width);
+    mouse.y=(cy-r.top)*(H/r.height);
+  }else{
+    mouse.x=(cy-r.top)*(W/r.height);
+    mouse.y=(r.right-cx)*(H/r.width);
+  }
   mouse.inside=true;
 }
-cvs.addEventListener('pointermove',setMouse);
-cvs.addEventListener('pointerleave',()=>mouse.inside=false);
+cvs.addEventListener('pointermove',e=>setMouse(e,dragMode?60:0));
+cvs.addEventListener('pointerleave',()=>{ if(!dragMode) mouse.inside=false; });
 cvs.addEventListener('pointerdown',e=>{
   if(!running||gameOver) return;
   ac();
   if(e.button===2) return;
-  setMouse(e);
-  const isTouch=e.pointerType==='touch';
-  if(aiming==='strike'){
-    /* touch aims on the first tap, fires on the second */
-    if(isTouch && (!pendingStrike || Math.hypot(pendingStrike.x-mouse.x,pendingStrike.y-mouse.y)>34)){
-      pendingStrike={x:mouse.x,y:mouse.y};
-      return;
-    }
-    pendingStrike=null;
-    castStrike(mouse.x,mouse.y); refreshUI(); return;
+  const isTouch=e.pointerType!=='mouse';
+  /* touch: press starts a drag — ghost floats above the finger, release commits */
+  if(isTouch && (placing || aiming==='strike')){
+    dragMode=placing?'place':'strike';
+    setMouse(e,60);
+    try{ cvs.setPointerCapture(e.pointerId); }catch(_){}
+    return;
   }
+  setMouse(e);
+  if(aiming==='strike'){ castStrike(mouse.x,mouse.y); refreshUI(); return; }
   const c=Math.floor(mouse.x/CELL), r=Math.floor(mouse.y/CELL), key=c+','+r;
   if(placing){
-    /* touch previews the ghost on the first tap, places on the second tap of the same cell */
-    if(isTouch && (!pendingCell || pendingCell.c!==c || pendingCell.r!==r)){
-      pendingCell={c,r};
-      return;
-    }
-    pendingCell=null;
     const d=TOWERS[placing];
     if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!blocked.has(key)&&!occ.has(key)&&money>=d.cost){
       placeTower(placing,c,r);
-      if(money<d.cost || (!e.shiftKey&&!isTouch)) cancelPlacing();  /* touch keeps placing until cancelled */
+      if(money<d.cost || !e.shiftKey) cancelPlacing();
       refreshUI();
     }else SND.deny();
     return;
@@ -1923,15 +1941,33 @@ cvs.addEventListener('pointerdown',e=>{
   if(t){ selTower=t; showTowerInfo(t); }
   else { selTower=null; setInfo(null); }
 });
+cvs.addEventListener('pointerup',e=>{
+  if(!dragMode) return;
+  setMouse(e,60);
+  const mode=dragMode; dragMode=null;
+  if(mode==='strike' && aiming==='strike'){
+    castStrike(mouse.x,mouse.y); refreshUI();
+  }else if(mode==='place' && placing){
+    const c=Math.floor(mouse.x/CELL), r=Math.floor(mouse.y/CELL), key=c+','+r;
+    const d=TOWERS[placing];
+    if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!blocked.has(key)&&!occ.has(key)&&money>=d.cost){
+      placeTower(placing,c,r);
+      if(money<d.cost) cancelPlacing();   /* touch keeps placing until the card is tapped again */
+      refreshUI();
+    }else SND.deny();
+  }
+  mouse.inside=false;
+});
+cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; });
 cvs.addEventListener('contextmenu',e=>{
   e.preventDefault();
-  cancelPlacing(); selTower=null; aiming=null; pendingStrike=null; setInfo(null);
+  cancelPlacing(); selTower=null; aiming=null; setInfo(null);
 });
 
 document.addEventListener('keydown',e=>{
   if(!running) return;
   const k=e.key.toLowerCase();
-  if(k==='escape'){cancelPlacing(); selTower=null; aiming=null; pendingStrike=null; setInfo(null);}
+  if(k==='escape'){cancelPlacing(); selTower=null; aiming=null; setInfo(null);}
   else if(k===' '){e.preventDefault(); callWave();}
   else if(k==='p'){togglePause();}
   else if(k==='f'){toggleSpeed();}
