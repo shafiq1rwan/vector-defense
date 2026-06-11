@@ -32,6 +32,19 @@
     width:240px; background:#0a0f1f;
     border:1px solid var(--line); border-radius:10px;
     padding:10px; display:flex; flex-direction:column; gap:8px;
+    max-height:514px;   /* match the canvas so the action bar stays pinned */
+  }
+  #panelScroll{
+    flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:flex; flex-direction:column; gap:8px;
+    padding-right:2px;
+  }
+  #panelScroll::-webkit-scrollbar{width:5px;}
+  #panelScroll::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
+  #panelScroll::-webkit-scrollbar-track{background:transparent;}
+  #panelBottom{
+    flex:none; display:flex; flex-direction:column; gap:8px;
+    border-top:1px solid var(--line); padding-top:8px;
   }
   h1{
     font-size:16px; letter-spacing:4px; text-align:center; font-weight:700;
@@ -187,7 +200,7 @@
     #wrap{flex-direction:column; align-items:center; padding:8px; gap:10px; width:100%;}
     #stage{width:100%; max-width:800px;}
     canvas#game{width:100%; height:auto;}
-    #panel{width:100%; max-width:800px;}
+    #panel{width:100%; max-width:800px; max-height:none;}
     #cards{grid-template-columns:repeat(6,1fr);}
     .big{font-size:24px; letter-spacing:5px;}
     button{padding:10px 3px;}
@@ -207,7 +220,8 @@
     #wrap{flex-direction:row; align-items:flex-start; justify-content:center; padding:6px; gap:8px; height:100%;}
     #stage{width:auto; max-width:none; flex:none; height:calc(100% - 0px);}
     canvas#game{height:calc(100vh - 12px); max-height:512px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vh - 12px); overflow-y:auto;}
+    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vh - 12px); max-height:none;}
+    #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
   }
@@ -224,7 +238,8 @@
     }
     #stage{width:auto; max-width:none; flex:none;}
     canvas#game{height:calc(100vw - 12px); max-height:512px; width:auto;}
-    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); overflow-y:auto;}
+    #panel{flex:1; min-width:200px; max-width:300px; height:calc(100vw - 12px); max-height:none;}
+    #panel h1,#foot{display:none;}
     #cards{grid-template-columns:repeat(3,1fr);}
     .big{font-size:20px; letter-spacing:4px;}
   }
@@ -300,16 +315,20 @@
       <div class="nlbl" id="nextLbl">NEXT WAVE</div>
       <div id="nextIcons"></div>
     </div>
-    <div id="cards"></div>
-    <div id="abils"></div>
-    <div id="info"></div>
-    <button id="waveBtn" class="pulse">START WAVE 1</button>
-    <div class="btnrow">
-      <button id="pauseBtn"></button>
-      <button id="speedBtn"></button>
-      <button id="muteBtn"></button>
+    <div id="panelScroll">
+      <div id="cards"></div>
+      <div id="abils"></div>
+      <div id="info"></div>
     </div>
-    <div id="foot">VECTOR DEFENSE v3.3</div>
+    <div id="panelBottom">
+      <button id="waveBtn" class="pulse">START WAVE 1</button>
+      <div class="btnrow">
+        <button id="pauseBtn"></button>
+        <button id="speedBtn"></button>
+        <button id="muteBtn"></button>
+      </div>
+      <div id="foot">VECTOR DEFENSE v3.3</div>
+    </div>
   </div>
 </div>
 
