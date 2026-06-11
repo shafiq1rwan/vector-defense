@@ -172,8 +172,20 @@
     font-size:9px; font-weight:700; letter-spacing:1px; padding:4px 9px;
     border:1px solid var(--mc,#4d8dff); color:var(--mc,#4d8dff); border-radius:20px;
   }
-  #volRow{display:flex; gap:10px; align-items:center; font-size:10px; letter-spacing:2px; color:var(--dim);}
   svg.ic{vertical-align:-2px; margin-right:3px; flex:none;}
+  /* settings */
+  .gearBtn{
+    position:absolute; top:10px; right:10px; z-index:6;
+    flex:none; width:40px; height:36px; padding:0;
+  }
+  .gearBtn svg{margin:0; vertical-align:middle;}
+  .setRow{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    width:270px; font-size:11px; letter-spacing:2px; color:var(--dim);
+  }
+  .tog{flex:none; width:70px; padding:7px 0;}
+  .tog.on{border-color:#2f7a40; color:#39ff6a; background:#123a1e;}
+  .tog.off{border-color:#7a2f40; color:#ff4d6a; background:#2a0e18;}
   /* codex */
   #codexTabs{width:100%; max-width:660px; flex:none;}
   #codexTabs button.sel{border-color:#fff; background:#16265a; color:#fff;}
@@ -251,6 +263,7 @@
     <canvas id="game" width="800" height="512"></canvas>
 
     <div id="titleOverlay" class="overlay">
+      <button id="settingsBtn" class="gearBtn" title="Settings"></button>
       <div class="big">VECTOR<span style="color:#4d8dff">DEFENSE</span></div>
       <div id="bestLine"></div>
       <div class="sub">Hostile glyphs march on the <b style="color:#4d8dff">CORE</b>. Deploy your heroes and hold the line.</div>
@@ -286,9 +299,18 @@
       </div>
     </div>
 
+    <div id="settingsOverlay" class="overlay hidden">
+      <div class="big" style="font-size:20px; letter-spacing:6px">SETTINGS</div>
+      <div class="setRow"><span>MUSIC</span><button id="setMusic" class="tog"></button></div>
+      <div class="setRow"><span>SOUND FX</span><button id="setSfx" class="tog"></button></div>
+      <div class="setRow"><span>SCREEN SHAKE</span><button id="setShake" class="tog"></button></div>
+      <div class="setRow"><span>VOLUME</span><input type="range" id="volSlider" min="0" max="100"></div>
+      <button id="resetSave" class="sell" style="flex:none; padding:9px 22px; margin-top:6px">RESET ALL PROGRESS</button>
+      <button id="settingsBack" class="cta">BACK</button>
+    </div>
+
     <div id="pauseOverlay" class="overlay hidden">
       <div class="big" style="font-size:26px">PAUSED</div>
-      <div id="volRow">VOLUME <input type="range" id="volSlider" min="0" max="100"></div>
       <div class="keysBox">
         <b>1–6</b> select hero &nbsp; <b>Q/W/E</b> abilities<br>
         <b>SPACE</b> start wave &nbsp; <b>F</b> game speed<br>
@@ -298,6 +320,7 @@
       <div class="btnrow" style="gap:10px">
         <button id="resumeBtn" class="cta">RESUME</button>
         <button id="pCodexBtn" class="cta">CODEX</button>
+        <button id="pSettingsBtn" class="cta">SETTINGS</button>
         <button id="pRestartBtn" class="cta">RESTART</button>
       </div>
     </div>
@@ -360,7 +383,8 @@ const ICONS={
   warn:'<path d="M8 2l6.8 11.5H1.2z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 6.2v3.6M8 11.6v1.2" stroke="currentColor" stroke-width="1.5"/>',
   bolt:'<path d="M9.5 1L3.5 9h3.4l-1.2 6 6-8H8.3z"/>',
   coin:'<circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5v7M5.8 6.2h3.4M5.8 9.8h3.4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
-  horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>'
+  horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>',
+  gear:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.6 1.6M11.2 11.2l1.6 1.6M12.8 3.2l-1.6 1.6M4.8 11.2l-1.6 1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
@@ -369,6 +393,7 @@ function loadSave(){ try{return JSON.parse(localStorage.getItem('vectordef')||'{
 let SAVE=loadSave();
 SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
 SAVE.cores=SAVE.cores||0;
+SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!==false;
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
@@ -628,7 +653,7 @@ function ac(){
   return AC;
 }
 function beep(f0,f1,dur,type,v){
-  if(muted) return;
+  if(muted||!SAVE.sfx) return;
   try{
     const a=ac(), o=a.createOscillator(), g=a.createGain(), t=a.currentTime;
     o.type=type; o.frequency.setValueAtTime(f0,t);
@@ -638,7 +663,7 @@ function beep(f0,f1,dur,type,v){
   }catch(e){}
 }
 function boom(v=.22,dur=.3){
-  if(muted) return;
+  if(muted||!SAVE.sfx) return;
   try{
     const a=ac(), n=a.sampleRate*dur, buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
     for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);
@@ -678,7 +703,7 @@ const ARP=[0,3,7,10,12,10,7,3];
 const ARP_BOSS=[0,1,7,8,12,8,7,1];
 const SEMI=n=>55*Math.pow(2,n/12);
 function mnote(freq,when,dur,type,v){
-  if(muted) return;
+  if(muted||!SAVE.music) return;
   const o=AC.createOscillator(), g=AC.createGain();
   o.type=type; o.frequency.setValueAtTime(freq,when);
   g.gain.setValueAtTime(0,when);
@@ -688,7 +713,7 @@ function mnote(freq,when,dur,type,v){
   o.start(when); o.stop(when+dur+.03);
 }
 function mhat(when,v){
-  if(muted) return;
+  if(muted||!SAVE.music) return;
   const n=AC.sampleRate*.03, buf=AC.createBuffer(1,n,AC.sampleRate), d=buf.getChannelData(0);
   for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
   const s=AC.createBufferSource(), g=AC.createGain(), f=AC.createBiquadFilter();
@@ -1363,7 +1388,7 @@ function drawFireflies(){
 /* ============================== DRAW: SCENE ============================== */
 function draw(){
   ctx.save();
-  if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+  if(shake>0&&SAVE.shake) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.clearRect(-20,-20,W+40,H+40);
 
   for(const s of stars){
@@ -1904,7 +1929,10 @@ function buildUI(){
   $('pRestartBtn').innerHTML=ic('retry')+'RESTART';
   $('pauseBtn').innerHTML=ic('pause');
   $('speedBtn').innerHTML=ic('ff')+'1×';
-  $('muteBtn').innerHTML=ic('sndOn');
+  $('muteBtn').innerHTML=ic(muted?'sndOff':'sndOn');
+  $('settingsBtn').innerHTML=ic('gear',15);
+  $('settingsBack').innerHTML=ic('back')+'BACK';
+  $('pSettingsBtn').innerHTML=ic('gear',11)+'SETTINGS';
   buildShop();
   updateBestLine();
   $('volSlider').value=Math.round(vol*100);
@@ -2027,6 +2055,34 @@ function codexControls(){
     <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits · max-level towers unlock a
     ★ specialization · towers earn XP and rank stars from kills · check NEXT WAVE icons for enemy weaknesses.</div></div>`;
 }
+/* ============================== SETTINGS ============================== */
+let settingsReturn='titleOverlay', resetArmed=false;
+function refreshSettings(){
+  const set=(id,on)=>{const b=$(id); b.textContent=on?'ON':'OFF'; b.classList.toggle('on',on); b.classList.toggle('off',!on);};
+  set('setMusic',SAVE.music); set('setSfx',SAVE.sfx); set('setShake',SAVE.shake);
+  $('volSlider').value=Math.round(vol*100);
+  $('resetSave').textContent=resetArmed?'TAP AGAIN TO CONFIRM':'RESET ALL PROGRESS';
+}
+function openSettings(fromId){
+  settingsReturn=fromId; resetArmed=false;
+  $(fromId).classList.add('hidden');
+  $('settingsOverlay').classList.remove('hidden');
+  refreshSettings();
+}
+function toggleSetting(key){
+  SAVE[key]=!SAVE[key]; persist(); refreshSettings();
+  SND.place();
+}
+function doResetSave(){
+  if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
+  try{ localStorage.removeItem('vectordef'); }catch(e){}
+  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true};
+  vol=.8; if(master) master.gain.value=vol;
+  diffIndex=1; resetArmed=false;
+  buildMap(0); buildUI(); reset(); refreshSettings();
+  SND.sell();
+}
+
 let codexReturn='titleOverlay';
 function showCodexTab(tab){
   $('codexBody').innerHTML =
@@ -2254,6 +2310,16 @@ $('volSlider').oninput=e=>{
 $('resumeBtn').onclick=()=>togglePause();
 $('codexBtn').onclick=()=>openCodex('titleOverlay');
 $('pCodexBtn').onclick=()=>openCodex('pauseOverlay');
+$('settingsBtn').onclick=()=>{ac(); openSettings('titleOverlay');};
+$('pSettingsBtn').onclick=()=>openSettings('pauseOverlay');
+$('settingsBack').onclick=()=>{
+  $('settingsOverlay').classList.add('hidden');
+  $(settingsReturn).classList.remove('hidden');
+};
+$('setMusic').onclick=()=>toggleSetting('music');
+$('setSfx').onclick=()=>toggleSetting('sfx');
+$('setShake').onclick=()=>toggleSetting('shake');
+$('resetSave').onclick=()=>doResetSave();
 $('codexBack').onclick=()=>{
   $('codexOverlay').classList.add('hidden');
   $(codexReturn).classList.remove('hidden');
