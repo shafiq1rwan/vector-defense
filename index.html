@@ -232,6 +232,35 @@
     #lumaCv{width:66px; height:85px;}
     #campStars .starsHint{display:none;}
   }
+  /* relics */
+  #relicRow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:660px;}
+  .relicOpt{
+    width:150px; min-height:104px; background:#0a1126; border:1px solid #8a6d1f;
+    border-radius:10px; padding:12px 10px; cursor:pointer; color:#ffd34d; font:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:6px; flex:none;
+  }
+  .relicOpt:hover{border-color:#ffd34d; background:#161204;}
+  .relicOpt b{font-size:10.5px; letter-spacing:1.5px;}
+  .relicOpt span.rd{font-size:9.5px; color:var(--dim); line-height:1.5; letter-spacing:.3px;}
+  #relicStrip{display:flex; gap:4px; flex-wrap:wrap;}
+  #relicStrip.hidden{display:none;}
+  .rChip{
+    width:24px; height:21px; display:flex; align-items:center; justify-content:center;
+    border:1px solid #8a6d1f; border-radius:5px; color:#ffd34d; background:#141104;
+    padding:0; flex:none; cursor:pointer;
+  }
+  .rChip svg{margin:0;}
+  #relicInfo{font-size:8.5px; color:#ffd34d; letter-spacing:.4px; line-height:1.4;}
+  #relicInfo:empty{display:none;}
+  /* achievements */
+  .achGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; width:100%;}
+  .achCard{border:1px solid var(--line); border-radius:8px; padding:8px 9px; background:#0a1126; text-align:left;}
+  .achCard b{font-size:10px; letter-spacing:1px; color:#ffd34d; display:flex; gap:5px; align-items:center;}
+  .achCard span{font-size:9px; color:var(--dim); display:block; margin-top:3px; line-height:1.5;}
+  .achCard.off{opacity:.5;}
+  .achCard.off b{color:#3a4a7a;}
+  #campMile{font-size:8px; letter-spacing:1px;}
+  #campMile span{white-space:nowrap;}
   .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
   .card.locked{opacity:.3; filter:saturate(.25);}
   .card .lockB{position:absolute; top:2px; right:3px; color:#9db8ff;}
@@ -450,6 +479,7 @@
       <button id="campBack" class="gearBtn backTL" title="Back to menu"></button>
       <div class="big" style="font-size:18px; letter-spacing:6px">CAMPAIGN</div>
       <div id="campStars" class="sub"></div>
+      <div id="campMile"></div>
       <div id="campMap"></div>
       <div id="briefBox" class="hidden">
         <div id="briefHead">
@@ -483,6 +513,7 @@
         <button data-tab="heroes">HEROES</button>
         <button data-tab="enemies">ENEMIES</button>
         <button data-tab="biome">BIOME</button>
+        <button data-tab="records">RECORDS</button>
         <button data-tab="controls">CONTROLS</button>
       </div>
       <div id="codexBody"></div>
@@ -541,6 +572,12 @@
         <button id="pHomeBtn" class="cta">HOME</button>
       </div>
     </div>
+
+    <div id="relicOverlay" class="overlay solid vcenter hidden">
+      <div class="big" id="relicTitle" style="font-size:15px; letter-spacing:5px">RELIC RECOVERED</div>
+      <div class="sub" style="font-size:10px">Choose one — active for the rest of this run</div>
+      <div id="relicRow"></div>
+    </div>
   </div>
 
   <div id="panel">
@@ -551,6 +588,8 @@
       <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
     </div>
     <div id="progWrap"><div id="progFill"></div></div>
+    <div id="relicStrip" class="hidden"></div>
+    <div id="relicInfo"></div>
     <div id="panelScroll">
       <div id="next">
         <div class="nlbl" id="nextLbl">NEXT WAVE</div>
@@ -572,7 +611,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.5';
+const VERSION='4.6';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -611,6 +650,7 @@ SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
 SAVE.cores=SAVE.cores||0;
 SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!==false;
 SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
+SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
@@ -803,6 +843,13 @@ const ACT_COL=['#4d8dff','#ffa53a','#ff3af0'];
 const BASE_HEROES=['archer','frost','cannon'];
 let campNode=null;
 function nodeOpen(i){ return i===0 || (SAVE.camp.stars[CAMPAIGN[i-1].id]||0)>0; }
+const totalStars=()=>CAMPAIGN.reduce((a,n)=>a+(SAVE.camp.stars[n.id]||0),0);
+/* star milestones — earned across the whole campaign */
+const MILESTONES=[
+  [12,'RELIC DRAFTS OFFER 4 CHOICES'],
+  [24,'EVERY RUN OPENS WITH A RELIC CACHE'],
+  [36,'+25% CORE EARNINGS']
+];
 function heroUnlocked(k){
   if(BASE_HEROES.includes(k)) return true;
   return CAMPAIGN.some(n=>n.unlock===k && (SAVE.camp.stars[n.id]||0)>0);
@@ -817,7 +864,7 @@ const DIFFS=[
 let diffIndex=SAVE.diff!=null?SAVE.diff:1;
 const DIFF=()=>DIFFS[diffIndex];
 const maxLives=()=>DIFF().lives+SAVE.meta.bul*2;
-const abilityCd=k=>Math.round(ABILITIES[k].cd*(1-.12*SAVE.meta.rec));
+const abilityCd=k=>Math.round(ABILITIES[k].cd*(1-.12*SAVE.meta.rec)*(typeof relicHas!=='undefined'&&relicHas('flux')?.75:1));
 
 /* ============================== HERO TOWERS ============================== */
 const TOWERS={
@@ -880,6 +927,11 @@ function computeStats(t){
   if(t.spec==='super'){ s.chain+=3; }
   if(t.spec==='tempo'){ s.range=Math.round(s.range*1.2); s.auraRate+=.2; }
   if(t.spec==='war'){ s.auraDmg+=.2; }
+  if(typeof relics!=='undefined'&&relics.length){
+    if(relicHas('warcore')&&s.dmg) s.dmg=Math.round(s.dmg*1.12);
+    if(relicHas('servo')&&s.rate) s.rate=+(s.rate*1.10).toFixed(2);
+    if(relicHas('optics')&&s.range) s.range=Math.round(s.range*1.10);
+  }
   return s;
 }
 const MODES=['FIRST','LAST','STRONG','WEAK'];
@@ -897,6 +949,66 @@ const ABILITIES={
 let cds={strike:0,nova:0,surge:0}, aiming=null, surgeT=0;
 /* touch drag-to-place: 'place' | 'strike' while a finger drag is active */
 let dragMode=null;
+
+/* ============================== RELICS ============================== */
+/* run-long passives drafted 1-of-N after every boss wave */
+const RELICS=[
+  {id:'warcore', n:'WARCORE',       icon:'bolt',   d:'+12% tower damage'},
+  {id:'servo',   n:'SERVO MOTORS',  icon:'gear',   d:'+10% tower fire rate'},
+  {id:'optics',  n:'LONG OPTICS',   icon:'target', d:'+10% tower range'},
+  {id:'flux',    n:'FLUX LOOP',     icon:'retry',  d:'Abilities recharge 25% faster'},
+  {id:'scrap',   n:'SCRAP HARVEST', icon:'coin',   d:'+2 credits on every kill'},
+  {id:'toll',    n:'TOLL GATE',     icon:'hex',    d:'+45 credits at each wave clear'},
+  {id:'cryo',    n:'CRYO RESIDUE',  icon:'star',   d:'Hits have a 10% chance to chill'},
+  {id:'aegis',   n:'AEGIS PROTOCOL',icon:'home',   d:'+2 core integrity when a boss falls'},
+  {id:'magnet',  n:'MAGNET CORE',   icon:'up',     d:'Kill combos last 1s longer'}
+];
+let relics=[], drafting=false, openingDraftDue=false, runBossKills=0, riT=null;
+const relicHas=id=>relics.includes(id);
+function openDraft(title){
+  const pool=RELICS.filter(r=>!relicHas(r.id));
+  if(!pool.length) return;
+  const nOpt=Math.min(totalStars()>=12?4:3, pool.length);
+  const row=$('relicRow'); row.innerHTML='';
+  for(let i=0;i<nOpt;i++){
+    const r=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+    const b=document.createElement('button');
+    b.className='relicOpt';
+    b.innerHTML=ic(r.icon,22)+'<b>'+r.n+'</b><span class="rd">'+r.d+'</span>';
+    b.onclick=()=>pickRelic(r.id);
+    row.appendChild(b);
+  }
+  $('relicTitle').textContent=title||'RELIC RECOVERED';
+  drafting=true;
+  $('relicOverlay').classList.remove('hidden');
+  SND.upgrade();
+}
+function pickRelic(id){
+  ac();
+  relics.push(id);
+  towers.forEach(t=>t.stats=computeStats(t));
+  drafting=false;
+  $('relicOverlay').classList.add('hidden');
+  const r=RELICS.find(x=>x.id===id);
+  addText(W/2,200,r.n+' ONLINE','#ffd34d',true);
+  renderRelicStrip();
+  SND.ability();
+}
+function renderRelicStrip(){
+  const box=$('relicStrip'); if(!box) return;
+  box.classList.toggle('hidden',!relics.length);
+  box.innerHTML='';
+  for(const id of relics){
+    const r=RELICS.find(x=>x.id===id);
+    const b=document.createElement('button');
+    b.className='rChip'; b.innerHTML=ic(r.icon,12); b.title=r.n+' — '+r.d;
+    b.onclick=()=>{
+      $('relicInfo').textContent=r.n+' — '+r.d;
+      clearTimeout(riT); riT=setTimeout(()=>{$('relicInfo').textContent='';},4000);
+    };
+    box.appendChild(b);
+  }
+}
 
 /* ============================== ENEMY CAST ============================== */
 const ENEMIES={
@@ -976,6 +1088,15 @@ function makeWave(n){
       hpMul*=.85;
     }
   }
+  /* elites — gilded champions, one affix each, from wave 4 on */
+  if(n>=4){
+    const cand=q.filter(s=>s.type!=='boss'&&s.type!=='mite'&&s.type!=='scout');
+    const aff=['vanguard','swift','regen','fission'];
+    for(let i=Math.min(3,Math.floor(n/4)); i>0&&cand.length; i--){
+      const s=cand.splice(Math.floor(Math.random()*cand.length),1)[0];
+      s.elite=aff[Math.floor(Math.random()*aff.length)];
+    }
+  }
   return {spawns:q, hpMul, rewardMul, spdMul, mod, total:q.length};
 }
 
@@ -999,6 +1120,11 @@ function reset(){
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
+  relics=[]; drafting=false; runBossKills=0;
+  openingDraftDue=totalStars()>=24;
+  $('relicOverlay').classList.add('hidden');
+  $('relicInfo').textContent='';
+  renderRelicStrip();
   cds={strike:0,nova:0,surge:0}; aiming=null; surgeT=0; dragMode=null;
   $('speedBtn').innerHTML=ic('ff')+'1×';
   $('progFill').style.width='0%';
@@ -1122,7 +1248,7 @@ const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
 
-function spawnEnemy(type,dist,w){
+function spawnEnemy(type,dist,w,elite){
   const def=ENEMIES[type];
   const e={type,def,wref:w,hp:def.hp*w.hpMul,maxHp:def.hp*w.hpMul,
     reward:def.reward*w.rewardMul, baseSpd:def.speed*(w.spdMul||1),
@@ -1130,6 +1256,13 @@ function spawnEnemy(type,dist,w){
     shieldHits:def.shield||0,maxShield:def.shield||0,phaseClock:Math.random()*4.2,
     poisonT:0,poisonDps:0,brittleT:0,phased:false,
     bossShield:def.bossLike?def.hp*w.hpMul*.25:0,mSpawnT:6,empPulseT:10};
+  if(elite){
+    e.elite=elite;
+    e.maxHp*=2.2; e.hp=e.maxHp;
+    e.reward*=3;
+    if(elite==='vanguard') e.bossShield=e.maxHp*.3;
+    if(elite==='swift') e.baseSpd*=1.45;
+  }
   const p=pointAt(dist); e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
   enemies.push(e); return e;
 }
@@ -1162,14 +1295,19 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
   const applied=dmg*mul;
   if(o.src){o.src.totalDmg+=applied; o.src.waveDmg+=applied;}
   e.hp-=applied; e.flash=.08;
+  if(relicHas('cryo')&&dtype!=='poison'&&e.hp>0&&Math.random()<.10){
+    if(e.slowT<=0||e.slowF>.6) e.slowF=.6;
+    e.slowT=Math.max(e.slowT,.7);
+  }
   if(e.hp<=0){
     e.dead=true; kills++;
     const rw=Math.round(e.reward*(1+.05*SAVE.meta.bou));
-    combo++; comboT=1.35; comboPop=.3;
+    combo++; comboT=relicHas('magnet')?2.35:1.35; comboPop=.3;
     if(combo>bestCombo) bestCombo=combo;
     let extra=0;
     if(combo>=2){ extra=combo*2; money+=extra; }
     money+=rw;
+    if(relicHas('scrap')) money+=2;
     /* veterancy XP for the killing tower */
     if(o.src && o.src.rank!==undefined && !o.src.def.aura){
       o.src.xp+=rw;
@@ -1186,6 +1324,13 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     if(e.def.split && e.wref){
       for(let i=0;i<e.def.split;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref);
     }
+    if(e.elite==='fission' && e.wref){
+      for(let i=0;i<2;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref);
+    }
+    if(e.elite){
+      addText(e.x,e.y-28,'ELITE DOWN','#ffd34d');
+      ring(e.x,e.y,e.def.r*2.6,'#ffd34d',.4);
+    }
     /* STATIK death burst — disables nearby towers, so kill it at range */
     if(e.def.empBurst){
       const r2=e.def.empBurst*e.def.empBurst;
@@ -1198,7 +1343,14 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
       if(zapped) addText(e.x,e.y-24,'EMP BURST!','#ffe14d');
       SND.tesla();
     }
-    if(e.def.bossLike){shake=Math.max(shake,10); SND.coinBig(); SND.boom();}
+    if(e.def.bossLike){
+      runBossKills++;
+      if(relicHas('aegis')){
+        lives=Math.min(maxLives(),lives+2);
+        addText(e.x,e.y-44,'AEGIS +2','#39ff6a'); bumpStat('livesV');
+      }
+      shake=Math.max(shake,10); SND.coinBig(); SND.boom();
+    }
     else if(combo>=2) SND.combo(Math.min(combo,8));
     else if(!o.quiet) SND.kill();
   } else if(!o.quiet) SND.hit();
@@ -1339,6 +1491,8 @@ function castStrike(x,y){
 /* ============================== UPDATE ============================== */
 function update(dt){
   time+=dt;
+  /* 24★ milestone — every run opens with a relic cache */
+  if(openingDraftDue){ openingDraftDue=false; openDraft('OPENING CACHE'); return; }
   if(shake>0) shake=Math.max(0,shake-dt*22);
   if(leakFlash>0) leakFlash-=dt*1.6;
   if(comboPop>0) comboPop-=dt;
@@ -1357,7 +1511,7 @@ function update(dt){
     waveT+=dt;
     while(spawnQueue.length && spawnQueue[0].time<=waveT){
       const sp=spawnQueue.shift();
-      spawnEnemy(sp.type,0,curWave);
+      spawnEnemy(sp.type,0,curWave,sp.elite);
       ring(PORTAL.x,PORTAL.y,16,'#39ff6a',.3);
       SND.spawn();
     }
@@ -1378,6 +1532,7 @@ function update(dt){
       }
       if(inc){ money+=inc; addText(W/2,138,'REACTORS +'+inc,'#6bffb0'); bumpStat('moneyV'); }
       if(healed){ addText(W/2,158,'CORE PATCHED +'+healed,'#39ff6a'); bumpStat('livesV'); }
+      if(relicHas('toll')){ money+=45; addText(W/2,178,'TOLL GATE +45','#ffd34d'); }
       const mvps=towers.filter(t=>t.waveDmg>0).sort((a,b)=>b.waveDmg-a.waveDmg).slice(0,3);
       if(mvps.length)
         addText(W/2,116,'MVP: '+mvps.map(t=>t.def.name+' '+fmt(t.waveDmg)).join('  ·  '),'#9db8ff');
@@ -1389,6 +1544,8 @@ function update(dt){
       wb.disabled=false; wb.classList.add('pulse');
       interT=INTERMISSION;
       updateNextPreview();
+      /* boss down — salvage teams bring back a relic to draft */
+      if(wave%5===0 && relics.length<RELICS.length) openDraft();
     }
   }
 
@@ -1418,6 +1575,7 @@ function update(dt){
       if(Math.random()<dt*5) parts.push({x:e.x,y:e.y-8,vx:0,vy:-26,life:.35,max:.35,color:'#8aff5a',size:2});
     }
     if(regen&&e.hp<e.maxHp) e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.012*dt);
+    if(e.elite==='regen'&&e.hp<e.maxHp) e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.02*dt);
     const sp=e.baseSpd*(e.slowT>0?e.slowF:1);
     e.dist+=sp*dt;
     const p=pointAt(e.dist);
@@ -1727,6 +1885,19 @@ function drawEnemy(c,e){
   }
   noGlow(c);
   c.setLineDash([]);
+  /* elite halo + crest */
+  if(e.elite){
+    c.strokeStyle='#ffd34d'; c.lineWidth=1.6;
+    c.globalAlpha=(e.phased?.35:1)*.85;
+    glow(c,'#ffd34d',8);
+    poly(c,0,0,d.r+6,6,time*1.4); c.stroke();
+    c.fillStyle='#ffd34d';
+    c.beginPath();
+    c.moveTo(0,-d.r-21); c.lineTo(3.2,-d.r-16.5); c.lineTo(0,-d.r-12); c.lineTo(-3.2,-d.r-16.5);
+    c.closePath(); c.fill();
+    noGlow(c);
+    c.globalAlpha=e.phased?.35:1;
+  }
   /* boss energy shield bubble */
   if(e.bossShield>0){
     c.strokeStyle='#3ad6ff'; c.lineWidth=2;
@@ -2755,7 +2926,8 @@ function toggleSetting(key){
 function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
-  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true};
+  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,
+        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0}};
   vol=.8; if(master) master.gain.value=vol;
   diffIndex=1; resetArmed=false;
   buildMap(0); buildUI(); reset(); refreshSettings();
@@ -2763,9 +2935,39 @@ function doResetSave(){
 }
 
 let codexReturn='titleOverlay';
+/* achievements — lifetime records surfaced in the codex */
+const ACH=[
+  ['FIRST LIGHT','Win any run', ()=>(SAVE.wins||0)>=1],
+  ['VETERAN','Win 5 runs', ()=>(SAVE.wins||0)>=5],
+  ['CENTURION','100 lifetime kills', ()=>SAVE.life.kills>=100],
+  ['EXTERMINATOR','1,000 lifetime kills', ()=>SAVE.life.kills>=1000],
+  ['LEGION BREAKER','5,000 lifetime kills', ()=>SAVE.life.kills>=5000],
+  ['GOLEM SLAYER','Defeat 10 bosses', ()=>SAVE.life.bossKills>=10],
+  ['CHAIN REACTION','Best combo ×15', ()=>(SAVE.bestCombo||0)>=15],
+  ['UNBROKEN CHAIN','Best combo ×25', ()=>(SAVE.bestCombo||0)>=25],
+  ['DEEP DEFENSE','Reach wave 25 in endless', ()=>(SAVE.bestWave||0)>=25],
+  ['MARATHON','100 lifetime waves cleared', ()=>SAVE.life.waves>=100],
+  ['STAR CADET','Earn 12 campaign stars', ()=>totalStars()>=12],
+  ['STAR COMMANDER','Earn 24 campaign stars', ()=>totalStars()>=24],
+  ['GRID LEGEND','All 36 campaign stars', ()=>totalStars()>=36],
+  ['DAWN BRINGER','Defeat the OVERMIND PRIME', ()=>(SAVE.camp.stars[11]||0)>0]
+];
+function codexRecords(){
+  const done=ACH.filter(a=>a[2]()).length;
+  return '<div class="sub" style="font-size:10px;grid-column:1/-1;max-width:none">'
+    +'LIFETIME — KILLS '+fmt(SAVE.life.kills)+' · WAVES '+SAVE.life.waves
+    +' · BOSSES '+SAVE.life.bossKills+' · WINS '+(SAVE.wins||0)
+    +' · BEST WAVE '+(SAVE.bestWave||0)+' · BEST COMBO ×'+(SAVE.bestCombo||0)
+    +'<br>ACHIEVEMENTS '+done+' / '+ACH.length+'</div>'
+    +'<div class="achGrid" style="grid-column:1/-1">'+ACH.map(a=>{
+      const ok=a[2]();
+      return '<div class="achCard'+(ok?'':' off')+'"><b>'+ic(ok?'star':'lock',11)+a[0]+'</b><span>'+a[1]+'</span></div>';
+    }).join('')+'</div>';
+}
 function showCodexTab(tab){
   $('codexBody').innerHTML =
-    tab==='heroes'?codexHeroes():tab==='enemies'?codexEnemies():tab==='biome'?codexBiome():codexControls();
+    tab==='heroes'?codexHeroes():tab==='enemies'?codexEnemies():tab==='biome'?codexBiome()
+    :tab==='records'?codexRecords():codexControls();
   document.querySelectorAll('#codexTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab));
   document.querySelectorAll('#codexBody canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,TOWERS[cv.dataset.hero].footprint?.55:1.1));
   document.querySelectorAll('#codexBody canvas[data-enemy]').forEach(cv=>renderEnemyIcon(cv,cv.dataset.enemy,.9));
@@ -2794,7 +2996,10 @@ function updateNextPreview(){
   const wv=makeWave(n), counts={};
   for(const s of wv.spawns) counts[s.type]=(counts[s.type]||0)+1;
   const hasBoss=!!counts.boss;
-  lbl.innerHTML='NEXT WAVE '+n+(hasBoss?' — <b>'+ic('warn',9)+'BOSS</b>':'')+(wv.mod?' — <em>'+ic(wv.mod.icon,9)+wv.mod.label+'</em>':'');
+  const nElite=wv.spawns.filter(s=>s.elite).length;
+  lbl.innerHTML='NEXT WAVE '+n+(hasBoss?' — <b>'+ic('warn',9)+'BOSS</b>':'')
+    +(nElite?' — <b style="color:#ffd34d">'+nElite+' ELITE</b>':'')
+    +(wv.mod?' — <em>'+ic(wv.mod.icon,9)+wv.mod.label+'</em>':'');
   if(wv.mod) lbl.title=wv.mod.desc; else lbl.title='';
   $('waveBtn').classList.toggle('bossWarn',hasBoss);
   box.innerHTML='';
@@ -2854,8 +3059,11 @@ function recordEnd(won){
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
   if(won) SAVE.wins=(SAVE.wins||0)+1;
-  const earned=Math.max(1,Math.round((wave+(won?10:0))*[.6,1,1.5][diffIndex]));
+  const earned=Math.max(1,Math.round((wave+(won?10:0))*[.6,1,1.5][diffIndex]*(totalStars()>=36?1.25:1)));
   SAVE.cores+=earned;
+  SAVE.life.kills+=kills;
+  SAVE.life.bossKills+=runBossKills;
+  SAVE.life.waves+=wave;
   persist(); updateBestLine(); buildShop();
   return earned;
 }
@@ -3204,6 +3412,9 @@ function buildCampaign(){
   CAMPAIGN.forEach(n=>total+=SAVE.camp.stars[n.id]||0);
   $('campStars').innerHTML='★ '+total+' / '+(CAMPAIGN.length*3)
     +'<span class="starsHint"> — clear missions to unlock heroes and earn bonus cores</span>';
+  $('campMile').innerHTML=MILESTONES
+    .map(([s,d])=>'<span style="color:'+(total>=s?'#ffd34d':'#3a4a7a')+'">'+s+'★ '+d+'</span>')
+    .join(' <span style="color:#1b2a55">·</span> ');
   const pts=NODE_POS.map(p=>p[0]+','+p[1]).join(' ');
   map.innerHTML=`<div id="campTrack"><svg viewBox="0 0 100 56" preserveAspectRatio="none">
     <polyline points="${pts}" fill="none" stroke="#1b2a55" stroke-width="1" vector-effect="non-scaling-stroke"/>
@@ -3296,7 +3507,7 @@ $('launchBtn').onclick=()=>{
 let last=performance.now();
 function frame(now){
   let dt=Math.min(.05,(now-last)/1000); last=now;
-  if(running&&!paused&&!gameOver){
+  if(running&&!paused&&!gameOver&&!drafting){
     for(let i=0;i<speedMult;i++) update(dt);
   }else{
     time+=dt;

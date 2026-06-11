@@ -12,9 +12,11 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **11 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
 - **Structures** — multi-cell relics of the old grid: the 2×1 REACTOR (credit income each wave) and the 2×2 BASTION siege fortress, both reawakened through the campaign
 - **Active abilities** — Orbital Strike, Frost Nova, Overdrive (Q/W/E)
+- **Relic drafts** — every boss you down lets you pick 1-of-3 run-long relics (damage, range, economy, ability recharge and more); campaign star milestones widen the draft and open every run with a relic cache
+- **Elite enemies** — gold-crowned champions with affixes (shielded vanguard, swift, regenerating, fission) and triple bounties, from wave 4 onward
 - **Wave modifiers** (fast / regen / horde / wealth), kill-combo credits, wave MVP damage rankings
 - **Meta-progression** — earn ⬡ cores every run and buy permanent upgrades in the core shop
-- **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls
+- **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls, plus a RECORDS tab with lifetime stats and 14 achievements
 - **Procedural music** — WebAudio synth score that intensifies with combat and boss waves
 - **Mobile-first** — drag-to-place touch controls with a lifted ghost, auto-landscape rotation in portrait, safe-area aware layout, installable PWA with offline support
 
