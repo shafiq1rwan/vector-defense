@@ -103,12 +103,20 @@
   .abtn.ready{border-color:var(--ac); color:var(--ac); animation:pul 1.6s infinite;}
   .abtn.cool{opacity:.45; cursor:not-allowed;}
   .abtn.aim{background:var(--ac); color:#04060d;}
-  #info{
-    min-height:96px; background:#0a1126; border:1px solid var(--line);
-    border-radius:8px; padding:7px; font-size:10.5px; line-height:1.45; color:var(--dim);
+  /* tower detail popup docked over the stage */
+  #towerPop{
+    position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    z-index:4; width:256px; background:rgba(10,15,31,.96);
+    border:1px solid var(--line); border-radius:10px;
+    padding:8px 9px; font-size:10.5px; line-height:1.5; color:var(--dim); text-align:left;
   }
-  #info b{color:var(--txt);}
-  #info .ttl{font-size:12px; color:#fff; letter-spacing:1px;}
+  #towerPop.hidden{display:none;}
+  #towerPop b{color:var(--txt);}
+  #towerPop .ttl{font-size:12px; color:#fff; letter-spacing:1px; padding-right:20px;}
+  #towerPop .popX{
+    position:absolute; top:4px; right:4px;
+    width:22px; height:22px; min-width:22px; padding:0; flex:none;
+  }
   .btnrow{display:flex; gap:5px;}
   button{
     flex:1; background:#0e1834; color:var(--txt); border:1px solid var(--line);
@@ -202,8 +210,11 @@
   #hudTL{left:8px;} #hudTR{right:8px;}
   #hudTL button,#hudTR button{
     flex:none; min-width:38px; height:34px; padding:0 9px;
-    background:rgba(10,17,38,.88);
+    background:rgba(12,22,48,.92);
+    border-color:#2f6fd0; color:#dbe9ff;
+    box-shadow:0 0 10px rgba(77,141,255,.4);
   }
+  #hudTL button:hover,#hudTR button:hover{border-color:#7db2ff; color:#fff;}
   #hudTL button svg,#hudTR button svg{margin:0 2px 0 0; vertical-align:middle;}
   /* settings */
   .gearBtn{
@@ -325,6 +336,7 @@
     <div id="hudTR">
       <button id="speedBtn" title="Game speed"></button>
     </div>
+    <div id="towerPop" class="hidden"></div>
 
     <div id="titleOverlay" class="overlay solid vcenter">
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
@@ -426,7 +438,6 @@
     <div id="panelScroll">
       <div id="cards"></div>
       <div id="abils"></div>
-      <div id="info"></div>
     </div>
     <div id="panelBottom">
       <button id="waveBtn" class="pulse">START WAVE 1</button>
@@ -752,7 +763,7 @@ function reset(){
   $('progFill').style.width='0%';
   const wb=$('waveBtn');
   wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE 1';
-  refreshUI(); setInfo(null); updateNextPreview();
+  refreshUI(); hidePop(); updateNextPreview();
 }
 
 /* ============================== AUDIO ============================== */
@@ -1940,17 +1951,7 @@ function refreshUI(){
     b.querySelector('.cdt').textContent=cd>0?Math.ceil(cd)+'s':ABILITIES[k].name;
   }
 }
-function setInfo(html){
-  $('info').innerHTML=html||`<span style="opacity:.6">Select a hero to deploy, or click a tower to upgrade / sell / retarget.<br><br>Tip: chain kills for <b style="color:#ffd34d">combo credits</b>. Max-level towers unlock a <b style="color:#c46bff">specialization</b>.</span>`;
-}
-function showCardInfo(type){
-  const d=TOWERS[type], s=lvlStat(d,1);
-  setInfo(`<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">${d.title}</span></div>
-    ${d.desc}<br>
-    ${d.aura?'<b>BUFF</b> +25% dmg, +15% rate':'<b>DMG</b> '+s.dmg+' · <b>RNG</b> '+s.range+' · <b>SPD</b> '+s.rate+'/s'}
-    · <b style="color:#9db8ff">${DT_NAMES[d.dtype]||''}</b><br>
-    <b style="color:#ffd34d">COST ${d.cost}</b> — click the map to deploy`);
-}
+function hidePop(){ $('towerPop').classList.add('hidden'); }
 function showTowerInfo(t){
   const d=t.def, s=t.stats;
   const maxed=t.level>=MAX_LVL;
@@ -1975,7 +1976,11 @@ function showTowerInfo(t){
       <button class="specBtn" id="specB" ${money<cc?'disabled':''}>${ic('star',11)}${sp[1].n} $${cc}<small>${sp[1].d}</small></button>
     </div>`;
   }
-  setInfo(html);
+  html+=`<button class="popX" id="popX">${ic('x',9)}</button>`;
+  const pop=$('towerPop');
+  pop.innerHTML=html;
+  pop.classList.remove('hidden');
+  $('popX').onclick=()=>{ selTower=null; hidePop(); };
   if(!d.aura) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
   $('upBtn').onclick=()=>{
     if(t.level>=MAX_LVL||money<upCost(d,t.level)) return;
@@ -1990,7 +1995,7 @@ function showTowerInfo(t){
     occ.delete(t.c+','+t.r);
     towers=towers.filter(x=>x!==t);
     spray(t.x,t.y,'#ffd34d',12,100,.4);
-    SND.sell(); selTower=null; setInfo(null); refreshUI();
+    SND.sell(); selTower=null; hidePop(); refreshUI();
   };
   const buySpec=i=>{
     const cc=specCost(d);
@@ -2006,17 +2011,15 @@ function showTowerInfo(t){
 function selectCard(type){
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
-  placing=type; selTower=null; aiming=null; dragMode=null;
+  placing=type; selTower=null; aiming=null; dragMode=null; hidePop();
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
   $('card_'+type).classList.add('sel');
-  showCardInfo(type);
 }
 function cancelCardSel(){
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
 }
 function cancelPlacing(){
   placing=null; dragMode=null; cancelCardSel();
-  if(!selTower) setInfo(null);
 }
 
 /* icon renderers */
@@ -2048,7 +2051,6 @@ function buildUI(){
     card.innerHTML=`<span class="key">${d.key}</span><canvas width="40" height="40"></canvas>
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
     card.onclick=()=>selectCard(k);
-    card.onmouseenter=()=>{ if(!placing&&!selTower) showCardInfo(k); };
     wrap.appendChild(card);
     renderIcon(card.querySelector('canvas'),k,1.05);
   }
@@ -2462,7 +2464,7 @@ cvs.addEventListener('pointerdown',e=>{
     for(const tw of towers){ const dd=dist2(mouse,tw); if(dd<bd){bd=dd; t=tw;} }
   }
   if(t){ selTower=t; showTowerInfo(t); }
-  else { selTower=null; setInfo(null); }
+  else { selTower=null; hidePop(); }
 });
 cvs.addEventListener('pointerup',e=>{
   if(!dragMode) return;
@@ -2484,13 +2486,13 @@ cvs.addEventListener('pointerup',e=>{
 cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; });
 cvs.addEventListener('contextmenu',e=>{
   e.preventDefault();
-  cancelPlacing(); selTower=null; aiming=null; setInfo(null);
+  cancelPlacing(); selTower=null; aiming=null; hidePop();
 });
 
 document.addEventListener('keydown',e=>{
   if(!running) return;
   const k=e.key.toLowerCase();
-  if(k==='escape'){cancelPlacing(); selTower=null; aiming=null; setInfo(null);}
+  if(k==='escape'){cancelPlacing(); selTower=null; aiming=null; hidePop();}
   else if(k===' '){e.preventDefault(); callWave();}
   else if(k==='p'){togglePause();}
   else if(k==='f'){toggleSpeed();}
