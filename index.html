@@ -663,7 +663,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.28';
+const VERSION='4.29';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2025,8 +2025,38 @@ function drawBolt(c,x,y,s,color){
   c.restore();
 }
 
+/* shared mounting plinth — grounds every 1x1 hero tower on its tile */
+function basePad(c,col){
+  c.save();
+  c.fillStyle='#131e42'; c.strokeStyle='#2a3d72'; c.lineWidth=1.4;
+  c.beginPath();
+  for(let i=0;i<8;i++){
+    const a=i/8*TAU+Math.PI/8;
+    const x=Math.cos(a)*15.5, y=Math.sin(a)*15.5;
+    i?c.lineTo(x,y):c.moveTo(x,y);
+  }
+  c.closePath(); c.fill(); c.stroke();
+  c.strokeStyle=col; c.globalAlpha*=.45; c.lineWidth=1.3;
+  c.beginPath();
+  for(const s of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+    c.moveTo(s[0]*13,s[1]*9); c.lineTo(s[0]*9,s[1]*13);
+  }
+  c.stroke();
+  c.restore();
+}
+function muzzleFlash(c,x,col){
+  c.save(); c.translate(x,0);
+  c.strokeStyle='#fff'; c.lineWidth=1.6; glow(c,col,10);
+  c.beginPath();
+  for(let i=0;i<3;i++){
+    const a=(i-1)*.7;
+    c.moveTo(Math.cos(a)*2,Math.sin(a)*2); c.lineTo(Math.cos(a)*8,Math.sin(a)*8);
+  }
+  c.stroke(); noGlow(c); c.restore();
+}
 function drawTowerBody(c,type,level,angle,t,firing){
   const def=TOWERS[type], col=def.color;
+  if(!def.footprint) basePad(c,col);
   c.lineWidth=2; c.strokeStyle=col; glow(c,col,10);
   const bob=Math.sin(t*3)*1.2;
   /* upgrade tiers readable at a glance: LV2 corner pylons, LV3 rotating halo */
@@ -2034,7 +2064,7 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.lineWidth=1.5;
     c.beginPath();
     for(const s of [[-1,-1],[1,-1],[1,1],[-1,1]]){
-      c.moveTo(s[0]*15,s[1]*9); c.lineTo(s[0]*15,s[1]*14); c.lineTo(s[0]*9,s[1]*14);
+      c.moveTo(s[0]*16,s[1]*10); c.lineTo(s[0]*16,s[1]*15); c.lineTo(s[0]*10,s[1]*15);
     }
     c.stroke();
     c.lineWidth=2;
@@ -2046,70 +2076,149 @@ function drawTowerBody(c,type,level,angle,t,firing){
   }
   if(type==='archer'){
     poly(c,0,bob,11,3,-Math.PI/2); c.stroke();
+    /* quiver ticks on the back edge */
+    c.lineWidth=1.4;
+    c.beginPath();
+    for(let i=0;i<3;i++){ c.moveTo(-6+i*3,bob+7); c.lineTo(-8+i*3,bob+11); }
+    c.stroke(); c.lineWidth=2;
     c.beginPath(); c.arc(0,bob-2,3.4,0,TAU); c.stroke();
     c.save(); c.rotate(angle);
     c.beginPath(); c.arc(10,0,7,-1.1,1.1); c.stroke();
-    c.beginPath(); c.moveTo(10+Math.cos(-1.1)*7,Math.sin(-1.1)*7);
-    c.lineTo(firing?6:9,0); c.lineTo(10+Math.cos(1.1)*7,Math.sin(1.1)*7); c.stroke();
-    c.beginPath(); c.moveTo(firing?6:9,0); c.lineTo(16,0); c.stroke();
+    const tx2=10+Math.cos(1.1)*7, ty2=Math.sin(1.1)*7;
+    const nock=firing?13:7.5;          /* string snaps forward on release */
+    c.lineWidth=1.3;
+    c.beginPath(); c.moveTo(tx2,-ty2); c.lineTo(nock,0); c.lineTo(tx2,ty2); c.stroke();
+    c.lineWidth=2;
+    c.beginPath(); c.moveTo(5,0); c.lineTo(17,0); c.stroke();
+    if(firing) muzzleFlash(c,18,col);
+    else{
+      /* loaded bolt */
+      c.lineWidth=1.4;
+      c.beginPath(); c.moveTo(nock,0); c.lineTo(nock+6,0);
+      c.moveTo(nock+6,0); c.lineTo(nock+4,-1.8); c.moveTo(nock+6,0); c.lineTo(nock+4,1.8);
+      c.stroke(); c.lineWidth=2;
+    }
     c.restore();
   }else if(type==='frost'){
     poly(c,0,bob,10,6,t*.7); c.stroke();
     poly(c,0,bob,5,6,-t*.7); c.stroke();
+    /* central crystal pulse */
+    c.fillStyle=col; c.globalAlpha*=.5+.4*Math.sin(t*4);
+    c.beginPath(); c.moveTo(0,bob-3); c.lineTo(2.2,bob); c.lineTo(0,bob+3); c.lineTo(-2.2,bob); c.closePath(); c.fill();
+    c.globalAlpha=1;
+    /* orbiting shards */
+    c.lineWidth=1.5;
     for(let i=0;i<3;i++){
-      const a=t*2+i*TAU/3;
-      c.beginPath(); c.arc(Math.cos(a)*14,bob+Math.sin(a)*14,2,0,TAU); c.stroke();
+      const a=t*2+i*TAU/3, x=Math.cos(a)*14, y=bob+Math.sin(a)*14;
+      c.save(); c.translate(x,y); c.rotate(a);
+      c.beginPath(); c.moveTo(4,0); c.lineTo(0,2.2); c.lineTo(-2.5,0); c.lineTo(0,-2.2); c.closePath(); c.stroke();
+      c.restore();
     }
+    c.lineWidth=2;
   }else if(type==='cannon'){
     poly(c,0,1,11,4,Math.PI/4); c.stroke();
+    /* shoulder armor plates */
+    c.lineWidth=1.4;
+    c.beginPath();
+    c.moveTo(-9,-6); c.lineTo(-4,-11); c.moveTo(4,-11); c.lineTo(9,-6);
+    c.moveTo(-9,8); c.lineTo(-4,13); c.moveTo(4,13); c.lineTo(9,8);
+    c.stroke(); c.lineWidth=2;
     c.beginPath(); c.arc(0,1,4,0,TAU); c.stroke();
+    c.beginPath(); c.arc(0,1,1.4,0,TAU); c.stroke();
     c.save(); c.rotate(angle);
     const rec=firing?-3:0;
+    /* recoil springs compress on fire */
+    c.lineWidth=1.3;
+    c.beginPath();
+    for(let i=0;i<3;i++){ const sx=-2+rec*.6+i*2.2; c.moveTo(sx,-3); c.lineTo(sx,3); }
+    c.stroke(); c.lineWidth=2;
     c.strokeRect(2+rec,-4.5,13,9);
     c.beginPath(); c.moveTo(15+rec,-6); c.lineTo(15+rec,6); c.stroke();
+    if(firing) muzzleFlash(c,17+rec,col);
     c.restore();
   }else if(type==='tesla'){
+    /* anchor feet */
+    c.beginPath(); c.moveTo(-8,10); c.lineTo(-11,13); c.moveTo(8,10); c.lineTo(11,13); c.stroke();
     c.beginPath(); c.moveTo(-8,10); c.lineTo(0,bob-12); c.lineTo(8,10); c.stroke();
     c.beginPath(); c.moveTo(-5,4); c.lineTo(5,4); c.moveTo(-3,-2); c.lineTo(3,-2); c.stroke();
+    /* coil ring stack */
+    c.beginPath(); c.moveTo(-4.5,bob-9); c.lineTo(4.5,bob-9); c.moveTo(-3,bob-12); c.lineTo(3,bob-12); c.stroke();
     glow(c,col,16);
-    c.beginPath(); c.arc(0,bob-14,3.5+Math.sin(t*9)*.9,0,TAU); c.stroke();
+    c.beginPath(); c.arc(0,bob-15,3.5+Math.sin(t*9)*.9,0,TAU); c.stroke();
+    /* jumping mini-arc between the rings */
+    if(Math.sin(t*13)>-.2){
+      const sd=Math.floor(t*13);
+      c.lineWidth=1.3;
+      c.beginPath();
+      c.moveTo(-3,bob-12);
+      c.lineTo(-1+Math.sin(sd*7)*2,bob-14);
+      c.lineTo(1+Math.sin(sd*13)*2,bob-16);
+      c.lineTo(3,bob-18);
+      c.stroke(); c.lineWidth=2;
+    }
     for(let i=0;i<2;i++){
       const a=t*7+i*Math.PI;
-      c.beginPath(); c.moveTo(Math.cos(a)*5,bob-14+Math.sin(a)*5);
-      c.lineTo(Math.cos(a)*9,bob-14+Math.sin(a)*9); c.stroke();
+      c.beginPath(); c.moveTo(Math.cos(a)*5,bob-15+Math.sin(a)*5);
+      c.lineTo(Math.cos(a)*9,bob-15+Math.sin(a)*9); c.stroke();
     }
   }else if(type==='sniper'){
     poly(c,0,bob,9,5,-Math.PI/2); c.stroke();
     c.save(); c.rotate(angle);
     c.beginPath(); c.moveTo(4,0); c.lineTo(22,0); c.stroke();
-    c.beginPath(); c.moveTo(13,-3); c.lineTo(17,-3); c.stroke();
-    if(firing){ c.beginPath(); c.arc(23,0,3,0,TAU); c.stroke(); }
+    /* scope box + folded bipod */
+    c.strokeRect(11,-4.5,5,3);
+    c.lineWidth=1.3;
+    c.beginPath(); c.moveTo(19,1); c.lineTo(16.5,4.5); c.moveTo(19,1); c.lineTo(21.5,4.5); c.stroke();
+    c.lineWidth=2;
+    if(firing){
+      muzzleFlash(c,23,col);
+      c.fillStyle=col; c.fillRect(8,-7,1.6,3);    /* ejected casing */
+    }
     c.restore();
     c.fillStyle=col;
     c.beginPath(); c.arc(Math.cos(angle)*5,bob+Math.sin(angle)*5,1.6,0,TAU); c.fill();
   }else if(type==='aura'){
     c.beginPath(); c.arc(0,bob,7,0,TAU); c.stroke();
+    /* twin counter-rotating ray crowns */
     for(let i=0;i<8;i++){
-      const a=t*1.2+i*TAU/8;
-      c.beginPath(); c.moveTo(Math.cos(a)*10,bob+Math.sin(a)*10);
-      c.lineTo(Math.cos(a)*14,bob+Math.sin(a)*14); c.stroke();
+      const lng=i%2===0;
+      const a=(lng?t*1.2:-t*.8)+i*TAU/8;
+      c.beginPath(); c.moveTo(Math.cos(a)*9.5,bob+Math.sin(a)*9.5);
+      c.lineTo(Math.cos(a)*(lng?15:12),bob+Math.sin(a)*(lng?15:12)); c.stroke();
     }
+    /* orbiting prisms catching the light */
+    c.lineWidth=1.4;
+    for(let i=0;i<3;i++){
+      const a=t*1.6+i*TAU/3;
+      poly(c,Math.cos(a)*12,bob+Math.sin(a)*12,2.2,3,a); c.stroke();
+    }
+    c.lineWidth=2;
     c.beginPath(); c.arc(0,bob,3+Math.sin(t*5)*.8,0,TAU); c.stroke();
   }else if(type==='medic'){
-    /* mender pylon: hex shell, medical cross, orbiting spark */
+    /* mender pylon: hex shell, rotating care-ring, heal pulse, medical cross */
     poly(c,0,bob,10,6,Math.PI/6); c.stroke();
+    c.save();
+    c.lineWidth=1.2; c.setLineDash([3,5]); c.lineDashOffset=-t*10;
+    c.beginPath(); c.arc(0,bob,13.5,0,TAU); c.stroke();
+    c.restore();
+    const hb2=(t*.9)%1;
+    c.globalAlpha*=(1-hb2)*.6;
+    c.beginPath(); c.arc(0,bob,4+hb2*12,0,TAU); c.stroke();
+    c.globalAlpha=1;
     c.lineWidth=2.6;
     c.beginPath(); c.moveTo(0,bob-4.5); c.lineTo(0,bob+4.5); c.moveTo(-4.5,bob); c.lineTo(4.5,bob); c.stroke();
     c.lineWidth=2;
-    const oa=t*2.2;
-    c.beginPath(); c.arc(Math.cos(oa)*13,bob+Math.sin(oa)*13,1.8,0,TAU); c.stroke();
   }else if(type==='reactor'){
     /* relic power plant: long housing, twin coils, pulsing energy bus */
     c.strokeRect(-32,-13,64,26);
     for(const cx of [-16,16]){
       c.beginPath(); c.arc(cx,0,8,0,TAU); c.stroke();
-      c.beginPath(); c.arc(cx,0,3.5+Math.sin(t*5+cx)*1,0,TAU); c.stroke();
+      poly(c,cx,0,3.8,3,t*(cx<0?2.2:-2.2)); c.stroke();   /* spinning rotor */
     }
+    /* vent stacks */
+    c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(-10,-19); c.lineTo(-10,-23); c.moveTo(-6,-19); c.lineTo(-6,-23); c.stroke();
+    c.lineWidth=2;
     glow(c,col,12);
     c.globalAlpha=.6+.35*Math.sin(t*4);
     c.beginPath(); c.moveTo(-24,0); c.lineTo(-8,0); c.moveTo(8,0); c.lineTo(24,0); c.stroke();
@@ -2129,11 +2238,25 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.strokeRect(-32,-32,64,64);
     c.strokeRect(-32,-32,12,12); c.strokeRect(20,-32,12,12);
     c.strokeRect(-32,20,12,12);  c.strokeRect(20,20,12,12);
+    /* crenellations along the walls */
+    c.lineWidth=1.3;
+    c.beginPath();
+    for(const wx of [-10,0,10]){
+      c.moveTo(wx-2,-32); c.lineTo(wx-2,-28); c.moveTo(wx+2,-32); c.lineTo(wx+2,-28);
+      c.moveTo(wx-2,32);  c.lineTo(wx-2,28);  c.moveTo(wx+2,32);  c.lineTo(wx+2,28);
+    }
+    c.stroke(); c.lineWidth=2;
+    /* sensor vane on the NE block */
+    c.save(); c.translate(26,-26); c.rotate(t*1.8);
+    c.beginPath(); c.moveTo(-4,0); c.lineTo(4,0); c.stroke();
+    c.beginPath(); c.arc(0,0,1.3,0,TAU); c.stroke();
+    c.restore();
     poly(c,0,0,20,8,t*.15); c.stroke();
     c.save(); c.rotate(angle);
     const rec=firing?-4:0;
     c.strokeRect(4+rec,-8,30,16);
     c.beginPath(); c.moveTo(34+rec,-10); c.lineTo(34+rec,10); c.stroke();
+    if(firing) muzzleFlash(c,37+rec,col);
     c.restore();
     glow(c,col,12);
     c.beginPath(); c.arc(0,0,5+Math.sin(t*4)*1.2,0,TAU); c.stroke();
