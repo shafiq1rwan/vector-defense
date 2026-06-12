@@ -9,8 +9,8 @@
 <title>VECTOR DEFENSE</title>
 <style>
   :root{
-    --bg:#04060d; --panel:#0a0f1f; --line:#1b2a55; --neon:#4d8dff;
-    --txt:#cfe0ff; --dim:#6b7fb3; --good:#39ff6a; --bad:#ff4d6a; --gold:#ffd34d;
+    --bg:#0a101f; --panel:#101831; --line:#2a3d72; --neon:#4d8dff;
+    --txt:#d9e6ff; --dim:#8497c7; --good:#39ff6a; --bad:#ff4d6a; --gold:#ffd34d;
   }
   *{box-sizing:border-box; margin:0; padding:0; user-select:none; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
@@ -26,7 +26,7 @@
      Nothing floats over the playfield, so roads can use every cell. */
   #stage{position:relative; padding-right:126px; padding-bottom:90px;}
   canvas#game{
-    display:block; background:#05070f;
+    display:block; background:#0a1122;
     border:1px solid var(--line); border-radius:10px;
     cursor:crosshair; touch-action:none;
   }
@@ -663,7 +663,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.21';
+const VERSION='4.22';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -728,20 +728,20 @@ let vol=SAVE.vol!=null?SAVE.vol:.8;
 /* cores buy looks, not power: stage palettes and hero skins. Flat colors only. */
 const THEMES=[
   {id:'default', n:'GRID STANDARD', cost:0,
-    tile:'#0d1530', seam:'rgba(60,100,200,.10)', rim:'rgba(90,150,255,.45)', rimGlow:'#4d8dff',
-    chev:'rgba(120,170,255,.20)', socket:'rgba(80,120,220,.13)', socketOn:'rgba(90,140,240,.30)', star:'#9db8ff'},
+    tile:'#15224d', seam:'rgba(100,150,240,.18)', rim:'rgba(120,175,255,.65)', rimGlow:'#4d8dff',
+    chev:'rgba(150,195,255,.32)', socket:'rgba(110,150,240,.22)', socketOn:'rgba(130,175,255,.45)', star:'#aec5ff'},
   {id:'ember', n:'EMBER GRID', cost:25,
-    tile:'#1a1008', seam:'rgba(255,160,60,.10)', rim:'rgba(255,165,58,.50)', rimGlow:'#ffa53a',
-    chev:'rgba(255,190,120,.22)', socket:'rgba(255,165,58,.12)', socketOn:'rgba(255,180,80,.32)', star:'#ffd2a0'},
+    tile:'#33200d', seam:'rgba(255,175,90,.18)', rim:'rgba(255,175,80,.65)', rimGlow:'#ffa53a',
+    chev:'rgba(255,200,140,.32)', socket:'rgba(255,175,80,.20)', socketOn:'rgba(255,195,110,.45)', star:'#ffd9ad'},
   {id:'frost', n:'FROST GRID', cost:25,
-    tile:'#0a1622', seam:'rgba(120,210,255,.10)', rim:'rgba(58,214,255,.50)', rimGlow:'#3ad6ff',
-    chev:'rgba(160,225,255,.22)', socket:'rgba(58,214,255,.12)', socketOn:'rgba(120,225,255,.32)', star:'#bfeaff'},
+    tile:'#102a3e', seam:'rgba(140,220,255,.18)', rim:'rgba(100,225,255,.65)', rimGlow:'#3ad6ff',
+    chev:'rgba(175,235,255,.32)', socket:'rgba(100,225,255,.20)', socketOn:'rgba(150,235,255,.45)', star:'#cdefff'},
   {id:'jade', n:'JADE GRID', cost:25,
-    tile:'#07180e', seam:'rgba(80,230,140,.10)', rim:'rgba(57,255,106,.45)', rimGlow:'#39ff6a',
-    chev:'rgba(140,255,170,.20)', socket:'rgba(57,255,106,.12)', socketOn:'rgba(100,255,150,.30)', star:'#b8ffcf'},
+    tile:'#0e2e1a', seam:'rgba(110,240,160,.18)', rim:'rgba(90,255,135,.60)', rimGlow:'#39ff6a',
+    chev:'rgba(160,255,185,.32)', socket:'rgba(90,255,135,.20)', socketOn:'rgba(130,255,170,.42)', star:'#c8ffdb'},
   {id:'void', n:'VOID GRID', cost:35,
-    tile:'#160b1c', seam:'rgba(220,110,255,.10)', rim:'rgba(255,58,240,.45)', rimGlow:'#ff3af0',
-    chev:'rgba(240,150,255,.20)', socket:'rgba(255,58,240,.12)', socketOn:'rgba(255,120,250,.30)', star:'#f0b8ff'}
+    tile:'#2a1535', seam:'rgba(235,140,255,.18)', rim:'rgba(255,100,245,.60)', rimGlow:'#ff3af0',
+    chev:'rgba(245,170,255,.32)', socket:'rgba(255,100,245,.20)', socketOn:'rgba(255,150,250,.42)', star:'#f4c8ff'}
 ];
 const THEME=()=>THEMES.find(t=>t.id===SAVE.cosmetics.theme)||THEMES[0];
 const SKINS={
@@ -4103,34 +4103,34 @@ function titleBgLoop(){
   c.clearRect(0,0,w,h);
   const t=performance.now()/1000;
   /* twinkling star specks */
-  c.fillStyle='#9db8ff';
+  c.fillStyle='#aec5ff';
   for(let i=0;i<42;i++){
     const x=((i*.117)%1)*w, y=((i*.379)%1)*h*.62;
-    c.globalAlpha=.06+.14*(0.5+0.5*Math.sin(t*(1+i%3)+i*2.2));
+    c.globalAlpha=.12+.22*(0.5+0.5*Math.sin(t*(1+i%3)+i*2.2));
     c.fillRect(x,y,i%4?1.5:2.5,i%4?1.5:2.5);
   }
   c.globalAlpha=1;
-  /* faint blueprint grid */
-  c.strokeStyle='rgba(60,100,200,.05)'; c.lineWidth=1;
+  /* blueprint grid */
+  c.strokeStyle='rgba(90,135,235,.11)'; c.lineWidth=1;
   c.beginPath();
   for(let x=(w/2)%48;x<w;x+=48){ c.moveTo(x,0); c.lineTo(x,h); }
   for(let y=24;y<h;y+=48){ c.moveTo(0,y); c.lineTo(w,y); }
   c.stroke();
   /* slow twin hexes behind the logo */
-  c.strokeStyle='rgba(77,141,255,.07)'; c.lineWidth=1.5;
+  c.strokeStyle='rgba(100,160,255,.16)'; c.lineWidth=1.5;
   poly(c,w/2,h*.30,112,6,t*.05); c.stroke();
   poly(c,w/2,h*.30,88,6,-t*.04); c.stroke();
   /* drifting glyph silhouettes */
-  c.lineWidth=1.5;
+  c.lineWidth=1.6;
   for(const g of TB_GLYPHS){
     const x=(((g.fx+t*g.spd)%1.12)-.06)*w, y=g.fy*h;
-    c.strokeStyle=g.col; c.globalAlpha=.11;
+    c.strokeStyle=g.col; c.globalAlpha=.26;
     poly(c,x,y,g.s,g.n,t*g.rs); c.stroke();
   }
   c.globalAlpha=1;
   /* perspective floor — scrolling horizontals + static rays */
   const hy=h*.72;
-  c.strokeStyle='rgba(77,141,255,.09)'; c.lineWidth=1;
+  c.strokeStyle='rgba(100,160,255,.20)'; c.lineWidth=1;
   c.beginPath();
   for(let i=0;i<9;i++){
     const f=(t*.10+i/9)%1;
@@ -4141,7 +4141,7 @@ function titleBgLoop(){
     c.moveTo(w/2+i*w*.075,hy); c.lineTo(w/2+i*w*.26,h);
   }
   c.stroke();
-  c.strokeStyle='rgba(77,141,255,.16)';
+  c.strokeStyle='rgba(120,175,255,.32)';
   c.beginPath(); c.moveTo(0,hy); c.lineTo(w,hy); c.stroke();
 }
 let selNode=0;
