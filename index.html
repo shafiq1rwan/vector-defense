@@ -285,6 +285,7 @@
   #campMile{font-size:8px; letter-spacing:1px;}
   #campMile span{white-space:nowrap;}
   .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
+  #upBtn.tut{animation:pul 1.1s infinite; border-color:#39ff6a;}
   .card.locked{opacity:.3; filter:saturate(.25);}
   .card .lockB{position:absolute; top:2px; right:3px; color:#9db8ff;}
   .card .lockB.hidden{display:none;}
@@ -649,7 +650,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.11';
+const VERSION='4.12';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -705,15 +706,17 @@ const META=[
 /* ============================== MAPS ============================== */
 /* shorter routes on a coarser 40px grid — bigger cells, easier to tap */
 const MAPS=[
-  {name:'SERPENT', coreBack:150, path:[[-40,100],[620,100],[620,300],[180,300],[180,420],[840,420]]},
-  {name:'GAUNTLET', coreBack:120, path:[[-40,60],[700,60],[700,220],[100,220],[100,380],[700,380],[700,560]]},
-  {name:'ORBIT', coreBack:60, path:[[-40,140],[660,140],[660,420],[140,420],[140,260],[460,260]]},
+  /* roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed) */
+  {name:'SERPENT', coreBack:150, path:[[-40,140],[560,140],[560,320],[200,320],[200,460],[840,460]]},
+  {name:'GAUNTLET', coreBack:120, path:[[-40,120],[680,120],[680,280],[120,280],[120,440],[760,440],[760,560]]},
+  {name:'ORBIT', coreBack:60, path:[[-40,200],[620,200],[620,440],[160,440],[160,300],[440,300]]},
   /* tutorial-only straight road — hidden from quick play */
   {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,260],[840,260]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL=null, CORE=null;
+let roadTiles=[], roadEdges=[], roadChevrons=[];
 const stars=[], props=[];
 /* flora clusters scattered around the field — pure scenery, hidden under placed towers */
 let grove=[];
@@ -813,6 +816,22 @@ function buildMap(i,persistSel=true){
         if(c>=0&&c<COLS&&r>=0&&r<ROWS){ blocked.add(c+','+r); roadCells.add(c+','+r); }
       }
     }
+  }
+  /* tiled-lane render data: cell list, outer rim segments, direction chevrons */
+  roadTiles=[...roadCells].map(k=>k.split(',').map(Number));
+  roadEdges=[];
+  for(const key of roadCells){
+    const [c,r]=key.split(',').map(Number);
+    const x=c*CELL, y=r*CELL;
+    if(!roadCells.has(c+','+(r-1))) roadEdges.push([x,y,x+CELL,y]);
+    if(!roadCells.has(c+','+(r+1))) roadEdges.push([x,y+CELL,x+CELL,y+CELL]);
+    if(!roadCells.has((c-1)+','+r)) roadEdges.push([x,y,x,y+CELL]);
+    if(!roadCells.has((c+1)+','+r)) roadEdges.push([x+CELL,y,x+CELL,y+CELL]);
+  }
+  roadChevrons=[];
+  for(let d=70; d<PATH_LEN-50; d+=90){
+    const p=pointAt(d);
+    roadChevrons.push({x:p.x,y:p.y,a:Math.atan2(p.dy,p.dx)});
   }
   PORTAL=pointAt(46); CORE=pointAt(PATH_LEN-m.coreBack);
   /* building is only allowed within 2 cells of the road */
@@ -1822,6 +1841,21 @@ function drawTowerBody(c,type,level,angle,t,firing){
   const def=TOWERS[type], col=def.color;
   c.lineWidth=2; c.strokeStyle=col; glow(c,col,10);
   const bob=Math.sin(t*3)*1.2;
+  /* upgrade tiers readable at a glance: LV2 corner pylons, LV3 rotating halo */
+  if(level>=2&&!def.footprint){
+    c.lineWidth=1.5;
+    c.beginPath();
+    for(const s of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+      c.moveTo(s[0]*15,s[1]*9); c.lineTo(s[0]*15,s[1]*14); c.lineTo(s[0]*9,s[1]*14);
+    }
+    c.stroke();
+    c.lineWidth=2;
+  }
+  if(level>=3&&!def.footprint){
+    c.save(); c.lineWidth=1.3; c.globalAlpha*=.8;
+    poly(c,0,0,18.5,8,t*.7); c.stroke();
+    c.restore();
+  }
   if(type==='archer'){
     poly(c,0,bob,11,3,-Math.PI/2); c.stroke();
     c.beginPath(); c.arc(0,bob-2,3.4,0,TAU); c.stroke();
@@ -2286,22 +2320,30 @@ function draw(){
   for(const ru of ruins) drawRuin(ctx,ru);
   for(const g of grove) drawPlantCluster(ctx,g);
 
-  /* road */
-  const road=()=>{ctx.beginPath();ctx.moveTo(PATH[0].x,PATH[0].y);for(let i=1;i<PATH.length;i++)ctx.lineTo(PATH[i].x,PATH[i].y);ctx.stroke();};
-  ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.save(); glow(ctx,'#4d8dff',14);
-  ctx.strokeStyle='rgba(70,130,255,.13)'; ctx.lineWidth=42; road();
-  ctx.restore();
-  ctx.strokeStyle='#0c1430'; ctx.lineWidth=32; road();
-  ctx.strokeStyle='#101c42'; ctx.lineWidth=24; road();
-  ctx.strokeStyle='rgba(77,141,255,.20)'; ctx.lineWidth=2; road();
-  for(let i=1;i<PATH.length-1;i++){
-    const p=PATH[i];
-    ctx.strokeStyle='rgba(120,170,255,.5)'; ctx.lineWidth=1.5;
-    glow(ctx,'#4d8dff',8);
-    poly(ctx,p.x,p.y,5,4,time*.9+i); ctx.stroke();
-    noGlow(ctx);
+  /* road — flat tiled lane with a neon rim, Arknights-style readability */
+  ctx.fillStyle='#0d1530';
+  for(const [rc,rr] of roadTiles) ctx.fillRect(rc*CELL,rr*CELL,CELL,CELL);
+  ctx.strokeStyle='rgba(60,100,200,.10)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  for(const [rc,rr] of roadTiles) ctx.rect(rc*CELL+.5,rr*CELL+.5,CELL-1,CELL-1);
+  ctx.stroke();
+  ctx.strokeStyle='rgba(90,150,255,.45)'; ctx.lineWidth=1.5;
+  glow(ctx,'#4d8dff',8);
+  ctx.beginPath();
+  for(const e of roadEdges){ ctx.moveTo(e[0],e[1]); ctx.lineTo(e[2],e[3]); }
+  ctx.stroke();
+  noGlow(ctx);
+  /* static direction chevrons */
+  ctx.strokeStyle='rgba(120,170,255,.20)'; ctx.lineWidth=2;
+  ctx.lineJoin='miter'; ctx.lineCap='round';
+  ctx.beginPath();
+  for(const cv of roadChevrons){
+    const ca=Math.cos(cv.a), sa=Math.sin(cv.a);
+    const tx=cv.x+ca*5, ty=cv.y+sa*5;
+    ctx.moveTo(tx-ca*9-sa*5.5, ty-sa*9+ca*5.5); ctx.lineTo(tx,ty);
+    ctx.lineTo(tx-ca*9+sa*5.5, ty-sa*9-ca*5.5);
   }
+  ctx.stroke();
 
   /* burn zones */
   for(const z of zones){
@@ -2449,6 +2491,15 @@ function draw(){
       ctx.beginPath(); ctx.arc(0,0,17,0,TAU); ctx.stroke();
       ctx.globalAlpha=1;
     }
+    /* tutorial step 3 — spotlight upgradeable towers */
+    if(campNode&&campNode.id===0&&wave===1&&!waveActive&&!gameOver
+       &&t.level===1&&!towers.some(x=>x.level>1)){
+      ctx.strokeStyle='#39ff6a'; ctx.lineWidth=1.5;
+      ctx.globalAlpha=.45+.3*Math.sin(time*5);
+      ctx.setLineDash([6,6]); ctx.lineDashOffset=-time*16;
+      ctx.beginPath(); ctx.arc(0,0,21,0,TAU); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+    }
     if(t.spec){
       ctx.fillStyle='#fff';
       poly(ctx,10,-12,3,5,-Math.PI/2); ctx.fill();
@@ -2458,7 +2509,11 @@ function draw(){
       for(let i=0;i<t.rank;i++){ poly(ctx,-11+i*6,-15,2.6,4,Math.PI/4); ctx.fill(); }
     }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
+    ctx.save();
+    const tsc=t.def.footprint?1:1+(t.level-1)*.05;   /* towers grow a touch per level */
+    ctx.scale(tsc,tsc);
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
+    ctx.restore();
     if(t.empT>0){
       ctx.globalAlpha=1;
       glow(ctx,'#ffe14d',6);
@@ -2675,7 +2730,9 @@ function draw(){
           ? (placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'1) PICK A HERO (KEYS 1-6)   2) DEPLOY ON THE MAP')
           : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
       }else if(tut&&wave===1&&!waveActive){
-        msg='STEP 3 — SPEND YOUR BOUNTY, THEN CALL THE NEXT WAVE EARLY FOR BONUS CREDITS';
+        msg=towers.some(tw=>tw.level>1)
+          ? 'STEP 4 — UPGRADES STACK. CALL THE NEXT WAVE EARLY FOR BONUS CREDITS'
+          : 'STEP 3 — TAP YOUR TOWER, THEN HIT THE GREEN ARROW BUTTON TO UPGRADE IT';
       }
     }
     if(msg){
@@ -2754,6 +2811,8 @@ function showTowerInfo(t){
   pop.classList.remove('hidden');
   const pf=pop.querySelector('.popFace');
   if(pf) renderHeroPortrait(pf,t.type);
+  /* tutorial: pulse the upgrade button so step 3 lands */
+  if(campNode&&campNode.id===0&&t.level===1&&wave>=1) $('upBtn').classList.add('tut');
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
   if(!d.aura&&!d.income) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
   $('upBtn').onclick=()=>{
@@ -2761,6 +2820,12 @@ function showTowerInfo(t){
     money-=upCost(d,t.level); t.invested+=upCost(d,t.level);
     t.level++; t.stats=computeStats(t);
     spray(t.x,t.y,d.color,18,120,.5); ring(t.x,t.y,t.stats.range,d.color,.4);
+    addText(t.x,t.y-26,'LEVEL '+t.level,'#7db2ff',true);
+    ring(t.x,t.y,34,'#ffffff',.3);
+    shatter(t.x,t.y,15,'square','#9db8ff',Math.PI/4,1.1);
+    hitStop=Math.max(hitStop,.05);
+    t.spawnT=.25;
+    vib(20);
     SND.upgrade();
     showTowerInfo(t); refreshUI();
   };
