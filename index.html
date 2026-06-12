@@ -664,7 +664,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.23';
+const VERSION='4.24';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1560,7 +1560,7 @@ function placeTower(type,c,r){
   const fp=def.footprint||[1,1];
   const hpBase=def.footprint?260:120;
   const t={type,def,c,r,x:(c+fp[0]/2)*CELL,y:(r+fp[1]/2)*CELL,level:1,cd:0,angle:-Math.PI/2,
-           invested:def.cost,flash:0,spawnT:.4,spec:null,mode:0,buffD:0,buffR:0,
+           invested:def.cost,flash:0,spawnT:0,buildT:.7,spec:null,mode:0,buffD:0,buffR:0,
            empT:0,totalDmg:0,waveDmg:0,xp:0,rank:0,keys:[],
            hp:hpBase,maxHp:hpBase,offline:false,shieldT:0};
   for(let dc=0;dc<fp[0];dc++)for(let dr=0;dr<fp[1];dr++) t.keys.push((c+dc)+','+(r+dr));
@@ -1870,7 +1870,7 @@ function update(dt){
   enemies=enemies.filter(e=>!e.dead);
 
   /* aura buffs */
-  const auras=towers.filter(t=>t.def.aura&&!t.offline);
+  const auras=towers.filter(t=>t.def.aura&&!t.offline&&!(t.buildT>0));
   for(const t of towers){
     t.buffD=0; t.buffR=0;
     if(t.def.aura) continue;
@@ -1884,7 +1884,7 @@ function update(dt){
 
   /* menders — repair damaged towers, revive offline ones */
   for(const t of towers){
-    if(!t.def.heal||t.offline||t.empT>0) continue;
+    if(!t.def.heal||t.offline||t.empT>0||t.buildT>0) continue;
     const r2=t.stats.range*t.stats.range;
     for(const o of towers){
       if(o===t||dist2(t,o)>r2) continue;
@@ -1909,6 +1909,20 @@ function update(dt){
     if(t.flash>0) t.flash-=dt;
     if(t.spawnT>0) t.spawnT-=dt;
     if(t.shieldT>0) t.shieldT-=dt;
+    /* under construction — assembling, can't act yet */
+    if(t.buildT>0){
+      t.buildT-=dt;
+      const hw=t.def.footprint?38:24;
+      const bf=1-Math.max(0,t.buildT)/.7;
+      if(Math.random()<dt*22)
+        parts.push({x:t.x+(Math.random()-.5)*hw*1.6, y:t.y+hw-bf*2*hw,
+          vx:(Math.random()-.5)*70, vy:-30-Math.random()*50, life:.3,max:.3, color:t.def.color, size:2});
+      if(t.buildT<=0){
+        ring(t.x,t.y,22,t.def.color,.35);
+        t.flash=.18; SND.upgrade(); vib(10);
+      }
+      continue;
+    }
     if(t.offline) continue;
     if(t.empT>0){ t.empT-=dt; continue; }
     if(t.def.aura||t.def.income||t.def.heal) continue;
@@ -2702,9 +2716,36 @@ function draw(){
     }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     if(t.offline) ctx.globalAlpha=.28;
-    ctx.save();
     /* bodies were drawn for 40px cells; 1.15 refits them to the 50px grid */
     const tsc=1.15*(t.def.footprint?1:1+(t.level-1)*.05);
+    if(t.buildT>0){
+      /* construction: brackets converge, body materializes behind a rising scan line */
+      const hw=t.def.footprint?38:24;
+      const bf=1-t.buildT/.7;
+      ctx.strokeStyle=t.def.color; ctx.lineWidth=1.5;
+      ctx.globalAlpha=.85;
+      const m=hw+9-bf*8;
+      ctx.beginPath();
+      for(const s2 of [[-1,-1],[1,-1],[1,1],[-1,1]]){
+        ctx.moveTo(s2[0]*m, s2[1]*(m-8)); ctx.lineTo(s2[0]*m, s2[1]*m); ctx.lineTo(s2[0]*(m-8), s2[1]*m);
+      }
+      ctx.stroke();
+      ctx.save();
+      ctx.beginPath(); ctx.rect(-hw, hw-bf*2*hw, hw*2, bf*2*hw); ctx.clip();
+      ctx.globalAlpha=.45+.55*bf;
+      ctx.save(); ctx.scale(tsc,tsc);
+      drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,false);
+      ctx.restore();
+      ctx.restore();
+      const sy=hw-bf*2*hw;
+      ctx.globalAlpha=.9; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+      glow(ctx,t.def.color,8);
+      ctx.beginPath(); ctx.moveTo(-hw,sy); ctx.lineTo(hw,sy); ctx.stroke();
+      noGlow(ctx);
+      ctx.restore(); ctx.globalAlpha=1;
+      continue;
+    }
+    ctx.save();
     ctx.scale(tsc,tsc);
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
     ctx.restore();
