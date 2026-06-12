@@ -581,14 +581,15 @@
     </div>
 
     <div id="shopOverlay" class="overlay solid vcenter hidden">
+      <button id="shopBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:20px; letter-spacing:6px">CORE SHOP</div>
       <div id="shopBal" class="sub"></div>
       <div id="metaShop" class="shopGrid"></div>
       <div class="sub" style="font-size:10px">Earn cores by surviving waves — spend them on grid themes and hero skins. Style only, no stat changes.</div>
-      <button id="shopBack" class="cta">BACK</button>
     </div>
 
     <div id="codexOverlay" class="overlay solid hidden">
+      <button id="codexBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:20px; letter-spacing:6px">CODEX</div>
       <div class="btnrow" id="codexTabs">
         <button data-tab="heroes">HEROES</button>
@@ -598,7 +599,6 @@
         <button data-tab="controls">CONTROLS</button>
       </div>
       <div id="codexBody"></div>
-      <button id="codexBack" class="cta">BACK</button>
     </div>
 
     <div id="endOverlay" class="overlay vcenter hidden">
@@ -613,6 +613,7 @@
     </div>
 
     <div id="settingsOverlay" class="overlay solid vcenter hidden">
+      <button id="settingsBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:20px; letter-spacing:6px">SETTINGS</div>
       <div class="setCard">
         <div class="setHead">AUDIO</div>
@@ -629,7 +630,6 @@
         <div class="setHead">DATA</div>
         <div class="setRow"><span>Wipe records, cores & upgrades</span><button id="resetSave" class="sell tog"></button></div>
       </div>
-      <button id="settingsBack" class="cta">BACK</button>
     </div>
 
     <div id="pauseOverlay" class="overlay vcenter hidden">
@@ -667,7 +667,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.25';
+const VERSION='4.26';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3244,7 +3244,7 @@ function buildUI(){
   $('qpBack').innerHTML=ic('back',16);
   $('qpLaunch').innerHTML=ic('play')+'LAUNCH';
   $('launchBtn').innerHTML=ic('play')+'LAUNCH';
-  $('codexBack').innerHTML=ic('back')+'BACK';
+  $('codexBack').innerHTML=ic('back',16);
   $('restartBtn').innerHTML=ic('retry')+'RETRY';
   $('menuBtn').innerHTML=ic('home')+'MENU';
   $('continueBtn').innerHTML=ic('inf')+'ENDLESS';
@@ -3255,9 +3255,9 @@ function buildUI(){
   $('speedBtn').innerHTML=ic('ff')+'1×';
   $('muteBtn').innerHTML=ic(muted?'sndOff':'sndOn');
   $('settingsBtn').innerHTML=ic('gear',15);
-  $('settingsBack').innerHTML=ic('back')+'BACK';
+  $('settingsBack').innerHTML=ic('back',16);
   $('pSettingsBtn').innerHTML=ic('gear',15);
-  $('shopBack').innerHTML=ic('back')+'BACK';
+  $('shopBack').innerHTML=ic('back',16);
   $('verTag').textContent='v'+VERSION;
   buildLogo();
   buildShop();
