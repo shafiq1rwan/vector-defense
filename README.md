@@ -15,7 +15,7 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Relic drafts** — every boss you down lets you pick 1-of-3 run-long relics (damage, range, economy, ability recharge and more); campaign star milestones widen the draft and open every run with a relic cache
 - **Elite enemies** — gold-crowned champions with affixes (shielded vanguard, swift, regenerating, fission) and triple bounties, from wave 4 onward
 - **Wave modifiers** (fast / regen / horde / wealth), kill-combo credits, wave MVP damage rankings
-- **Meta-progression** — earn ⬡ cores every run and buy permanent upgrades in the core shop
+- **Core shop** — earn ⬡ cores every run and spend them on cosmetics: grid themes that restyle the whole battlefield (ember/frost/jade/void) and alternate color skins for every hero
 - **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls, plus a RECORDS tab with lifetime stats and 14 achievements
 - **Procedural music** — WebAudio synth score that intensifies with combat and boss waves
 - **Mobile-first** — drag-to-place touch controls with a lifted ghost, auto-landscape rotation in portrait, safe-area aware layout, installable PWA with offline support

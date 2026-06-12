@@ -208,8 +208,20 @@
   .menuCard:hover{border-color:#7db2ff; color:#fff; background:#101c42;}
   .menuCard .mSub{font-size:8px; font-weight:400; letter-spacing:1px; color:var(--dim);}
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
-  .shopGrid{display:grid; grid-template-columns:repeat(2,minmax(180px,230px)); gap:9px; justify-content:center;}
-  .shopGrid .metaOpt{min-width:0; font-size:10px; padding:9px; line-height:1.5;}
+  .shopGrid{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; max-width:700px;}
+  .shopSec{width:100%; font-size:9px; letter-spacing:3px; color:var(--dim); margin-top:5px; text-align:center;}
+  .cosCard{
+    flex:none; width:122px; background:#0a1126; border:1px solid var(--line); border-radius:10px;
+    padding:8px 6px 7px; cursor:pointer; font:inherit; color:var(--txt);
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .cosCard b{font-size:9.5px; letter-spacing:.5px;}
+  .cosCard small{font-size:8px; color:#9db8ff; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:2px;}
+  .cosCard.eq{border-color:#39ff6a;}
+  .cosCard.eq small{color:#39ff6a;}
+  .cosCard:disabled{opacity:.4; cursor:not-allowed;}
+  .cosCard canvas{display:block;}
+  .cosCard:hover{border-color:#7db2ff;}
   /* campaign map — compact */
   #campOverlay{gap:7px;}
   #campOverlay .big{font-size:15px; letter-spacing:5px;}
@@ -321,14 +333,6 @@
   .diffOpt.sel{border-color:#fff; background:#16265a; color:#fff;}
   #qpOverlay{gap:11px;}
   #qpLaunch{padding:9px 36px;}
-  .metaOpt{
-    flex:none; padding:5px 8px; font-size:8.5px; letter-spacing:.5px; line-height:1.4;
-    background:#101a36; border-color:#2a3f7a; min-width:88px;
-  }
-  .metaOpt .pips{color:#4d8dff; letter-spacing:2px;}
-  .metaOpt .mcost{color:#9db8ff;}
-  .metaOpt.maxed{border-color:#39ff6a; color:#39ff6a; opacity:.8;}
-  .metaOpt small{display:block; font-weight:400; color:var(--dim); font-size:8px;}
   .overlay button.cta{flex:none; padding:11px 34px; font-size:14px;}
   #medals{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px;}
   .medal{
@@ -576,7 +580,7 @@
       <div class="big" style="font-size:20px; letter-spacing:6px">CORE SHOP</div>
       <div id="shopBal" class="sub"></div>
       <div id="metaShop" class="shopGrid"></div>
-      <div class="sub" style="font-size:10px">Earn cores by surviving waves — upgrades are permanent across every run.</div>
+      <div class="sub" style="font-size:10px">Earn cores by surviving waves — spend them on grid themes and hero skins. Style only, no stat changes.</div>
       <button id="shopBack" class="cta">BACK</button>
     </div>
 
@@ -659,7 +663,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.19';
+const VERSION='4.20';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -700,17 +704,61 @@ SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!
 SAVE.haptics=SAVE.haptics!==false;
 SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
+SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{}},SAVE.cosmetics||{});
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
-/* permanent upgrades bought with ⬡ cores earned each run */
-const META=[
-  {id:'cap', name:'START CAPITAL', desc:'+30 starting credits', max:4, costs:[3,5,8,12]},
-  {id:'rec', name:'RECHARGE',      desc:'-12% ability cooldowns', max:3, costs:[4,7,11]},
-  {id:'bul', name:'BULWARK',       desc:'+2 core integrity', max:3, costs:[4,6,9]},
-  {id:'sal', name:'SALVAGE',       desc:'+10% sell refund', max:2, costs:[5,9]},
-  {id:'bou', name:'BOUNTY',        desc:'+5% kill rewards', max:3, costs:[3,6,10]}
+/* one-time migration: the old stat upgrades are retired — refund every core spent */
+{
+  const oldCosts={cap:[3,5,8,12],rec:[4,7,11],bul:[4,6,9],sal:[5,9],bou:[3,6,10]};
+  let refund=0;
+  for(const k in oldCosts){
+    const r=Math.min((SAVE.meta&&SAVE.meta[k])||0,oldCosts[k].length);
+    for(let i=0;i<r;i++) refund+=oldCosts[k][i];
+  }
+  if(refund>0){
+    SAVE.cores=(SAVE.cores||0)+refund;
+    SAVE.meta={cap:0,rec:0,bul:0,sal:0,bou:0};
+    SAVE.metaRefund=refund;
+    persist();
+  }
+}
+
+/* ============================== COSMETICS ============================== */
+/* cores buy looks, not power: stage palettes and hero skins. Flat colors only. */
+const THEMES=[
+  {id:'default', n:'GRID STANDARD', cost:0,
+    tile:'#0d1530', seam:'rgba(60,100,200,.10)', rim:'rgba(90,150,255,.45)', rimGlow:'#4d8dff',
+    chev:'rgba(120,170,255,.20)', socket:'rgba(80,120,220,.13)', socketOn:'rgba(90,140,240,.30)', star:'#9db8ff'},
+  {id:'ember', n:'EMBER GRID', cost:25,
+    tile:'#1a1008', seam:'rgba(255,160,60,.10)', rim:'rgba(255,165,58,.50)', rimGlow:'#ffa53a',
+    chev:'rgba(255,190,120,.22)', socket:'rgba(255,165,58,.12)', socketOn:'rgba(255,180,80,.32)', star:'#ffd2a0'},
+  {id:'frost', n:'FROST GRID', cost:25,
+    tile:'#0a1622', seam:'rgba(120,210,255,.10)', rim:'rgba(58,214,255,.50)', rimGlow:'#3ad6ff',
+    chev:'rgba(160,225,255,.22)', socket:'rgba(58,214,255,.12)', socketOn:'rgba(120,225,255,.32)', star:'#bfeaff'},
+  {id:'jade', n:'JADE GRID', cost:25,
+    tile:'#07180e', seam:'rgba(80,230,140,.10)', rim:'rgba(57,255,106,.45)', rimGlow:'#39ff6a',
+    chev:'rgba(140,255,170,.20)', socket:'rgba(57,255,106,.12)', socketOn:'rgba(100,255,150,.30)', star:'#b8ffcf'},
+  {id:'void', n:'VOID GRID', cost:35,
+    tile:'#160b1c', seam:'rgba(220,110,255,.10)', rim:'rgba(255,58,240,.45)', rimGlow:'#ff3af0',
+    chev:'rgba(240,150,255,.20)', socket:'rgba(255,58,240,.12)', socketOn:'rgba(255,120,250,.30)', star:'#f0b8ff'}
 ];
+const THEME=()=>THEMES.find(t=>t.id===SAVE.cosmetics.theme)||THEMES[0];
+const SKINS={
+  archer:{id:'sk_archer', n:'GILDED SLY',    color:'#ffd34d', cost:20},
+  frost: {id:'sk_frost',  n:'ROSE GLACE',    color:'#ff9ad0', cost:20},
+  cannon:{id:'sk_cannon', n:'COBALT BRUNO',  color:'#5aa0ff', cost:20},
+  tesla: {id:'sk_tesla',  n:'CRIMSON VOLTA', color:'#ff5a5a', cost:20},
+  sniper:{id:'sk_sniper', n:'GHOST REX',     color:'#cfe1ff', cost:20},
+  aura:  {id:'sk_aura',   n:'EMERALD LUMA',  color:'#39ff6a', cost:20}
+};
+/* equipped skins simply recolor the TOWERS entry — every renderer follows */
+function applyCosmetics(){
+  for(const k in SKINS){
+    if(!TOWERS[k].baseColor) TOWERS[k].baseColor=TOWERS[k].color;
+    TOWERS[k].color=SAVE.cosmetics.skins[k]===SKINS[k].id?SKINS[k].color:TOWERS[k].baseColor;
+  }
+}
 
 /* ============================== MAPS ============================== */
 /* shorter routes on a coarser 40px grid — bigger cells, easier to tap */
@@ -958,8 +1006,8 @@ const DIFFS=[
 ];
 let diffIndex=SAVE.diff!=null?SAVE.diff:1;
 const DIFF=()=>DIFFS[diffIndex];
-const maxLives=()=>DIFF().lives+SAVE.meta.bul*2;
-const abilityCd=k=>Math.round(ABILITIES[k].cd*(1-.12*SAVE.meta.rec)*(typeof relicHas!=='undefined'&&relicHas('flux')?.75:1));
+const maxLives=()=>DIFF().lives;
+const abilityCd=k=>Math.round(ABILITIES[k].cd*(typeof relicHas!=='undefined'&&relicHas('flux')?.75:1));
 
 /* ============================== HERO TOWERS ============================== */
 const TOWERS={
@@ -1212,7 +1260,7 @@ const mouse={x:-99,y:-99,inside:false};
 function reset(){
   finalWave=campNode?campNode.waves:FINAL_WAVE;
   updateCardLocks();
-  money=DIFF().money+SAVE.meta.cap*30; lives=maxLives(); wave=0;
+  money=DIFF().money; lives=maxLives(); wave=0;
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
@@ -1418,7 +1466,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
   }
   if(e.hp<=0){
     e.dead=true; kills++;
-    const rw=Math.round(e.reward*(1+.05*SAVE.meta.bou));
+    const rw=Math.round(e.reward);
     combo++; comboT=relicHas('magnet')?2.35:1.35; comboPop=.3;
     if(combo>bestCombo) bestCombo=combo;
     let extra=0;
@@ -2323,20 +2371,21 @@ function drawFireflies(){
 
 /* ============================== DRAW: SCENE ============================== */
 function draw(){
+  const TH=THEME();
   ctx.save();
   if(shake>0&&SAVE.shake) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.clearRect(-20,-20,W+40,H+40);
 
   for(const s of stars){
     ctx.globalAlpha=.12+.22*(0.5+0.5*Math.sin(time*s.spd+s.ph));
-    ctx.fillStyle='#9db8ff';
+    ctx.fillStyle=TH.star;
     ctx.fillRect(s.x,s.y,s.s,s.s);
   }
   ctx.globalAlpha=1;
 
   /* placement sockets */
   ctx.lineWidth=1;
-  ctx.strokeStyle=placing?'rgba(90,140,240,.30)':'rgba(80,120,220,.13)';
+  ctx.strokeStyle=placing?TH.socketOn:TH.socket;
   ctx.beginPath();
   for(let c0=0;c0<COLS;c0++)for(let r0=0;r0<ROWS;r0++){
     const key=c0+','+r0;
@@ -2361,20 +2410,20 @@ function draw(){
   for(const g of grove) drawPlantCluster(ctx,g);
 
   /* road — flat tiled lane with a neon rim, Arknights-style readability */
-  ctx.fillStyle='#0d1530';
+  ctx.fillStyle=TH.tile;
   for(const [rc,rr] of roadTiles) ctx.fillRect(rc*CELL,rr*CELL,CELL,CELL);
-  ctx.strokeStyle='rgba(60,100,200,.10)'; ctx.lineWidth=1;
+  ctx.strokeStyle=TH.seam; ctx.lineWidth=1;
   ctx.beginPath();
   for(const [rc,rr] of roadTiles) ctx.rect(rc*CELL+.5,rr*CELL+.5,CELL-1,CELL-1);
   ctx.stroke();
-  ctx.strokeStyle='rgba(90,150,255,.45)'; ctx.lineWidth=1.5;
-  glow(ctx,'#4d8dff',8);
+  ctx.strokeStyle=TH.rim; ctx.lineWidth=1.5;
+  glow(ctx,TH.rimGlow,8);
   ctx.beginPath();
   for(const e of roadEdges){ ctx.moveTo(e[0],e[1]); ctx.lineTo(e[2],e[3]); }
   ctx.stroke();
   noGlow(ctx);
   /* static direction chevrons */
-  ctx.strokeStyle='rgba(120,170,255,.20)'; ctx.lineWidth=2;
+  ctx.strokeStyle=TH.chev; ctx.lineWidth=2;
   ctx.lineJoin='miter'; ctx.lineCap='round';
   ctx.beginPath();
   for(const cv of roadChevrons){
@@ -2840,7 +2889,7 @@ function showTowerInfo(t){
   const d=t.def, s=t.stats;
   const maxed=t.level>=MAX_LVL;
   const uc=maxed?0:upCost(d,t.level);
-  const refund=Math.round(t.invested*(.7+.1*SAVE.meta.sal));
+  const refund=Math.round(t.invested*.7);
   const specInfo=t.spec?SPECS[t.type].find(x=>x.id===t.spec):null;
   let html=`${d.footprint?'':`<canvas class="popFace" width="92" height="118"></canvas>`}<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
@@ -3055,24 +3104,58 @@ function buildLogo(){
 function buildShop(){
   const box=$('metaShop');
   if(!box) return;
-  $('shopBal').innerHTML=ic('hex',11)+'BALANCE: <b style="color:#9db8ff">'+SAVE.cores+'</b> cores';
+  let bal=ic('hex',11)+'BALANCE: <b style="color:#9db8ff">'+SAVE.cores+'</b> cores';
+  if(SAVE.metaRefund){
+    bal+=' · <span style="color:#39ff6a">OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED</span>';
+  }
+  $('shopBal').innerHTML=bal;
   box.innerHTML='';
-  for(const m of META){
-    const rank=SAVE.meta[m.id];
-    const maxed=rank>=m.max;
-    const cost=maxed?0:m.costs[rank];
+  const own=id=>id==='default'||SAVE.cosmetics.owned[id];
+  const sec=t=>{ const d=document.createElement('div'); d.className='shopSec'; d.textContent=t; box.appendChild(d); };
+
+  sec('GRID THEMES — restyle the battlefield');
+  for(const t of THEMES){
+    const equipped=SAVE.cosmetics.theme===t.id;
     const b=document.createElement('button');
-    b.className='metaOpt'+(maxed?' maxed':'');
-    b.disabled=!maxed&&SAVE.cores<cost;
-    if(maxed) b.disabled=true;
-    b.innerHTML=`${m.name} <span class="pips">${'●'.repeat(rank)}${'○'.repeat(m.max-rank)}</span>
-      <small>${m.desc}${maxed?' — MAX':' · <b class="mcost">'+ic('hex',8)+cost+'</b>'}</small>`;
-    b.title=m.desc+(maxed?' (maxed out)':' — costs '+cost+' cores');
+    b.className='cosCard'+(equipped?' eq':'');
+    b.innerHTML=`<canvas width="64" height="40"></canvas><b>${t.n}</b>
+      <small>${equipped?'EQUIPPED':own(t.id)?'TAP TO EQUIP':ic('hex',8)+' '+t.cost}</small>`;
+    const c=b.querySelector('canvas').getContext('2d');
+    c.fillStyle=t.tile; c.fillRect(4,7,56,26);
+    c.strokeStyle=t.rim; c.lineWidth=2; c.strokeRect(4,7,56,26);
+    c.beginPath(); c.moveTo(27,14); c.lineTo(35,20); c.lineTo(27,26); c.stroke();
+    b.disabled=!own(t.id)&&SAVE.cores<t.cost;
     b.onclick=()=>{
-      if(maxed||SAVE.cores<cost) return;
-      SAVE.cores-=cost; SAVE.meta[m.id]++;
-      persist(); buildShop(); reset();
-      SND.upgrade();
+      if(!own(t.id)){
+        if(SAVE.cores<t.cost) return;
+        SAVE.cores-=t.cost; SAVE.cosmetics.owned[t.id]=true;
+      }
+      SAVE.cosmetics.theme=equipped?'default':t.id;
+      persist(); buildShop(); SND.upgrade();
+    };
+    box.appendChild(b);
+  }
+
+  sec('HERO SKINS — new colors for the roster');
+  for(const k in SKINS){
+    const s=SKINS[k], equipped=SAVE.cosmetics.skins[k]===s.id;
+    const b=document.createElement('button');
+    b.className='cosCard'+(equipped?' eq':'');
+    b.innerHTML=`<canvas width="44" height="44"></canvas><b style="color:${s.color}">${s.n}</b>
+      <small>${equipped?'EQUIPPED':own(s.id)?'TAP TO EQUIP':ic('hex',8)+' '+s.cost}</small>`;
+    const cv=b.querySelector('canvas'), c2=cv.getContext('2d');
+    const keep=TOWERS[k].color;
+    TOWERS[k].color=s.color;
+    c2.save(); c2.translate(22,22); drawTowerBody(c2,k,1,-Math.PI/4,1.2,false); c2.restore();
+    TOWERS[k].color=keep;
+    b.disabled=!own(s.id)&&SAVE.cores<s.cost;
+    b.onclick=()=>{
+      if(!own(s.id)){
+        if(SAVE.cores<s.cost) return;
+        SAVE.cores-=s.cost; SAVE.cosmetics.owned[s.id]=true;
+      }
+      SAVE.cosmetics.skins[k]=equipped?null:s.id;
+      applyCosmetics(); persist(); buildUI(); SND.upgrade();
     };
     box.appendChild(b);
   }
@@ -3221,7 +3304,9 @@ function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
   SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,
-        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0}};
+        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},
+        cosmetics:{owned:{},theme:'default',skins:{}}};
+  applyCosmetics();
   vol=.8; if(master) master.gain.value=vol;
   diffIndex=1; resetArmed=false;
   buildMap(0); buildUI(); reset(); refreshSettings();
@@ -3581,6 +3666,7 @@ $('shopBtn').onclick=()=>{
   buildShop();
 };
 $('shopBack').onclick=()=>{
+  if(SAVE.metaRefund){ SAVE.metaRefund=0; persist(); }   /* refund notice shown once */
   $('shopOverlay').classList.add('hidden');
   $('titleOverlay').classList.remove('hidden');
 };
@@ -4037,6 +4123,7 @@ for(let i=0;i<60;i++) stars.push({
   x:Math.random()*W, y:Math.random()*H, s:Math.random()<.85?1.5:2.5,
   ph:Math.random()*TAU, spd:.6+Math.random()*2
 });
+applyCosmetics();
 buildMap(mapIndex);
 buildUI();
 reset();
