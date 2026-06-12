@@ -34,10 +34,17 @@
     position:absolute; top:8px; right:8px; bottom:84px; width:112px;
     display:flex; flex-direction:column; gap:6px; z-index:3;
   }
-  /* START lives outside the column — always parked at the bottom-right corner */
+  /* START lives outside the column — a card-sized button parked at the bottom-right corner */
   #startBox{
-    position:absolute; right:8px; bottom:8px; width:112px;
-    display:flex; flex-direction:column; gap:4px; z-index:4;
+    position:absolute; right:8px; bottom:8px; width:112px; height:82px;
+    display:flex; z-index:4;
+  }
+  #startBox #waveBtn{height:100%; border-radius:12px;}
+  /* wave progress — thin rail along the top edge of the card dock */
+  #progWrap{
+    position:absolute; left:0; right:126px; bottom:93px; height:4px;
+    background:#0a1126; border:1px solid var(--line); border-radius:3px;
+    overflow:hidden; z-index:3;
   }
   #sideScroll{
     flex:1 1 auto; min-height:0; overflow-y:auto;
@@ -63,13 +70,12 @@
     content:''; position:absolute; top:0; left:0; right:0; height:2px;
     background:var(--c,#4d8dff); opacity:.55;
   }
-  .stat .v{font-size:13px; font-weight:700;}
-  .stat .l{font-size:7px; letter-spacing:1.5px; color:var(--dim);}
+  .stat .v{font-size:17px; font-weight:800;}
+  .stat .l{font-size:8px; letter-spacing:1.5px; color:var(--dim);}
   #livesV{color:var(--bad);} #moneyV{color:var(--gold);} #waveV{color:var(--neon);}
   .stat.sLives{--c:#ff4d6a;} .stat.sMoney{--c:#ffd34d;} .stat.sWave{--c:#4d8dff;}
   .bump{animation:bump .25s ease;}
   @keyframes bump{40%{transform:scale(1.25);}}
-  #progWrap{height:5px; background:#0a1126; border:1px solid var(--line); border-radius:4px; overflow:hidden; flex:none;}
   .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
   #progFill{height:100%; width:0%; background:#5a96f0; transition:width .25s;}
   #next{background:#0a1126; border:1px solid var(--line); border-radius:8px; padding:5px 8px;}
@@ -98,13 +104,14 @@
     position:absolute; top:2px; left:4px; font-size:8px; color:var(--dim);
     border:1px solid var(--line); border-radius:3px; padding:0 2px;
   }
-  #abils{display:flex; flex-direction:column; gap:5px; flex:none;}
+  #abils{display:flex; flex-direction:column; gap:6px; flex:none;}
   .abtn{
-    flex:none; background:#0a1126; border:1px solid var(--line); border-radius:7px;
-    padding:6px 2px; font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--txt);
-    cursor:pointer; text-align:center; line-height:1.3;
+    flex:none; height:48px; background:#0a1126; border:1.5px solid var(--line); border-radius:15px;
+    padding:4px 2px; font-size:8px; font-weight:700; letter-spacing:.5px; color:var(--txt);
+    cursor:pointer; text-align:center; line-height:1.25;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
   }
-  .abtn b{display:block; font-size:8px; color:var(--dim);}
+  .abtn b{display:block; font-size:14px; color:var(--ac,#4d8dff);}
   .abtn:hover{border-color:var(--ac,#4d8dff);}
   .abtn.ready{border-color:var(--ac); color:var(--ac); animation:pul 1.6s infinite;}
   .abtn.cool{opacity:.45; cursor:not-allowed;}
@@ -437,12 +444,10 @@
       max-height:calc(100vh - 102px); max-height:calc(100dvh - 102px);
       max-width:calc(100vw - 140px); max-width:calc(100dvw - 140px);
     }
-    #stats{flex-direction:row; gap:3px;}
-    #sideCol .stat{flex:1; flex-direction:column; align-items:center; padding:2px 1px;}
-    #sideCol .stat .v{font-size:11px;}
-    #sideCol .stat .l{font-size:5.5px; letter-spacing:.5px;}
     #nextIcons canvas{width:16px; height:16px;}
-    .abtn{padding:4px 2px;}
+    #sideCol .stat{padding:3px 8px;}
+    #sideCol .stat .v{font-size:14px;}
+    .abtn{height:42px;}
     .big{font-size:20px; letter-spacing:4px;}
   }
   /* portrait phones: auto-rotate the whole game into landscape so the grid stays big */
@@ -465,12 +470,10 @@
       max-height:calc(100vw - 102px); max-height:calc(100dvw - 102px);
       max-width:calc(100vh - 140px); max-width:calc(100dvh - 140px);
     }
-    #stats{flex-direction:row; gap:3px;}
-    #sideCol .stat{flex:1; flex-direction:column; align-items:center; padding:2px 1px;}
-    #sideCol .stat .v{font-size:11px;}
-    #sideCol .stat .l{font-size:5.5px; letter-spacing:.5px;}
     #nextIcons canvas{width:16px; height:16px;}
-    .abtn{padding:4px 2px;}
+    #sideCol .stat{padding:3px 8px;}
+    #sideCol .stat .v{font-size:14px;}
+    .abtn{height:42px;}
     .big{font-size:20px; letter-spacing:4px;}
   }
 </style>
@@ -495,17 +498,17 @@
           <div class="stat sMoney"><div class="v" id="moneyV">130</div><div class="l">CREDITS</div></div>
           <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
         </div>
+        <div id="abils"></div>
         <div id="next">
           <div class="nlbl" id="nextLbl">NEXT WAVE</div>
           <div id="nextIcons"></div>
         </div>
         <div id="relicStrip" class="hidden"></div>
         <div id="relicInfo"></div>
-        <div id="abils"></div>
       </div>
     </div>
+    <div id="progWrap"><div id="progFill"></div></div>
     <div id="startBox">
-      <div id="progWrap"><div id="progFill"></div></div>
       <button id="waveBtn" class="pulse">START WAVE 1</button>
     </div>
     <div id="dock">
@@ -656,7 +659,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.17';
+const VERSION='4.18';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
