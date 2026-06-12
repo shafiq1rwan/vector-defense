@@ -22,46 +22,44 @@
     overflow:hidden;
   }
   #wrap{display:flex; gap:14px; padding:14px; align-items:stretch;}
-  #stage{position:relative;}
+  /* stage = canvas + reserved strips: right column (HUD) and bottom dock (cards).
+     Nothing floats over the playfield, so roads can use every cell. */
+  #stage{position:relative; padding-right:126px; padding-bottom:90px;}
   canvas#game{
     display:block; background:#05070f;
     border:1px solid var(--line); border-radius:10px;
     cursor:crosshair; touch-action:none;
   }
-  #panel{
-    width:240px; background:#0a0f1f;
-    border:1px solid var(--line); border-radius:10px;
-    padding:10px; display:flex; flex-direction:column; gap:8px;
-    max-height:522px;   /* match the canvas so the action bar stays pinned */
+  #sideCol{
+    position:absolute; top:8px; right:8px; bottom:98px; width:112px;
+    display:flex; flex-direction:column; gap:6px; z-index:3;
   }
-  #panelScroll{
+  #sideScroll{
     flex:1 1 auto; min-height:0; overflow-y:auto;
-    display:flex; flex-direction:column; gap:8px;
-    padding-right:2px;
+    display:flex; flex-direction:column; gap:6px;
   }
-  #panelScroll::-webkit-scrollbar{width:5px;}
-  #panelScroll::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
-  #panelScroll::-webkit-scrollbar-track{background:transparent;}
-  #panelBottom{
-    flex:none; display:flex; flex-direction:column; gap:8px;
-    border-top:1px solid var(--line); padding-top:8px;
+  #sideScroll::-webkit-scrollbar{width:4px;}
+  #sideScroll::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
+  #dock{
+    position:absolute; left:8px; right:126px; bottom:8px; height:82px;
+    display:flex; gap:5px; align-items:stretch;
+    overflow-x:auto; overflow-y:hidden; z-index:3;
+    background:#0a0f1f; border:1px solid var(--line); border-radius:10px; padding:5px;
   }
-  h1{
-    font-size:16px; letter-spacing:4px; text-align:center; font-weight:700;
-    color:#fff; text-shadow:0 0 12px var(--neon);
-  }
-  h1 span{color:var(--neon);}
-  #stats{display:flex; justify-content:space-between; gap:6px;}
+  #dock::-webkit-scrollbar{height:4px;}
+  #dock::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
+  #stats{display:flex; flex-direction:column; gap:5px;}
   .stat{
-    flex:1; text-align:center; background:#0a1126; border:1px solid var(--line);
-    border-radius:8px; padding:5px 2px; position:relative; overflow:hidden;
+    flex:none; display:flex; align-items:baseline; justify-content:space-between;
+    background:#0a1126; border:1px solid var(--line);
+    border-radius:8px; padding:4px 8px; position:relative; overflow:hidden;
   }
   .stat::before{
     content:''; position:absolute; top:0; left:0; right:0; height:2px;
     background:var(--c,#4d8dff); opacity:.55;
   }
-  .stat .v{font-size:15px; font-weight:700;}
-  .stat .l{font-size:8px; letter-spacing:2px; color:var(--dim);}
+  .stat .v{font-size:13px; font-weight:700;}
+  .stat .l{font-size:7px; letter-spacing:1.5px; color:var(--dim);}
   #livesV{color:var(--bad);} #moneyV{color:var(--gold);} #waveV{color:var(--neon);}
   .stat.sLives{--c:#ff4d6a;} .stat.sMoney{--c:#ffd34d;} .stat.sWave{--c:#4d8dff;}
   .bump{animation:bump .25s ease;}
@@ -77,27 +75,28 @@
   #nextIcons{display:flex; gap:7px; align-items:center; min-height:22px; flex-wrap:wrap;}
   .nIc{display:flex; align-items:center; gap:2px; font-size:10px; color:var(--dim); font-weight:700;}
   .nIc canvas{display:block;}
-  #cards{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
-  #structs{display:grid; grid-template-columns:repeat(2,1fr); gap:6px;}
+  #cards,#structs{display:flex; gap:5px; flex:none;}
   .card{
+    width:60px; flex:none;
     background:#0a1126; border:1px solid var(--line); border-radius:8px;
     padding:4px 2px 3px; text-align:center; cursor:pointer; position:relative;
     transition:border-color .12s, transform .08s;
+    touch-action:pan-x;   /* horizontal swipe scrolls the dock; vertical drag deploys */
   }
   .card:hover{border-color:var(--neon); transform:translateY(-2px);}
   .card.sel{border-color:#fff; box-shadow:0 0 10px rgba(77,141,255,.5);}
   .card.poor{opacity:.38; cursor:not-allowed;}
-  .card canvas{display:block; margin:0 auto;}
-  .card .nm{font-size:10px; font-weight:700; letter-spacing:.5px;}
-  .card .cost{font-size:9.5px; color:var(--gold);}
+  .card canvas{display:block; margin:0 auto; width:36px; height:36px;}
+  .card .nm{font-size:9px; font-weight:700; letter-spacing:.5px; line-height:1.2;}
+  .card .cost{font-size:8.5px; color:var(--gold); line-height:1.1;}
   .card .key{
     position:absolute; top:2px; left:4px; font-size:8px; color:var(--dim);
     border:1px solid var(--line); border-radius:3px; padding:0 2px;
   }
-  #abils{display:flex; gap:6px;}
+  #abils{display:flex; flex-direction:column; gap:5px; flex:none;}
   .abtn{
-    flex:1; background:#0a1126; border:1px solid var(--line); border-radius:7px;
-    padding:5px 2px; font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--txt);
+    flex:none; background:#0a1126; border:1px solid var(--line); border-radius:7px;
+    padding:6px 2px; font-size:9px; font-weight:700; letter-spacing:.5px; color:var(--txt);
     cursor:pointer; text-align:center; line-height:1.3;
   }
   .abtn b{display:block; font-size:8px; color:var(--dim);}
@@ -107,7 +106,7 @@
   .abtn.aim{background:var(--ac); color:#04060d;}
   /* tower detail popup docked over the stage */
   #towerPop{
-    position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    position:absolute; left:calc(50% - 63px); bottom:98px; transform:translateX(-50%);
     z-index:4; width:256px; background:rgba(10,15,31,.96);
     border:1px solid var(--line); border-radius:10px;
     padding:8px 9px; font-size:10.5px; line-height:1.5; color:var(--dim); text-align:left;
@@ -134,7 +133,7 @@
   button:disabled{opacity:.35; cursor:not-allowed;}
   #waveBtn{
     background:#0c2347; border-color:#2f6fd0;
-    font-size:11.5px; padding:10px 3px; color:#fff;
+    font-size:10px; padding:9px 2px; color:#fff; line-height:1.3; flex:none;
   }
   #waveBtn.pulse{animation:pul 1.2s ease-in-out infinite;}
   #waveBtn.bossWarn{background:#470c23; border-color:#d02f5f;}
@@ -332,7 +331,7 @@
   .cta svg.ic,.btnrow>button svg.ic,#hudTL svg.ic,#hudTR svg.ic{margin-right:4px;}
   /* floating stage controls */
   #hudTL,#hudTR{position:absolute; top:8px; z-index:3; display:flex; gap:6px;}
-  #hudTL{left:8px;} #hudTR{right:8px;}
+  #hudTL{left:8px;} #hudTR{right:134px;}
   #hudTL button,#hudTR button{
     flex:none; min-width:38px; height:34px; padding:0 9px;
     background:rgba(12,22,48,.92);
@@ -397,10 +396,8 @@
   @media (max-width:1100px){
     body{overflow:auto; align-items:flex-start;}
     #wrap{flex-direction:column; align-items:center; padding:8px; gap:10px; width:100%;}
-    #stage{width:100%; max-width:800px;}
+    #stage{width:100%; max-width:926px;}
     canvas#game{width:100%; height:auto;}
-    #panel{width:100%; max-width:800px; max-height:none;}
-    #cards{grid-template-columns:repeat(6,1fr);}
     .big{font-size:24px; letter-spacing:5px;}
     #logoTxt{font-size:28px;}
     #logo{gap:10px;}
@@ -416,15 +413,14 @@
     .overlay.hidden{display:none;}
   }
   @media (max-width:560px){
-    #cards{grid-template-columns:repeat(3,1fr);}
     .roster{gap:7px;}
     .roster canvas{width:34px; height:34px;}
   }
-  /* phone landscape: canvas full-height on the left, scrollable panel beside it */
+  /* phone landscape: canvas fills the screen minus the side column and dock */
   @media (max-width:1100px) and (orientation:landscape) and (max-height:560px){
     body{overflow:hidden;}
     #wrap{
-      flex-direction:row; align-items:flex-start; justify-content:center; gap:8px;
+      flex-direction:row; align-items:flex-start; justify-content:center; gap:0;
       height:100vh; height:100dvh;   /* dvh: stop under the browser nav bar */
       padding:6px;
       padding-left:max(6px, env(safe-area-inset-left));
@@ -433,12 +429,15 @@
     #stage{width:auto; max-width:none; flex:none;}
     canvas#game{
       width:auto; height:auto;
-      max-height:calc(100vh - 12px); max-height:calc(100dvh - 12px);
-      max-width:calc(100vw - 196px); max-width:calc(100dvw - 196px);
+      max-height:calc(100vh - 102px); max-height:calc(100dvh - 102px);
+      max-width:calc(100vw - 140px); max-width:calc(100dvw - 140px);
     }
-    #panel{flex:1; min-width:170px; max-width:300px; height:calc(100vh - 12px); height:calc(100dvh - 12px); max-height:none;}
-    #panel h1,#foot{display:none;}
-    #cards{grid-template-columns:repeat(3,1fr);}
+    #stats{flex-direction:row; gap:3px;}
+    #sideCol .stat{flex:1; flex-direction:column; align-items:center; padding:2px 1px;}
+    #sideCol .stat .v{font-size:11px;}
+    #sideCol .stat .l{font-size:5.5px; letter-spacing:.5px;}
+    #nextIcons canvas{width:16px; height:16px;}
+    .abtn{padding:4px 2px;}
     .big{font-size:20px; letter-spacing:4px;}
   }
   /* portrait phones: auto-rotate the whole game into landscape so the grid stays big */
@@ -451,19 +450,22 @@
       transform:rotate(90deg) translateY(-100%);
       transform-origin:top left;
       flex-direction:row; align-items:flex-start; justify-content:center;
-      padding:6px; gap:8px;
+      padding:6px; gap:0;
       padding-left:max(6px, env(safe-area-inset-top));
       padding-right:max(6px, env(safe-area-inset-bottom));
     }
     #stage{width:auto; max-width:none; flex:none;}
     canvas#game{
       width:auto; height:auto;
-      max-height:calc(100vw - 12px); max-height:calc(100dvw - 12px);
-      max-width:calc(100vh - 196px); max-width:calc(100dvh - 196px);
+      max-height:calc(100vw - 102px); max-height:calc(100dvw - 102px);
+      max-width:calc(100vh - 140px); max-width:calc(100dvh - 140px);
     }
-    #panel{flex:1; min-width:170px; max-width:300px; height:calc(100vw - 12px); height:calc(100dvw - 12px); max-height:none;}
-    #panel h1,#foot{display:none;}
-    #cards{grid-template-columns:repeat(3,1fr);}
+    #stats{flex-direction:row; gap:3px;}
+    #sideCol .stat{flex:1; flex-direction:column; align-items:center; padding:2px 1px;}
+    #sideCol .stat .v{font-size:11px;}
+    #sideCol .stat .l{font-size:5.5px; letter-spacing:.5px;}
+    #nextIcons canvas{width:16px; height:16px;}
+    .abtn{padding:4px 2px;}
     .big{font-size:20px; letter-spacing:4px;}
   }
 </style>
@@ -480,6 +482,29 @@
       <button id="speedBtn" title="Game speed"></button>
     </div>
     <div id="towerPop" class="hidden"></div>
+
+    <div id="sideCol">
+      <div id="sideScroll">
+        <div id="stats">
+          <div class="stat sLives"><div class="v" id="livesV">20</div><div class="l">CORE</div></div>
+          <div class="stat sMoney"><div class="v" id="moneyV">130</div><div class="l">CREDITS</div></div>
+          <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
+        </div>
+        <div id="next">
+          <div class="nlbl" id="nextLbl">NEXT WAVE</div>
+          <div id="nextIcons"></div>
+        </div>
+        <div id="relicStrip" class="hidden"></div>
+        <div id="relicInfo"></div>
+        <div id="abils"></div>
+      </div>
+      <div id="progWrap"><div id="progFill"></div></div>
+      <button id="waveBtn" class="pulse">START WAVE 1</button>
+    </div>
+    <div id="dock">
+      <div id="cards"></div>
+      <div id="structs"></div>
+    </div>
 
     <div id="titleOverlay" class="overlay solid vcenter">
       <canvas id="titleBg"></canvas>
@@ -619,38 +644,12 @@
     </div>
   </div>
 
-  <div id="panel">
-    <h1>VECTOR<span>DEF</span></h1>
-    <div id="stats">
-      <div class="stat sLives"><div class="v" id="livesV">20</div><div class="l">CORE</div></div>
-      <div class="stat sMoney"><div class="v" id="moneyV">130</div><div class="l">CREDITS</div></div>
-      <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
-    </div>
-    <div id="progWrap"><div id="progFill"></div></div>
-    <div id="relicStrip" class="hidden"></div>
-    <div id="relicInfo"></div>
-    <div id="panelScroll">
-      <div id="next">
-        <div class="nlbl" id="nextLbl">NEXT WAVE</div>
-        <div id="nextIcons"></div>
-      </div>
-      <div class="secLbl">HEROES</div>
-      <div id="cards"></div>
-      <div class="secLbl">STRUCTURES</div>
-      <div id="structs"></div>
-    </div>
-    <div id="panelBottom">
-      <div id="abils"></div>
-      <button id="waveBtn" class="pulse">START WAVE 1</button>
-      <div id="foot">VECTOR DEFENSE</div>
-    </div>
-  </div>
 </div>
 
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.14';
+const VERSION='4.15';
 const W=800, H=500, CELL=50, COLS=16, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2772,10 +2771,10 @@ function draw(){
     if(running&&!gameOver){
       if(wave===0){
         if(tut) msg=towers.length===0
-          ? (placing?'PRESS & DRAG ON THE FIELD — RELEASE TO BUILD BESIDE THE ROAD':'STEP 1 — TAP THE GLOWING HERO CARD ON THE RIGHT')
+          ? (placing?'RELEASE OVER A CELL BESIDE THE ROAD TO BUILD':'STEP 1 — DRAG THE GLOWING HERO CARD FROM BELOW ONTO THE GRID')
           : 'STEP 2 — KILLS PAY CREDITS. ADD TOWERS, THEN HIT START WAVE';
         else msg=towers.length===0
-          ? (placing?'CLICK A CELL · TOUCH: PRESS, DRAG & RELEASE TO BUILD':'1) PICK A HERO (KEYS 1-6)   2) DEPLOY ON THE MAP')
+          ? (placing?'RELEASE OVER A CELL TO BUILD':'DRAG A HERO CARD FROM THE DOCK ONTO THE GRID')
           : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
       }else if(tut&&wave===1&&!waveActive){
         msg=towers.some(tw=>tw.level>1)
@@ -2938,7 +2937,8 @@ function buildUI(){
     card.className='card'; card.id='card_'+k;
     card.innerHTML=`<span class="key">${d.key}</span><span class="lockB hidden">${ic('lock',10)}</span><canvas width="46" height="46"></canvas>
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
-    card.onclick=()=>selectCard(k);
+    card.onclick=()=>{ if(suppressClick){suppressClick=false; return;} selectCard(k); };
+    card.onpointerdown=e=>startCardDrag(k,e);
     (d.footprint?$('structs'):$('cards')).appendChild(card);
     renderIcon(card.querySelector('canvas'),k,d.footprint?.6:1.2);
   }
@@ -3024,7 +3024,6 @@ function buildUI(){
   $('pSettingsBtn').innerHTML=ic('gear',15);
   $('shopBack').innerHTML=ic('back')+'BACK';
   $('verTag').textContent='v'+VERSION;
-  $('foot').textContent='VECTOR DEFENSE v'+VERSION;
   buildLogo();
   buildShop();
   updateBestLine();
@@ -3183,8 +3182,9 @@ function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
     <b>1–6</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave (early = bonus credits)<br>
     <b>F</b> game speed · <b>P</b> pause · <b>T</b> targeting mode · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
-    <b style="color:#9db8ff">TOUCH</b> — tap a hero card, then press the map and drag: the tower floats above
-    your finger; release to build. Same gesture aims the orbital strike. Tap the card again to stop placing.<br><br>
+    <b style="color:#9db8ff">TOUCH</b> — drag a hero card from the bottom dock straight onto the grid: the tower
+    floats above your finger; release to build. Swipe the dock sideways to see more cards. The same press-drag
+    gesture aims the orbital strike.<br><br>
     <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits · max-level towers unlock a
     ★ specialization · towers earn XP and rank stars from kills · check NEXT WAVE icons for enemy weaknesses.</div></div>`;
 }
@@ -3467,6 +3467,50 @@ cvs.addEventListener('pointerup',e=>{
   mouse.inside=false;
 });
 cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; });
+
+/* drag a card straight onto the grid — Arknights-style deployment */
+let cardDrag=null, suppressClick=false;
+function startCardDrag(type,e){
+  if(!running||gameOver||drafting||paused) return;
+  if(campNode&&!heroUnlocked(type)) return;
+  if(money<TOWERS[type].cost) return;
+  cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false};
+}
+window.addEventListener('pointermove',e=>{
+  if(!cardDrag||e.pointerId!==cardDrag.id) return;
+  if(!cardDrag.moved){
+    if(Math.hypot(e.clientX-cardDrag.sx,e.clientY-cardDrag.sy)<9) return;
+    cardDrag.moved=true;
+    ac();
+    if(placing!==cardDrag.type) selectCard(cardDrag.type);
+    if(placing!==cardDrag.type){ cardDrag=null; return; }   /* selection refused (cost/lock) */
+    dragMode='place';
+  }
+  const r=cvs.getBoundingClientRect();
+  const lift=e.pointerType==='mouse'?0:60;
+  if(e.clientX>=r.left-20&&e.clientX<=r.right+20&&e.clientY>=r.top-80&&e.clientY<=r.bottom+20) setMouse(e,lift);
+  else mouse.inside=false;
+});
+window.addEventListener('pointerup',e=>{
+  if(!cardDrag||e.pointerId!==cardDrag.id) return;
+  const moved=cardDrag.moved; cardDrag=null;
+  if(!moved) return;                       /* plain tap → the card's click handler takes it */
+  suppressClick=true;
+  dragMode=null;
+  if(placing&&mouse.inside){
+    const [c,r]=anchorFor(placing);
+    const d=TOWERS[placing];
+    if(canPlace(placing,c,r)&&money>=d.cost){
+      placeTower(placing,c,r);
+      refreshUI();
+    }else SND.deny();
+  }
+  cancelPlacing();
+  mouse.inside=false;
+});
+window.addEventListener('pointercancel',e=>{
+  if(cardDrag&&e.pointerId===cardDrag.id){ cardDrag=null; cancelPlacing(); mouse.inside=false; }
+});
 cvs.addEventListener('contextmenu',e=>{
   e.preventDefault();
   cancelPlacing(); selTower=null; aiming=null; hidePop();
