@@ -471,7 +471,7 @@
 <body>
 <div id="wrap">
   <div id="stage">
-    <canvas id="game" width="800" height="520"></canvas>
+    <canvas id="game" width="800" height="500"></canvas>
     <div id="hudTL">
       <button id="pauseBtn" title="Pause"></button>
       <button id="muteBtn" title="Mute"></button>
@@ -650,8 +650,8 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.13';
-const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
+const VERSION='4.14';
+const W=800, H=500, CELL=50, COLS=16, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -708,20 +708,21 @@ const META=[
 const MAPS=[
   /* short Arknights-style lanes: multiple spawns/exits per stage.
      Roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed). */
-  {name:'SERPENT', coreBack:110, paths:[          /* 2 spawns converge into 1 exit */
-    [[-40,140],[400,140],[400,300],[840,300]],
-    [[-40,460],[400,460],[400,300],[840,300]]
+  /* all coordinates sit on 50px cell centers (25+50k) so every lane is exactly one tile wide */
+  {name:'SERPENT', coreBack:100, paths:[          /* 2 spawns converge into 1 exit */
+    [[-40,125],[375,125],[375,275],[840,275]],
+    [[-40,425],[375,425],[375,275],[840,275]]
   ]},
-  {name:'GAUNTLET', coreBack:110, paths:[         /* 1 spawn forks into 2 exits */
-    [[-40,260],[360,260],[360,120],[840,120]],
-    [[-40,260],[360,260],[360,440],[840,440]]
+  {name:'GAUNTLET', coreBack:100, paths:[         /* 1 spawn forks into 2 exits */
+    [[-40,275],[325,275],[325,125],[840,125]],
+    [[-40,275],[325,275],[325,425],[840,425]]
   ]},
-  {name:'ORBIT', coreBack:90, paths:[             /* 2 spawns, 2 exits, lanes cross */
-    [[-40,180],[560,180],[560,380],[840,380]],
-    [[200,-40],[200,300],[640,300],[640,560]]
+  {name:'ORBIT', coreBack:100, paths:[            /* 2 spawns, 2 exits, lanes double-cross */
+    [[-40,175],[525,175],[525,375],[840,375]],
+    [[225,-40],[225,275],[625,275],[625,540]]
   ]},
   /* tutorial-only straight road — hidden from quick play */
-  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,260],[840,260]]}
+  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,275],[840,275]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
@@ -780,7 +781,12 @@ function genProps(){
   /* ruins prefer the dead outskirts beyond the buildable band.
      Each claims a 2x2 cell footprint so buildings dwarf the flora. */
   ruins=[];
-  const cellFree=k=>!blocked.has(k)&&!used.has(k);
+  const cellFree=k=>{
+    const [c,r]=k.split(',').map(Number);
+    /* keep big scenery out from under the floating HUD corner buttons */
+    if(r<2&&(c<4||c>=COLS-4)) return false;
+    return !blocked.has(k)&&!used.has(k);
+  };
   const outskirts=[];
   for(let c=0;c<COLS-1;c++)for(let r=0;r<ROWS-1;r++){
     const key=c+','+r;
@@ -2449,7 +2455,7 @@ function draw(){
     }
     ctx.globalAlpha=.85; ctx.strokeStyle=ok?'#39ff6a':'#ff4d6a'; ctx.lineWidth=1;
     ctx.strokeRect(c*CELL+1,r*CELL+1,fp[0]*CELL-2,fp[1]*CELL-2);
-    ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.8;
+    ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.8; ctx.scale(1.15,1.15);
     drawTowerBody(ctx,placing,1,-Math.PI/2,time,false);
     ctx.restore();
     ctx.globalAlpha=1;
@@ -2543,7 +2549,8 @@ function draw(){
     }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     ctx.save();
-    const tsc=t.def.footprint?1:1+(t.level-1)*.05;   /* towers grow a touch per level */
+    /* bodies were drawn for 40px cells; 1.15 refits them to the 50px grid */
+    const tsc=1.15*(t.def.footprint?1:1+(t.level-1)*.05);
     ctx.scale(tsc,tsc);
     drawTowerBody(ctx,t.type,t.level,t.angle,time+t.x*.01,t.flash>0);
     ctx.restore();
