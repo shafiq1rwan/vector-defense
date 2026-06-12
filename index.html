@@ -487,7 +487,7 @@
 <body>
 <div id="wrap">
   <div id="stage">
-    <canvas id="game" width="1000" height="500"></canvas>
+    <canvas id="game" width="990" height="495"></canvas>
     <div id="hudTL">
       <button id="pauseBtn" title="Pause"></button>
       <button id="muteBtn" title="Mute"></button>
@@ -663,8 +663,8 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.31';
-const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
+const VERSION='4.32';
+const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -766,20 +766,21 @@ const MAPS=[
   /* short Arknights-style lanes: multiple spawns/exits per stage.
      Roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed). */
   /* all coordinates sit on 50px cell centers (25+50k) so every lane is exactly one tile wide */
+  /* 55px cell centers (27.5+55k); shorter lanes — merge/fork near mid-field, exit soon after */
   {name:'SERPENT', coreBack:100, tag:'2 SPAWNS · 1 EXIT', paths:[
-    [[-40,125],[475,125],[475,275],[1040,275]],
-    [[-40,425],[475,425],[475,275],[1040,275]]
+    [[-40,137.5],[412.5,137.5],[412.5,247.5],[1030,247.5]],
+    [[-40,412.5],[412.5,412.5],[412.5,247.5],[1030,247.5]]
   ]},
   {name:'GAUNTLET', coreBack:100, tag:'1 SPAWN · 2 EXITS', paths:[
-    [[-40,275],[425,275],[425,125],[1040,125]],
-    [[-40,275],[425,275],[425,425],[1040,425]]
+    [[-40,247.5],[357.5,247.5],[357.5,137.5],[1030,137.5]],
+    [[-40,247.5],[357.5,247.5],[357.5,357.5],[1030,357.5]]
   ]},
   {name:'ORBIT', coreBack:100, tag:'2 SPAWNS · 2 EXITS · CROSS', paths:[
-    [[-40,175],[675,175],[675,375],[1040,375]],
-    [[275,-40],[275,325],[775,325],[775,540]]
+    [[-40,192.5],[577.5,192.5],[577.5,357.5],[1030,357.5]],
+    [[247.5,-40],[247.5,302.5],[687.5,302.5],[687.5,535]]
   ]},
   /* tutorial-only straight road — hidden from quick play */
-  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,275],[1040,275]]}
+  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,247.5],[1030,247.5]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
@@ -967,6 +968,7 @@ function buildMap(i,persistSel=true){
       if(Math.hypot(c*CELL+CELL/2-L.portal.x, r*CELL+CELL/2-L.portal.y)<=110){ buildable.delete(k); break; }
   }
   genProps();
+  rebuildBg();
 }
 const canBuild=(c,r)=>{
   const k=c+','+r;
@@ -1291,7 +1293,7 @@ let running=false, paused=false, speedMult=1, muted=false, endless=false, gameOv
 let waveActive=false, spawnQueue=[], waveT=0, curWave=null, interT=0;
 let placing=null, selTower=null;
 let time=0, shake=0, leakFlash=0;
-let hitStop=0, shownMoney=0, heartT=0, coins=[];
+let hitStop=0, shownMoney=0, heartT=0, coins=[], cracks=[];
 /* haptic feedback — Android Chrome supports navigator.vibrate; no-op elsewhere */
 const vib=p=>{ if(SAVE.haptics && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } };
 let combo=0, comboT=0, comboPop=0, bestCombo=0, kills=0;
@@ -1309,7 +1311,7 @@ function reset(){
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
   relics=[]; drafting=false; runBossKills=0;
-  hitStop=0; shownMoney=money; heartT=0; coins=[];
+  hitStop=0; shownMoney=money; heartT=0; coins=[]; cracks=[];
   openingDraftDue=totalStars()>=24;
   $('relicOverlay').classList.add('hidden');
   $('relicInfo').textContent='';
@@ -1428,6 +1430,7 @@ function musicTick(){
 /* ============================== HELPERS ============================== */
 const dist2=(a,b)=>{const dx=a.x-b.x,dy=a.y-b.y;return dx*dx+dy*dy;};
 function spray(x,y,color,n,sp=140,life=.5,size=2.4){
+  if(parts.length>240) return;
   for(let i=0;i<n;i++){
     const a=Math.random()*TAU, v=sp*(.3+Math.random()*.7);
     parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,color,size:size*(.5+Math.random())});
@@ -1437,6 +1440,7 @@ function addText(x,y,str,color,big){texts.push({x,y,str,color,life:1,big});}
 /* vector shatter — the enemy's outline breaks into spinning line fragments */
 const SHARD_N={tri:3,square:4,diamond:4,hex:6,cross:8,pent:5,spark:6,golem:7};
 function shatter(x,y,r,shape,color,ang=0,sp=1){
+  if(parts.length>260) return;
   const n=SHARD_N[shape]||5, vs=[];
   for(let i=0;i<n;i++){ const a=ang+i/n*TAU; vs.push({x:x+Math.cos(a)*r, y:y+Math.sin(a)*r}); }
   for(let i=0;i<n;i++){
@@ -1805,6 +1809,7 @@ function update(dt){
     if(e.slowT>0) e.slowT-=dt;
     if(e.flash>0) e.flash-=dt;
     if(e.brittleT>0) e.brittleT-=dt;
+    if(e.riseT>0) e.riseT-=dt;
     e.wob+=dt*6;
     if(e.def.phase){ e.phaseClock+=dt; e.phased=(e.phaseClock%4.2)>3.0; }
     if(e.poisonT>0){
@@ -1845,7 +1850,8 @@ function update(dt){
         }
       }
     }
-    const sp=e.def.siege&&e.siegeT>0 ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
+    const planted=(e.def.siege&&e.siegeT>0)||(e.slamPhase&&e.slamPhase!=='idle')||e.riseT>0;
+    const sp=planted ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
     e.dist+=sp*dt;
     const p=pointAt(e.dist,e.lane);
     e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
@@ -1864,13 +1870,29 @@ function update(dt){
     }
     if(e.pulse>0) e.pulse-=dt;
     if(e.def.bossLike){
+      /* slam-spawn: stop, raise arms, smash the road, mites crawl from the crack */
+      if(e.slamPhase===undefined){ e.slamPhase='idle'; e.slamT=0; }
       e.mSpawnT-=dt;
-      if(e.mSpawnT<=0){
-        e.mSpawnT=6;
-        for(let i=0;i<2;i++) spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref,null,e.lane);
-        ring(e.x,e.y,e.def.r+10,'#ffb6f9',.35);
-        addText(e.x,e.y-30,'SPAWNING','#ff9af8');
-        SND.spawn();
+      if(e.slamPhase==='idle' && e.mSpawnT<=0){
+        e.slamPhase='windup'; e.slamT=.55;
+      }else if(e.slamPhase==='windup'){
+        e.slamT-=dt;
+        if(e.slamT<=0){
+          e.slamPhase='emerge'; e.slamT=.5;
+          cracks.push({x:e.x,y:e.y,seed:Math.random()*10,life:5,max:5});
+          shake=Math.max(shake,9); hitStop=Math.max(hitStop,.06);
+          ring(e.x,e.y,e.def.r+16,'#ffb6f9',.4);
+          spray(e.x,e.y,'#ff9af8',12,160,.45);
+          SND.boom(); vib(30);
+          for(let i=0;i<2;i++){
+            const mn=spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref,null,e.lane);
+            mn.riseT=.5;
+          }
+          SND.spawn();
+        }
+      }else if(e.slamPhase==='emerge'){
+        e.slamT-=dt;
+        if(e.slamT<=0){ e.slamPhase='idle'; e.mSpawnT=6; }
       }
       e.empPulseT-=dt;
       if(e.empPulseT<=0){
@@ -2008,6 +2030,8 @@ function update(dt){
   parts=parts.filter(p=>p.life>0);
   for(const tx of texts){ tx.life-=dt*.8; tx.y-=24*dt; }
   texts=texts.filter(t=>t.life>0);
+  for(const cr of cracks) cr.life-=dt;
+  cracks=cracks.filter(c2=>c2.life>0);
 
   /* bounty chips arc home to the credits counter */
   for(const cn of coins){
@@ -2045,7 +2069,9 @@ function poly(c,x,y,r,n,rot=0){
   }
   c.closePath();
 }
-function glow(c,color,blur){ c.shadowColor=color; c.shadowBlur=blur; }
+/* glow governor: shadowBlur is the #1 mobile GPU cost — heavy scenes drop it */
+let fxLite=false;
+function glow(c,color,blur){ if(fxLite) return; c.shadowColor=color; c.shadowBlur=blur; }
 function noGlow(c){ c.shadowBlur=0; }
 /* small vector lightning bolt (unit-sized, scaled by s) */
 function drawBolt(c,x,y,s,color){
@@ -2400,16 +2426,75 @@ function drawEnemyShape(c,shape,r,col,ang,wob,extra){
   }
   c.stroke();
 }
+/* the OVERMIND in person — stomping gait, jointed arms, slam poses */
+function drawGolem(c,e,col){
+  const r=e.def.r, t=time;
+  c.lineWidth=2; c.strokeStyle=col;
+  const phase=e.slamPhase||'idle', st=e.slamT||0;
+  const moving=phase==='idle';
+  const step=moving?Math.sin(e.wob*1.6):0;
+  const stomp=moving?-Math.abs(Math.cos(e.wob*1.6))*r*.07:0;
+  const crouch=phase==='windup'?(1-st/.55)*r*.08 : (phase==='emerge'&&st>.35?r*.14:0);
+  c.save();
+  c.translate(0,stomp+crouch);
+  /* torso slab */
+  c.beginPath();
+  c.moveTo(-r*.62,-r*.15); c.lineTo(-r*.45,-r*.62); c.lineTo(r*.45,-r*.62);
+  c.lineTo(r*.62,-r*.15); c.lineTo(r*.5,r*.45); c.lineTo(-r*.5,r*.45);
+  c.closePath(); c.stroke();
+  c.beginPath(); c.moveTo(-r*.15,-r*.3); c.lineTo(-r*.02,-r*.05); c.lineTo(-r*.12,r*.2); c.stroke();
+  /* head block */
+  c.beginPath();
+  c.moveTo(-r*.28,-r*.62); c.lineTo(-r*.2,-r*.98); c.lineTo(r*.2,-r*.98); c.lineTo(r*.28,-r*.62);
+  c.stroke();
+  /* jointed arms — swing while walking, raise overhead, slam down */
+  for(const s of [-1,1]){
+    c.save(); c.translate(s*r*.6,-r*.28);
+    let a;
+    if(phase==='windup'){ const p=1-st/.55; a=-s*2.4*p*p; }
+    else if(phase==='emerge'){ a=st>.35 ? s*.5 : s*.5*(st/.35); }
+    else a=step*.35*s;
+    c.rotate(a);
+    c.beginPath(); c.rect(s===1?0:-r*.26, 0, r*.26, r*.5); c.stroke();
+    c.translate(s*r*.13, r*.5);
+    if(phase==='windup') c.rotate(-s*.6*(1-st/.55));
+    c.beginPath(); c.rect(-r*.15, 0, r*.3, r*.38); c.stroke();
+    c.restore();
+  }
+  /* stomping legs */
+  for(const s of [-1,1]){
+    const liftY=moving ? Math.max(0,(s===1?step:-step))*r*.14 : 0;
+    c.beginPath(); c.rect(s===1?r*.12:-r*.42, r*.45-liftY, r*.3, r*.34); c.stroke();
+  }
+  /* core — flares while winding up */
+  if(phase==='windup'){
+    c.save();
+    c.fillStyle=col; c.globalAlpha*=.35+.45*(1-st/.55);
+    poly(c,0,-r*.08,r*.3,3,t*4); c.fill();
+    c.restore();
+  }
+  poly(c,0,-r*.08,r*.22,3,t*2); c.stroke();
+  c.restore();
+}
 function drawEnemy(c,e){
   const d=e.def;
   const frozen=e.slowT>0&&e.slowF===0;
   const col=e.flash>0?'#ffffff':frozen?'#bfeaff':d.color;
   c.save(); c.translate(e.x,e.y);
+  c.scale(1.12,1.12);   /* visual refit to the 55px grid — hit radii unchanged */
+  if(e.riseT>0){
+    /* crawling out of the slam crack */
+    const rs=1-e.riseT/.5;
+    c.translate(0,(1-rs)*9);
+    c.scale(.3+.7*rs,.3+.7*rs);
+    c.globalAlpha*=.25+.75*rs;
+  }
   if(e.phased){ c.globalAlpha=.35; c.setLineDash([4,4]); }
   glow(c,d.color,9);
   const ang=Math.atan2(e.dy||0,e.dx||1);
   const wob=Math.sin(e.wob)*.15;
-  drawEnemyShape(c,d.shape,d.r,col,ang,wob,time*.8);
+  if(d.shape==='golem') drawGolem(c,e,col);
+  else drawEnemyShape(c,d.shape,d.r,col,ang,wob,time*.8);
   if(d.shape==='hex'){ poly(c,0,0,d.r*.55,6,ang); c.stroke(); }
   if(d.shape==='pent'){ poly(c,0,0,d.r*.5,5,-ang); c.stroke(); }
   /* BREAKER aims its siege barrel while planted */
@@ -2576,16 +2661,29 @@ function drawPlantCluster(c,g){
 }
 
 /* ruins of the long dark — dead architecture, some of it still burning */
-function drawRuin(c,ru){
-  if(ru.keys.some(k=>occ.has(k))) return;
+function drawRuin(c,ru,mode='all'){
+  if(occ&&ru.keys.some(k=>occ.has(k))) return;
   c.save(); c.translate(ru.x,ru.y); c.scale(ru.big,ru.big);
   const t=time, base=ru.fire?.92:.75;
   c.lineWidth=2/ru.big; c.globalAlpha=base;        /* ~2px strokes regardless of scale */
   const dim='#5e77ad', dark='#3a4a7a';
   c.strokeStyle=dim;
-  const flick=Math.sin(t*6.3+ru.seed*7)*Math.sin(t*1.3+ru.seed*3)>.62;
+  const flick=mode!=='static' && Math.sin(t*6.3+ru.seed*7)*Math.sin(t*1.3+ru.seed*3)>.62;
   let fy=-14;                                          /* where flames sit, per kind */
-  if(ru.kind==='tower'){
+  if(mode==='dyn'){
+    /* dynamic pass: only the living parts — lit windows, fire, drone */
+    if(ru.kind==='tower'){ fy=-13; if(flick){ c.fillStyle='#9db8ff'; c.fillRect(1,11,2.6,3.4); } }
+    else if(ru.kind==='pylon'){ if(flick){ c.fillStyle='#c4576a'; c.beginPath(); c.arc(0,-17,1.8,0,TAU); c.fill(); } }
+    else if(ru.kind==='husk'){ fy=-12; }
+    else{
+      fy=-15;
+      for(const wx of [-13,-7,1,8]) for(const wy of [-3,6,10]){
+        if(wy===-3&&wx>4) continue;
+        if(Math.sin(t*2.6+ru.seed*9+wx*wy)>.93){ c.fillStyle='#9db8ff'; c.fillRect(wx,wy,3.4,3.8); }
+      }
+    }
+  }
+  else if(ru.kind==='tower'){
     c.strokeRect(-6,-4,12,22);
     c.beginPath(); c.moveTo(-6,2); c.lineTo(6,2); c.stroke();          /* floor line */
     c.fillStyle=dark;
@@ -2624,14 +2722,14 @@ function drawRuin(c,ru){
     c.fillStyle=dark;                                                  /* window grid */
     for(const wx of [-13,-7,1,8]) for(const wy of [-3,6,10]){
       if(wy===-3&&wx>4) continue;                                       /* collapsed corner */
-      if(Math.sin(t*2.6+ru.seed*9+wx*wy)>.93) c.fillStyle='#9db8ff';
+      if(mode!=='static'&&Math.sin(t*2.6+ru.seed*9+wx*wy)>.93) c.fillStyle='#9db8ff';
       c.fillRect(wx,wy,3.4,3.8);
       c.fillStyle=dark;
     }
     fy=-15;
   }
   /* burning */
-  if(ru.fire){
+  if(ru.fire&&mode!=='static'){
     const fx=ru.kind==='block'?-4:0;
     for(let i=0;i<3;i++){
       const h=8+3.5*Math.sin(t*8+ru.seed*5+i*2.4);
@@ -2654,7 +2752,7 @@ function drawRuin(c,ru){
     }
     c.globalAlpha=base;
   }
-  if(ru.drone){                                                        /* repair drone, still trying */
+  if(ru.drone&&mode!=='static'){                                       /* repair drone, still trying */
     const a=t*1.3+ru.seed;
     const dx=Math.cos(a)*14, dy=-19+Math.sin(a*1.7)*4;
     c.globalAlpha=.85;
@@ -2663,6 +2761,85 @@ function drawRuin(c,ru){
     if(Math.sin(t*9+ru.seed)>0){ c.fillStyle='#6bffb0'; c.beginPath(); c.arc(dx,dy,1.1,0,TAU); c.fill(); }
   }
   c.restore(); c.globalAlpha=1;
+}
+
+/* static scenery layer: idle sockets + ruin bodies + the full road pack are
+   rendered once per map/theme into an offscreen canvas and blitted each frame */
+const bgCanvas=document.createElement('canvas');
+function rebuildBg(){
+  bgCanvas.width=W; bgCanvas.height=H;
+  const c=bgCanvas.getContext('2d'), TH=THEME();
+  /* idle placement sockets */
+  c.lineWidth=1; c.strokeStyle=TH.socket;
+  c.beginPath();
+  for(let c0=0;c0<COLS;c0++)for(let r0=0;r0<ROWS;r0++){
+    if(!buildable.has(c0+','+r0)) continue;
+    c.rect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
+  }
+  c.stroke();
+  /* ruin bodies sit under the road, matching the live draw order */
+  for(const ru of ruins) drawRuin(c,ru,'static');
+  /* road — flat tiled lane with a neon rim */
+  c.fillStyle=TH.tile;
+  for(const [rc,rr] of roadTiles) c.fillRect(rc*CELL,rr*CELL,CELL,CELL);
+  c.strokeStyle=TH.seam; c.lineWidth=1;
+  c.beginPath();
+  for(const [rc,rr] of roadTiles) c.rect(rc*CELL+.5,rr*CELL+.5,CELL-1,CELL-1);
+  c.stroke();
+  c.strokeStyle=TH.rim; c.lineWidth=1.5;
+  c.shadowColor=TH.rimGlow; c.shadowBlur=8;
+  c.beginPath();
+  for(const e of roadEdges){ c.moveTo(e[0],e[1]); c.lineTo(e[2],e[3]); }
+  c.stroke();
+  c.shadowBlur=0;
+  /* direction chevrons */
+  c.strokeStyle=TH.chev; c.lineWidth=2; c.lineJoin='miter'; c.lineCap='round';
+  c.beginPath();
+  for(const cv of roadChevrons){
+    const ca=Math.cos(cv.a), sa=Math.sin(cv.a);
+    const tx=cv.x+ca*5, ty=cv.y+sa*5;
+    c.moveTo(tx-ca*9-sa*5.5, ty-sa*9+ca*5.5); c.lineTo(tx,ty);
+    c.lineTo(tx-ca*9+sa*5.5, ty-sa*9-ca*5.5);
+  }
+  c.stroke();
+  /* worn tiles */
+  c.strokeStyle=TH.chev; c.lineWidth=1; c.globalAlpha=.6;
+  c.beginPath();
+  for(const [wx,wy,ws] of roadWear){
+    const a1=ws%1, a2=(ws*1.7)%1;
+    c.moveTo(wx+8+a1*14, wy+10);
+    c.lineTo(wx+18+a2*10, wy+24+a1*10);
+    c.lineTo(wx+12+a1*20, wy+38);
+  }
+  c.stroke(); c.globalAlpha=1;
+  /* rim fence posts */
+  c.globalAlpha=.55; c.fillStyle=TH.rimGlow;
+  for(const p2 of roadPosts) c.fillRect(p2[0]-1.2,p2[1]-1.2,2.4,2.4);
+  c.globalAlpha=1;
+  /* junction plates */
+  c.strokeStyle=TH.rim; c.lineWidth=1.3; c.globalAlpha=.75;
+  for(const [jx,jy] of roadJunctions){
+    poly(c,jx,jy,14,4,Math.PI/4); c.stroke();
+    c.beginPath();
+    c.moveTo(jx-6.5,jy-6.5); c.lineTo(jx+6.5,jy+6.5);
+    c.moveTo(jx+6.5,jy-6.5); c.lineTo(jx-6.5,jy+6.5);
+    c.stroke();
+  }
+  c.globalAlpha=1;
+  /* hazard aprons */
+  for(const [ac,ar,kind] of roadAprons){
+    c.save();
+    c.beginPath(); c.rect(ac*CELL+1,ar*CELL+1,CELL-2,CELL-2); c.clip();
+    c.strokeStyle=kind==='in'?'rgba(57,255,106,.30)':'rgba(255,77,106,.32)';
+    c.lineWidth=3;
+    c.beginPath();
+    for(let i=-1;i<5;i++){
+      c.moveTo(ac*CELL+i*14, ar*CELL+CELL+6);
+      c.lineTo(ac*CELL+i*14+CELL*.6+6, ar*CELL-6);
+    }
+    c.stroke();
+    c.restore();
+  }
 }
 
 /* moving biome */
@@ -2706,6 +2883,8 @@ function drawFireflies(){
 /* ============================== DRAW: SCENE ============================== */
 function draw(){
   const TH=THEME();
+  /* glow governor: heavy scenes drop shadowBlur for smooth frames */
+  fxLite=(enemies.length+towers.length+parts.length/3)>60;
   ctx.save();
   if(shake>0&&SAVE.shake) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.clearRect(-20,-20,W+40,H+40);
@@ -2717,97 +2896,51 @@ function draw(){
   }
   ctx.globalAlpha=1;
 
-  /* placement sockets */
-  ctx.lineWidth=1;
-  ctx.strokeStyle=placing?TH.socketOn:TH.socket;
-  ctx.beginPath();
-  for(let c0=0;c0<COLS;c0++)for(let r0=0;r0<ROWS;r0++){
-    const key=c0+','+r0;
-    if(!buildable.has(key)||occ.has(key)) continue;
-    ctx.rect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
-  }
-  ctx.stroke();
-  if(placing && mouse.inside){
-    ctx.strokeStyle='rgba(57,255,106,.45)'; ctx.fillStyle='rgba(57,255,106,.06)';
+  /* static scenery (sockets + ruin bodies + road pack) — one blit */
+  ctx.drawImage(bgCanvas,0,0);
+  if(placing){
+    ctx.lineWidth=1; ctx.strokeStyle=TH.socketOn;
+    ctx.beginPath();
     for(let c0=0;c0<COLS;c0++)for(let r0=0;r0<ROWS;r0++){
       const key=c0+','+r0;
       if(!buildable.has(key)||occ.has(key)) continue;
-      const cx=c0*CELL+CELL/2, cy=r0*CELL+CELL/2;
-      if((cx-mouse.x)*(cx-mouse.x)+(cy-mouse.y)*(cy-mouse.y)>110*110) continue;
-      ctx.fillRect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
-      ctx.strokeRect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
+      ctx.rect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
     }
+    ctx.stroke();
+    if(mouse.inside){
+      ctx.strokeStyle='rgba(57,255,106,.45)'; ctx.fillStyle='rgba(57,255,106,.06)';
+      for(let c0=0;c0<COLS;c0++)for(let r0=0;r0<ROWS;r0++){
+        const key=c0+','+r0;
+        if(!buildable.has(key)||occ.has(key)) continue;
+        const cx=c0*CELL+CELL/2, cy=r0*CELL+CELL/2;
+        if((cx-mouse.x)*(cx-mouse.x)+(cy-mouse.y)*(cy-mouse.y)>110*110) continue;
+        ctx.fillRect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
+        ctx.strokeRect(c0*CELL+3.5,r0*CELL+3.5,CELL-7,CELL-7);
+      }
+    }
+  }
+  /* road cracks left by the golem's slam */
+  for(const cr of cracks){
+    const a=Math.min(1,cr.life/cr.max*1.6);
+    ctx.strokeStyle='rgba(255,154,248,'+(.55*a).toFixed(3)+')'; ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const ba=cr.seed+i*TAU/5;
+      const r2=15+((cr.seed*7+i*3)%9);
+      const mx=Math.cos(ba)*r2*.55+Math.sin(cr.seed+i)*4, my=Math.sin(ba)*r2*.55+Math.cos(cr.seed*2+i)*4;
+      ctx.moveTo(cr.x+Math.cos(ba)*4,cr.y+Math.sin(ba)*4);
+      ctx.lineTo(cr.x+mx,cr.y+my);
+      ctx.lineTo(cr.x+Math.cos(ba)*r2,cr.y+Math.sin(ba)*r2);
+    }
+    ctx.stroke();
+    ctx.globalAlpha=a*.5;
+    ctx.beginPath(); ctx.arc(cr.x,cr.y,6,0,TAU); ctx.stroke();
+    ctx.globalAlpha=1;
   }
 
   for(const p of props) drawProp(ctx,p);
-  for(const ru of ruins) drawRuin(ctx,ru);
+  for(const ru of ruins) drawRuin(ctx,ru,'dyn');
   for(const g of grove) drawPlantCluster(ctx,g);
-
-  /* road — flat tiled lane with a neon rim, Arknights-style readability */
-  ctx.fillStyle=TH.tile;
-  for(const [rc,rr] of roadTiles) ctx.fillRect(rc*CELL,rr*CELL,CELL,CELL);
-  ctx.strokeStyle=TH.seam; ctx.lineWidth=1;
-  ctx.beginPath();
-  for(const [rc,rr] of roadTiles) ctx.rect(rc*CELL+.5,rr*CELL+.5,CELL-1,CELL-1);
-  ctx.stroke();
-  ctx.strokeStyle=TH.rim; ctx.lineWidth=1.5;
-  glow(ctx,TH.rimGlow,8);
-  ctx.beginPath();
-  for(const e of roadEdges){ ctx.moveTo(e[0],e[1]); ctx.lineTo(e[2],e[3]); }
-  ctx.stroke();
-  noGlow(ctx);
-  /* static direction chevrons */
-  ctx.strokeStyle=TH.chev; ctx.lineWidth=2;
-  ctx.lineJoin='miter'; ctx.lineCap='round';
-  ctx.beginPath();
-  for(const cv of roadChevrons){
-    const ca=Math.cos(cv.a), sa=Math.sin(cv.a);
-    const tx=cv.x+ca*5, ty=cv.y+sa*5;
-    ctx.moveTo(tx-ca*9-sa*5.5, ty-sa*9+ca*5.5); ctx.lineTo(tx,ty);
-    ctx.lineTo(tx-ca*9+sa*5.5, ty-sa*9-ca*5.5);
-  }
-  ctx.stroke();
-  /* worn tiles — hairline cracks */
-  ctx.strokeStyle=TH.chev; ctx.lineWidth=1;
-  ctx.globalAlpha=.6;
-  ctx.beginPath();
-  for(const [wx,wy,ws] of roadWear){
-    const a1=ws%1, a2=(ws*1.7)%1;
-    ctx.moveTo(wx+8+a1*14, wy+10);
-    ctx.lineTo(wx+18+a2*10, wy+24+a1*10);
-    ctx.lineTo(wx+12+a1*20, wy+38);
-  }
-  ctx.stroke();
-  ctx.globalAlpha=1;
-  /* rim fence posts */
-  ctx.globalAlpha=.55; ctx.fillStyle=TH.rimGlow;
-  for(const p2 of roadPosts) ctx.fillRect(p2[0]-1.2,p2[1]-1.2,2.4,2.4);
-  ctx.globalAlpha=1;
-  /* junction plates — the tactical hotspots announce themselves */
-  ctx.strokeStyle=TH.rim; ctx.lineWidth=1.3;
-  ctx.globalAlpha=.75;
-  for(const [jx,jy] of roadJunctions){
-    poly(ctx,jx,jy,14,4,Math.PI/4); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(jx-6.5,jy-6.5); ctx.lineTo(jx+6.5,jy+6.5);
-    ctx.moveTo(jx+6.5,jy-6.5); ctx.lineTo(jx-6.5,jy+6.5);
-    ctx.stroke();
-  }
-  ctx.globalAlpha=1;
-  /* hazard aprons — striped tiles at spawn mouths (green) and exits (red) */
-  for(const [ac,ar,kind] of roadAprons){
-    ctx.save();
-    ctx.beginPath(); ctx.rect(ac*CELL+1,ar*CELL+1,CELL-2,CELL-2); ctx.clip();
-    ctx.strokeStyle=kind==='in'?'rgba(57,255,106,.30)':'rgba(255,77,106,.32)';
-    ctx.lineWidth=3;
-    ctx.beginPath();
-    for(let i=-1;i<5;i++){
-      ctx.moveTo(ac*CELL+i*14, ar*CELL+CELL+6);
-      ctx.lineTo(ac*CELL+i*14+CELL*.6+6, ar*CELL-6);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
   ctx.lineWidth=2;
 
   /* burn zones */
@@ -2889,7 +3022,7 @@ function draw(){
     }
     ctx.globalAlpha=.85; ctx.strokeStyle=ok?'#39ff6a':'#ff4d6a'; ctx.lineWidth=1;
     ctx.strokeRect(c*CELL+1,r*CELL+1,fp[0]*CELL-2,fp[1]*CELL-2);
-    ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.8; ctx.scale(1.15,1.15);
+    ctx.save(); ctx.translate(x,y); ctx.globalAlpha=.8; ctx.scale(1.27,1.27);
     drawTowerBody(ctx,placing,1,-Math.PI/2,time,false);
     ctx.restore();
     ctx.globalAlpha=1;
@@ -2983,8 +3116,8 @@ function draw(){
     }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     if(t.offline) ctx.globalAlpha=.28;
-    /* bodies were drawn for 40px cells; 1.15 refits them to the 50px grid */
-    const tsc=1.15*(t.def.footprint?1:1+(t.level-1)*.05);
+    /* bodies were drawn for 40px cells; 1.27 refits them to the 55px grid */
+    const tsc=1.27*(t.def.footprint?1:1+(t.level-1)*.05);
     if(t.buildT>0){
       /* construction: brackets converge, body materializes behind a rising scan line */
       const hw=t.def.footprint?38:24;
@@ -3612,7 +3745,7 @@ function buildShop(){
         SAVE.cores-=t.cost; SAVE.cosmetics.owned[t.id]=true;
       }
       SAVE.cosmetics.theme=equipped?'default':t.id;
-      persist(); buildShop(); SND.upgrade();
+      persist(); rebuildBg(); buildShop(); SND.upgrade();
     };
     box.appendChild(b);
   }
