@@ -304,6 +304,15 @@
   .achCard.off b{color:#3a4a7a;}
   #campMile{font-size:8px; letter-spacing:1px;}
   #campMile span{white-space:nowrap;}
+  /* results-screen entrance */
+  #endTitle{animation:titleIn .5s ease-out;}
+  @keyframes titleIn{from{opacity:0; transform:scale(1.9);}}
+  #starRow{display:flex; gap:12px; justify-content:center; font-size:30px; line-height:1.2; margin-bottom:4px;}
+  .winStar{color:#2a3d72; opacity:0; transform:scale(2.4); animation:starIn .45s ease-out forwards;}
+  .winStar.on{color:#ffd34d; text-shadow:0 0 16px rgba(255,211,77,.8);}
+  @keyframes starIn{to{opacity:1; transform:scale(1);}}
+  .endLate{opacity:0; animation:lateIn .4s ease-out 1s forwards;}
+  @keyframes lateIn{to{opacity:1;}}
   .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
   #upBtn.tut{animation:pul 1.1s infinite; border-color:#39ff6a;}
   .card.locked{opacity:.3; filter:saturate(.25);}
@@ -604,8 +613,8 @@
     <div id="endOverlay" class="overlay vcenter hidden">
       <div class="big" id="endTitle">CORE LOST</div>
       <div class="sub" id="endSub"></div>
-      <div id="medals"></div>
-      <div class="btnrow" style="gap:10px">
+      <div id="medals" class="endLate"></div>
+      <div class="btnrow endLate" style="gap:10px">
         <button id="restartBtn" class="cta">RETRY</button>
         <button id="menuBtn" class="cta">MENU</button>
         <button id="continueBtn" class="cta" style="display:none">ENDLESS</button>
@@ -667,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.26';
+const VERSION='4.27';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -2982,6 +2991,47 @@ function draw(){
     ctx.restore(); ctx.globalAlpha=1;
   }
 
+  /* victory celebration — parametric so it animates even with the sim frozen */
+  if(celebUntil>time&&gameOver){
+    const p=Math.min(1,Math.max(0,1-(celebUntil-time)/1.5));
+    ctx.fillStyle='rgba(5,8,18,'+(.30*Math.min(1,p*4))+')';
+    ctx.fillRect(-20,-20,W+40,H+40);
+    const seen=new Set();
+    for(const L of LANES){
+      const k=Math.round(L.core.x)+','+Math.round(L.core.y);
+      if(seen.has(k)) continue; seen.add(k);
+      ctx.strokeStyle='#ffd34d'; ctx.lineWidth=2.5;
+      glow(ctx,'#ffd34d',12);
+      for(const m of [1,.62]){
+        ctx.globalAlpha=Math.max(0,1-p*m*1.3);
+        ctx.beginPath(); ctx.arc(L.core.x,L.core.y,p*m*260,0,TAU); ctx.stroke();
+      }
+      /* radiating spokes */
+      ctx.lineWidth=1.5;
+      for(let i=0;i<12;i++){
+        const a=i/12*TAU+p*.5, r0=30+p*150, r1=r0+18+p*40;
+        ctx.globalAlpha=Math.max(0,.8-p);
+        ctx.beginPath();
+        ctx.moveTo(L.core.x+Math.cos(a)*r0,L.core.y+Math.sin(a)*r0);
+        ctx.lineTo(L.core.x+Math.cos(a)*r1,L.core.y+Math.sin(a)*r1);
+        ctx.stroke();
+      }
+      noGlow(ctx);
+    }
+    /* title sweep */
+    const ts2=Math.min(1,p*3.2);
+    ctx.globalAlpha=ts2;
+    ctx.textAlign='center';
+    ctx.fillStyle='#fff'; ctx.font='bold '+(46-ts2*16)+'px monospace';
+    glow(ctx,'#ffd34d',22);
+    ctx.fillText(celebText,W/2,H/2-8);
+    noGlow(ctx);
+    ctx.fillStyle='#ffd34d'; ctx.font='bold 11px monospace';
+    ctx.globalAlpha=Math.max(0,p*3-1.4);
+    ctx.fillText('THE GRID HOLDS',W/2,H/2+20);
+    ctx.globalAlpha=1;
+  }
+
   /* hints (richer step-by-step on the tutorial mission) */
   {
     const tut=campNode&&campNode.id===0;
@@ -3634,8 +3684,17 @@ function loseGame(){
   $('endOverlay').classList.remove('hidden');
   SND.boom();
 }
+/* victory: a short on-stage celebration, then the animated results screen */
+let celebUntil=0, celebText='';
 function winGame(){
-  gameOver=true; const earned=recordEnd(true);
+  gameOver=true;
+  celebUntil=time+1.5;
+  celebText=campNode?'MISSION COMPLETE':'CORE SECURED';
+  hidePop();
+  SND.coinBig(); SND.ability(); vib([20,30,60]);
+}
+function finishWin(){
+  const earned=recordEnd(true);
   $('endTitle').textContent=campNode?'MISSION COMPLETE':'CORE SECURED';
   $('endTitle').style.textShadow='0 0 18px #39ff6a';
   const cb=$('continueBtn');
@@ -3649,8 +3708,11 @@ function winGame(){
     const unlockNote=(uk&&prev===0)
       ? `<br>${TOWERS[uk].footprint?'':`<canvas id="unlockFace" width="92" height="118" style="width:38px;height:49px;vertical-align:middle;margin-right:5px"></canvas>`}<b style="color:#39ff6a">NEW ${TOWERS[uk].footprint?'STRUCTURE':'HERO'} UNLOCKED — ${TOWERS[uk].name} ${TOWERS[uk].title}!</b>`:'';
     const fin=campNode.id===CAMPAIGN.length-1?`<br><i style="color:#9db8ff">${EPILOGUE}</i>`:'';
-    $('endSub').innerHTML=`<b>${campNode.name}</b> complete — <b style="color:#ffd34d">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</b><br>
+    $('endSub').innerHTML=`<div id="starRow">${[0,1,2].map(i=>
+        `<span class="winStar${i<stars?' on':''}" style="animation-delay:${.2+i*.3}s">★</span>`).join('')}</div>
+      <b>${campNode.name}</b> complete<br>
       Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${unlockNote}${fin}`;
+    for(let i=0;i<stars;i++) setTimeout(()=>SND.combo(3+i*2),300+i*300);
     const next=CAMPAIGN[campNode.id+1];
     if(next){
       cb.style.display='block';
@@ -3668,6 +3730,10 @@ function winGame(){
   const uf=$('unlockFace');
   if(uf) renderHeroPortrait(uf,campNode.unlock);
   SND.coinBig();
+}
+/* fired by the frame loop when the on-stage celebration finishes */
+function tickCelebration(){
+  if(celebUntil&&gameOver&&time>=celebUntil){ celebUntil=0; finishWin(); }
 }
 
 /* ============================== INPUT ============================== */
@@ -4304,6 +4370,7 @@ function frame(now){
   }else{
     time+=dt;
   }
+  tickCelebration();
   draw();
   musicTick();
   requestAnimationFrame(frame);
