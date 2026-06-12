@@ -8,6 +8,7 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 
 - **Story campaign** — 12 missions across 3 acts on a constellation world map, with briefings delivered by LUMA herself — an animated android storyteller portrait that talks as the text types — 1–3 star ratings, star-milestone rewards, and heroes earned by clearing missions, ending in a showdown with the OVERMIND PRIME
 - **Quick Play** — dedicated setup screen with glowing road previews of all 3 maps and difficulty cards showing the real numbers; endless mode after wave 20
+- **Arknights-style stages** — short multi-lane roads (two spawns converging, a fork into two exits, crossing lanes) rendered as flat tiled lanes with a neon rim; hero cards dock at the bottom and deploy by dragging straight onto the grid
 - **7 hero towers** — SLY (archer), GLACE (frost), BRUNO (cannon), VOLTA (tesla), REX (sniper), LUMA (support aura with a visible buff glow on boosted towers), JUNO (field mender who repairs damaged towers and revives offline ones), each with two specialization branches at max level, veterancy ranks earned from kills, and an android portrait in the codex, tower popup and unlock screens
 - **12 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, the BREAKER siege sapper that plants itself and bombards your towers offline (repair them, or let JUNO mend them), and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
 - **Structures** — multi-cell relics of the old grid: the 2×1 REACTOR (credit income each wave) and the 2×2 BASTION siege fortress, both reawakened through the campaign
@@ -24,9 +25,9 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 
 | Input | Action |
 |-------|--------|
-| 1–6 | Select hero |
-| Click cell / touch: press, drag & release | Place tower |
-| Tap a tower | Details, upgrade, sell, targeting mode |
+| 1–7 | Select hero (8/9 for structures) |
+| Drag a card from the dock onto the grid | Place tower (or click a cell) |
+| Tap a tower | Details, upgrade, repair, sell, targeting mode |
 | Q/W/E | Abilities |
 | Space | Start wave (early call = bonus credits) |
 | F | Game speed 1×/2×/3× |
@@ -34,6 +35,6 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 | P | Pause |
 | Shift+click | Place multiple towers |
 
-Built with HTML5 Canvas + WebAudio. Single file, ~3.5k lines, zero dependencies.
+Built with HTML5 Canvas + WebAudio. Single file, ~4k lines, zero dependencies.
 
 By **Saiss & Claude**.
