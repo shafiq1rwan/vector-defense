@@ -74,14 +74,7 @@
   @keyframes bump{40%{transform:scale(1.25);}}
   .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
   #progFill{height:100%; width:0%; background:#5a96f0; transition:width .25s;}
-  #next{background:#0a1126; border:1px solid var(--line); border-radius:8px; padding:5px 8px;}
-  #next .nlbl{font-size:8px; letter-spacing:2px; color:var(--dim);}
-  #next .nlbl b{color:var(--bad); animation:pul2 1s infinite;}
-  #next .nlbl em{color:var(--gold); font-style:normal;}
   @keyframes pul2{50%{opacity:.4;}}
-  #nextIcons{display:flex; gap:7px; align-items:center; min-height:22px; flex-wrap:wrap;}
-  .nIc{display:flex; align-items:center; gap:2px; font-size:10px; color:var(--dim); font-weight:700;}
-  .nIc canvas{display:block;}
   #cards,#structs{display:flex; gap:5px; flex:none;}
   .card{
     width:60px; flex:none;
@@ -459,7 +452,6 @@
       max-height:calc(100vh - 102px); max-height:calc(100dvh - 102px);
       max-width:calc(100vw - 140px); max-width:calc(100dvw - 140px);
     }
-    #nextIcons canvas{width:16px; height:16px;}
     #sideCol .stat{padding:3px 8px;}
     #sideCol .stat .v{font-size:14px;}
     .abtn{height:42px;}
@@ -485,7 +477,6 @@
       max-height:calc(100vw - 102px); max-height:calc(100dvw - 102px);
       max-width:calc(100vh - 140px); max-width:calc(100dvh - 140px);
     }
-    #nextIcons canvas{width:16px; height:16px;}
     #sideCol .stat{padding:3px 8px;}
     #sideCol .stat .v{font-size:14px;}
     .abtn{height:42px;}
@@ -515,10 +506,6 @@
             <div id="progWrap"><div id="progFill"></div></div></div>
         </div>
         <div id="abils"></div>
-        <div id="next">
-          <div class="nlbl" id="nextLbl">NEXT WAVE</div>
-          <div id="nextIcons"></div>
-        </div>
         <div id="relicStrip" class="hidden"></div>
         <div id="relicInfo"></div>
       </div>
@@ -676,7 +663,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.27';
+const VERSION='4.28';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1013,9 +1000,9 @@ function heroUnlocked(k){
 
 /* ============================== DIFFICULTY ============================== */
 const DIFFS=[
-  {label:'CASUAL', hp:.75, reward:1.15, money:170, lives:25},
-  {label:'NORMAL', hp:1.12, reward:.9,  money:130, lives:20},
-  {label:'BRUTAL', hp:1.5, reward:.8,   money:110, lives:15}
+  {label:'CASUAL', hp:.75, reward:1.15, money:160, lives:25},
+  {label:'NORMAL', hp:1.12, reward:.9,  money:115, lives:20},
+  {label:'BRUTAL', hp:1.5, reward:.8,   money:95,  lives:15}
 ];
 let diffIndex=SAVE.diff!=null?SAVE.diff:1;
 const DIFF=()=>DIFFS[diffIndex];
@@ -1040,7 +1027,7 @@ const TOWERS={
     color:'#7dffc8', heal:14, desc:'No attack. Repairs damaged towers in range and revives offline ones.'},
   /* structures — relics of the old defence grid, reawakened */
   reactor:{key:'8',name:'REACTOR', title:'relic power plant', cost:120, range:0, rate:0, dmg:0, dtype:'phys',
-    color:'#6bffb0', footprint:[2,1], income:12,
+    color:'#6bffb0', footprint:[2,1], income:10,
     desc:'Reignited grid power. Pays credits at every wave clear.'},
   bastion:{key:'9',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
     color:'#9a6bff', footprint:[2,2], splash:80,
@@ -1238,7 +1225,7 @@ function makeWave(n){
   if(n>=11) add('phaser', Math.floor(n/4), 1.6);
   if(n%5===0) add('boss', Math.floor(n/10)+1, 5);
   let hpMul=(1+(n-1)*.30+Math.pow(Math.max(0,n-8),2)*.012)*DIFF().hp;
-  let rewardMul=(.8+n*.02)*DIFF().reward;
+  let rewardMul=(.7+n*.015)*DIFF().reward;
   let spdMul=1;
   const mod=(campNode&&campNode.mod)
     ? (n>=3 ? MODS.find(m=>m.id===campNode.mod) : null)
@@ -1492,7 +1479,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     combo++; comboT=relicHas('magnet')?2.35:1.35; comboPop=.3;
     if(combo>bestCombo) bestCombo=combo;
     let extra=0;
-    if(combo>=2){ extra=Math.min(10,combo); money+=extra; }
+    if(combo>=2){ extra=Math.min(8,combo); money+=extra; }
     money+=rw;
     if(relicHas('scrap')) money+=2;
     /* veterancy XP for the killing tower */
@@ -1733,7 +1720,7 @@ function update(dt){
     $('waveBtn').textContent='WAVE '+wave+' — '+remaining+' HOSTILES';
     if(!spawnQueue.length && !enemies.length){
       waveActive=false;
-      const bonus=12+wave*2;
+      const bonus=Math.round(8+wave*1.5);
       money+=bonus;
       addText(W/2,90,'WAVE '+wave+' CLEAR  +'+bonus,'#4d8dff',true);
       /* reactors pay out, aid cells patch the core */
@@ -3506,7 +3493,8 @@ function codexControls(){
     floats above your finger; release to build. Swipe the dock sideways to see more cards. The same press-drag
     gesture aims the orbital strike.<br><br>
     <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits · max-level towers unlock a
-    ★ specialization · towers earn XP and rank stars from kills · check NEXT WAVE icons for enemy weaknesses.</div></div>`;
+    ★ specialization · towers earn XP and rank stars from kills · study the ENEMIES tab to learn weaknesses,
+    then read the field — no one will tell you what marches next.</div></div>`;
 }
 /* ============================== SETTINGS ============================== */
 let settingsReturn='titleOverlay', resetArmed=false;
@@ -3592,31 +3580,10 @@ function updateBestLine(){
     ? 'BEST WAVE '+SAVE.bestWave+' · BEST COMBO ×'+(SAVE.bestCombo||0)+' · WINS '+(SAVE.wins||0)
     : 'NO RECORDS YET — GOOD LUCK, COMMANDER';
 }
+/* no enemy intel anymore — the player reads the field; only a boss klaxon remains */
 function updateNextPreview(){
-  const n=wave+1;
-  const lbl=$('nextLbl'), box=$('nextIcons');
-  if(wave>=finalWave && !endless){
-    lbl.textContent='NEXT WAVE'; box.innerHTML='<span style="font-size:10px;color:#6b7fb3">—</span>';
-    $('waveBtn').classList.remove('bossWarn');
-    return;
-  }
-  const wv=makeWave(n), counts={};
-  for(const s of wv.spawns) counts[s.type]=(counts[s.type]||0)+1;
-  const hasBoss=!!counts.boss;
-  const nElite=wv.spawns.filter(s=>s.elite).length;
-  lbl.innerHTML='NEXT WAVE '+n+(hasBoss?' — <b>'+ic('warn',9)+'BOSS</b>':'')
-    +(nElite?' — <b style="color:#ffd34d">'+nElite+' ELITE</b>':'')
-    +(wv.mod?' — <em>'+ic(wv.mod.icon,9)+wv.mod.label+'</em>':'');
-  if(wv.mod) lbl.title=wv.mod.desc; else lbl.title='';
-  $('waveBtn').classList.toggle('bossWarn',hasBoss);
-  box.innerHTML='';
-  for(const type in counts){
-    const el=document.createElement('span'); el.className='nIc';
-    el.innerHTML='<canvas width="22" height="22"></canvas>×'+counts[type];
-    el.title=resTip(type);
-    box.appendChild(el);
-    renderEnemyIcon(el.querySelector('canvas'),type,.7);
-  }
+  if(wave>=finalWave && !endless){ $('waveBtn').classList.remove('bossWarn'); return; }
+  $('waveBtn').classList.toggle('bossWarn',(wave+1)%5===0);
 }
 
 /* ============================== FLOW ============================== */
