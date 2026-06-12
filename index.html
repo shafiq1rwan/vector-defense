@@ -40,12 +40,8 @@
     display:flex; z-index:4;
   }
   #startBox #waveBtn{width:100%; height:100%; border-radius:12px;}
-  /* wave progress — thin rail along the top edge of the card dock */
-  #progWrap{
-    position:absolute; left:0; right:126px; bottom:93px; height:4px;
-    background:#0a1126; border:1px solid var(--line); border-radius:3px;
-    overflow:hidden; z-index:3;
-  }
+  /* wave progress — fills the bottom edge of the WAVE stat box */
+  #progWrap{position:absolute; left:0; right:0; bottom:0; height:3px; overflow:hidden;}
   #sideScroll{
     flex:1 1 auto; min-height:0; overflow-y:auto;
     display:flex; flex-direction:column; gap:6px;
@@ -321,19 +317,24 @@
   .selRow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center;}
   .selRow .lbl{font-size:9px; letter-spacing:2px; color:var(--dim);}
   .mapOpt{
-    border:1px solid var(--line); border-radius:8px; padding:5px 5px 4px; cursor:pointer;
-    background:#0a1126; font-size:9px; color:var(--dim); letter-spacing:1px; text-align:center;
+    border:1px solid var(--line); border-radius:10px; padding:7px 7px 6px; cursor:pointer;
+    background:#0e1734; text-align:center; transition:border-color .12s, transform .1s;
   }
-  .mapOpt canvas{display:block; margin-bottom:3px; background:#070b16; border-radius:5px;}
-  .mapOpt.sel{border-color:#fff; color:#fff; background:#101c42;}
+  .mapOpt canvas{display:block; margin:0 auto 4px; background:#0a1122; border-radius:6px;}
+  .mapOpt .mnm{font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--txt);}
+  .mapOpt .mtag{font-size:7px; letter-spacing:.8px; color:var(--dim); margin-top:1px;}
+  .mapOpt:hover{border-color:#7db2ff;}
+  .mapOpt.sel{border-color:var(--neon); background:#142250; box-shadow:0 0 12px rgba(77,141,255,.4); transform:translateY(-2px);}
+  .mapOpt.sel .mnm{color:#fff;}
   .diffOpt{
-    flex:none; padding:7px 13px; font-size:10.5px;
+    flex:none; padding:8px 15px; font-size:11px; border-radius:10px;
     display:flex; flex-direction:column; gap:3px; align-items:center;
   }
+  .diffOpt b{color:var(--dc,#4d8dff); letter-spacing:1.5px;}
   .diffOpt .dd{font-size:7.5px; color:var(--dim); letter-spacing:.5px; font-weight:400;}
-  .diffOpt.sel{border-color:#fff; background:#16265a; color:#fff;}
-  #qpOverlay{gap:11px;}
-  #qpLaunch{padding:9px 36px;}
+  .diffOpt.sel{border-color:var(--dc,#fff); background:#16265a; box-shadow:0 0 10px rgba(77,141,255,.3);}
+  #qpOverlay{gap:10px;}
+  #qpLaunch{padding:11px 46px; font-size:12px; letter-spacing:2px;}
   .overlay button.cta{flex:none; padding:11px 34px; font-size:14px;}
   #medals{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px;}
   .medal{
@@ -501,7 +502,8 @@
         <div id="stats">
           <div class="stat sLives"><div class="v" id="livesV">20</div><div class="l">CORE</div></div>
           <div class="stat sMoney"><div class="v" id="moneyV">130</div><div class="l">CREDITS</div></div>
-          <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div></div>
+          <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div>
+            <div id="progWrap"><div id="progFill"></div></div></div>
         </div>
         <div id="abils"></div>
         <div id="next">
@@ -512,7 +514,6 @@
         <div id="relicInfo"></div>
       </div>
     </div>
-    <div id="progWrap"><div id="progFill"></div></div>
     <div id="startBox">
       <button id="waveBtn" class="pulse">START WAVE 1</button>
     </div>
@@ -548,8 +549,10 @@
       <button id="qpBack" class="gearBtn backTL" title="Back to menu"></button>
       <div class="big" style="font-size:18px; letter-spacing:6px">QUICK PLAY</div>
       <div id="qpSub" class="sub" style="font-size:10px"></div>
-      <div class="selRow"><span class="lbl">MAP</span><span id="mapSel" class="selRow"></span></div>
-      <div class="selRow"><span class="lbl">DIFFICULTY</span><span id="diffSel" class="selRow"></span></div>
+      <div class="shopSec">BATTLEFIELD</div>
+      <div id="mapSel" class="selRow"></div>
+      <div class="shopSec">THREAT LEVEL</div>
+      <div id="diffSel" class="selRow"></div>
       <button id="qpLaunch" class="cta">LAUNCH</button>
     </div>
 
@@ -664,7 +667,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.24';
+const VERSION='4.25';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -767,15 +770,15 @@ const MAPS=[
   /* short Arknights-style lanes: multiple spawns/exits per stage.
      Roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed). */
   /* all coordinates sit on 50px cell centers (25+50k) so every lane is exactly one tile wide */
-  {name:'SERPENT', coreBack:100, paths:[          /* 2 spawns converge into 1 exit */
+  {name:'SERPENT', coreBack:100, tag:'2 SPAWNS · 1 EXIT', paths:[
     [[-40,125],[475,125],[475,275],[1040,275]],
     [[-40,425],[475,425],[475,275],[1040,275]]
   ]},
-  {name:'GAUNTLET', coreBack:100, paths:[         /* 1 spawn forks into 2 exits */
+  {name:'GAUNTLET', coreBack:100, tag:'1 SPAWN · 2 EXITS', paths:[
     [[-40,275],[425,275],[425,125],[1040,125]],
     [[-40,275],[425,275],[425,425],[1040,425]]
   ]},
-  {name:'ORBIT', coreBack:100, paths:[            /* 2 spawns, 2 exits, lanes double-cross */
+  {name:'ORBIT', coreBack:100, tag:'2 SPAWNS · 2 EXITS · CROSS', paths:[
     [[-40,175],[675,175],[675,375],[1040,375]],
     [[275,-40],[275,325],[775,325],[775,540]]
   ]},
@@ -3192,12 +3195,12 @@ function buildUI(){
     const el=document.createElement('div');
     el.className='mapOpt'+(i===mapIndex?' sel':'');
     el.id='map_'+i;
-    el.innerHTML=`<canvas width="126" height="82"></canvas>${m.name}`;
+    el.innerHTML=`<canvas width="148" height="84"></canvas><div class="mnm">${m.name}</div><div class="mtag">${m.tag||''}</div>`;
     const c=el.querySelector('canvas').getContext('2d');
-    const sx=p=>6+p[0]*.114, sy=p=>12+p[1]*.114;
+    const sx=p=>8+p[0]*.128, sy=p=>8+p[1]*.128;
     const lanes=m.paths||[m.path];
     c.lineJoin='round'; c.lineCap='round';
-    for(const w of [['#16265a',9],['#4d8dff',2.5]]){
+    for(const w of [['#1c2c60',10],['#5a9aff',3]]){
       c.strokeStyle=w[0]; c.lineWidth=w[1];
       c.beginPath();
       for(const pd of lanes) pd.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
@@ -3205,8 +3208,8 @@ function buildUI(){
     }
     for(const pd of lanes){
       const a=pd[0], z=pd[pd.length-1];
-      c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.4,0,TAU); c.fill();
-      c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.4,0,TAU); c.fill();
+      c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.6,0,TAU); c.fill();
+      c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.6,0,TAU); c.fill();
     }
     el.onclick=()=>{
       buildMap(i); reset();
@@ -3222,6 +3225,7 @@ function buildUI(){
     const b=document.createElement('button');
     b.className='diffOpt'+(i===diffIndex?' sel':'');
     b.id='diff_'+i;
+    b.style.setProperty('--dc',['#39ff6a','#4d8dff','#ff4d6a'][i]);
     b.innerHTML=`<b>${d.label}</b><span class="dd">${Math.round(d.hp*100)}% HP · ${Math.round(d.reward*100)}% BOUNTY · ${d.lives} CORE</span>`;
     b.onclick=()=>{
       diffIndex=i; SAVE.diff=i; persist(); reset();
