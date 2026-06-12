@@ -54,9 +54,9 @@
   #sideScroll::-webkit-scrollbar{display:none;}
   #dock{
     position:absolute; left:0; right:126px; bottom:8px; height:82px;
-    display:flex; gap:5px; align-items:stretch;
+    display:flex; gap:5px; align-items:flex-end;
     overflow-x:auto; overflow-y:hidden; z-index:3;
-    background:#0a0f1f; border:1px solid var(--line); border-radius:10px; padding:5px;
+    background:#0a0f1f; border:1px solid var(--line); border-radius:10px; padding:13px 5px 4px;
   }
   #dock::-webkit-scrollbar{height:4px;}
   #dock::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
@@ -96,6 +96,7 @@
   }
   .card:hover{border-color:var(--neon); transform:translateY(-2px);}
   .card.sel{border-color:#fff; box-shadow:0 0 10px rgba(77,141,255,.5);}
+  .card.lift{transform:translateY(-10px) scale(1.06); border-color:#7db2ff; box-shadow:0 0 12px rgba(77,141,255,.55);}
   .card.poor{opacity:.38; cursor:not-allowed;}
   .card canvas{display:block; margin:0 auto; width:36px; height:36px;}
   .card .nm{font-size:9px; font-weight:700; letter-spacing:.5px; line-height:1.2;}
@@ -663,7 +664,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.22';
+const VERSION='4.23';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3711,6 +3712,7 @@ window.addEventListener('pointermove',e=>{
     if(placing!==cardDrag.type) selectCard(cardDrag.type);
     if(placing!==cardDrag.type){ cardDrag=null; return; }   /* selection refused (cost/lock) */
     dragMode='place';
+    const ce=$('card_'+cardDrag.type); if(ce) ce.classList.add('lift');
   }
   const r=cvs.getBoundingClientRect();
   const lift=e.pointerType==='mouse'?0:60;
@@ -3720,6 +3722,7 @@ window.addEventListener('pointermove',e=>{
 window.addEventListener('pointerup',e=>{
   if(!cardDrag||e.pointerId!==cardDrag.id) return;
   const moved=cardDrag.moved; cardDrag=null;
+  document.querySelectorAll('.card.lift').forEach(c=>c.classList.remove('lift'));
   if(!moved) return;                       /* plain tap → the card's click handler takes it */
   suppressClick=true;
   dragMode=null;
@@ -3735,7 +3738,10 @@ window.addEventListener('pointerup',e=>{
   mouse.inside=false;
 });
 window.addEventListener('pointercancel',e=>{
-  if(cardDrag&&e.pointerId===cardDrag.id){ cardDrag=null; cancelPlacing(); mouse.inside=false; }
+  if(cardDrag&&e.pointerId===cardDrag.id){
+    cardDrag=null; cancelPlacing(); mouse.inside=false;
+    document.querySelectorAll('.card.lift').forEach(c=>c.classList.remove('lift'));
+  }
 });
 cvs.addEventListener('contextmenu',e=>{
   e.preventDefault();
