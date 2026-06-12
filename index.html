@@ -31,8 +31,13 @@
     cursor:crosshair; touch-action:none;
   }
   #sideCol{
-    position:absolute; top:8px; right:8px; bottom:98px; width:112px;
+    position:absolute; top:8px; right:8px; bottom:84px; width:112px;
     display:flex; flex-direction:column; gap:6px; z-index:3;
+  }
+  /* START lives outside the column — always parked at the bottom-right corner */
+  #startBox{
+    position:absolute; right:8px; bottom:8px; width:112px;
+    display:flex; flex-direction:column; gap:4px; z-index:4;
   }
   #sideScroll{
     flex:1 1 auto; min-height:0; overflow-y:auto;
@@ -473,7 +478,7 @@
 <body>
 <div id="wrap">
   <div id="stage">
-    <canvas id="game" width="800" height="500"></canvas>
+    <canvas id="game" width="1000" height="500"></canvas>
     <div id="hudTL">
       <button id="pauseBtn" title="Pause"></button>
       <button id="muteBtn" title="Mute"></button>
@@ -498,6 +503,8 @@
         <div id="relicInfo"></div>
         <div id="abils"></div>
       </div>
+    </div>
+    <div id="startBox">
       <div id="progWrap"><div id="progFill"></div></div>
       <button id="waveBtn" class="pulse">START WAVE 1</button>
     </div>
@@ -649,8 +656,8 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.15';
-const W=800, H=500, CELL=50, COLS=16, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
+const VERSION='4.16';
+const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
@@ -709,19 +716,19 @@ const MAPS=[
      Roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed). */
   /* all coordinates sit on 50px cell centers (25+50k) so every lane is exactly one tile wide */
   {name:'SERPENT', coreBack:100, paths:[          /* 2 spawns converge into 1 exit */
-    [[-40,125],[375,125],[375,275],[840,275]],
-    [[-40,425],[375,425],[375,275],[840,275]]
+    [[-40,125],[475,125],[475,275],[1040,275]],
+    [[-40,425],[475,425],[475,275],[1040,275]]
   ]},
   {name:'GAUNTLET', coreBack:100, paths:[         /* 1 spawn forks into 2 exits */
-    [[-40,275],[325,275],[325,125],[840,125]],
-    [[-40,275],[325,275],[325,425],[840,425]]
+    [[-40,275],[425,275],[425,125],[1040,125]],
+    [[-40,275],[425,275],[425,425],[1040,425]]
   ]},
   {name:'ORBIT', coreBack:100, paths:[            /* 2 spawns, 2 exits, lanes double-cross */
-    [[-40,175],[525,175],[525,375],[840,375]],
-    [[225,-40],[225,275],[625,275],[625,540]]
+    [[-40,175],[675,175],[675,375],[1040,375]],
+    [[275,-40],[275,325],[775,325],[775,540]]
   ]},
   /* tutorial-only straight road — hidden from quick play */
-  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,275],[840,275]]}
+  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,275],[1040,275]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
@@ -2963,7 +2970,7 @@ function buildUI(){
     el.id='map_'+i;
     el.innerHTML=`<canvas width="126" height="82"></canvas>${m.name}`;
     const c=el.querySelector('canvas').getContext('2d');
-    const sx=p=>6+p[0]*.142, sy=p=>4+p[1]*.142;
+    const sx=p=>6+p[0]*.114, sy=p=>12+p[1]*.114;
     const lanes=m.paths||[m.path];
     c.lineJoin='round'; c.lineCap='round';
     for(const w of [['#16265a',9],['#4d8dff',2.5]]){
