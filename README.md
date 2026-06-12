@@ -7,7 +7,7 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 ## Features
 
 - **Story campaign** — 12 missions across 3 acts on a constellation world map, with briefings delivered by LUMA herself — an animated android storyteller portrait that talks as the text types — 1–3 star ratings, star-milestone rewards, and heroes earned by clearing missions, ending in a showdown with the OVERMIND PRIME
-- **Quick Play** — dedicated setup screen with glowing road previews of all 3 maps and difficulty cards showing the real numbers; endless mode after wave 20
+- **Quick Play** — mission-prep screen with road-topology previews of all 3 maps (spawn/exit tags like "2 SPAWNS · 1 EXIT") and color-coded threat levels showing the real numbers; endless mode after wave 20
 - **Arknights-style stages** — short multi-lane roads (two spawns converging, a fork into two exits, crossing lanes) rendered as flat tiled lanes with a neon rim; hero cards dock at the bottom and deploy by dragging straight onto the grid
 - **7 hero towers** — SLY (archer), GLACE (frost), BRUNO (cannon), VOLTA (tesla), REX (sniper), LUMA (support aura with a visible buff glow on boosted towers), JUNO (field mender who repairs damaged towers and revives offline ones), each with two specialization branches at max level, veterancy ranks earned from kills, and an android portrait in the codex, tower popup and unlock screens
 - **12 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, the BREAKER siege sapper that plants itself and bombards your towers offline (repair them, or let JUNO mend them), and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
@@ -18,6 +18,7 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Wave modifiers** (fast / regen / horde / wealth), kill-combo credits, wave MVP damage rankings
 - **Core shop** — earn ⬡ cores every run and spend them on cosmetics: grid themes that restyle the whole battlefield (ember/frost/jade/void) and alternate color skins for every hero
 - **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls, plus a RECORDS tab with lifetime stats and 14 achievements
+- **Game feel** — towers assemble behind a rising scan line when placed, enemies shatter into their own outline fragments, heavy hits land with a micro hit-stop, bounty chips arc into your credits, the core beats audibly when integrity runs low, and phones get haptic feedback throughout
 - **Procedural music** — WebAudio synth score that intensifies with combat and boss waves
 - **Mobile-first** — drag-to-place touch controls with a lifted ghost, auto-landscape rotation in portrait, safe-area aware layout, installable PWA with offline support
 
