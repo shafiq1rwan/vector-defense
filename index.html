@@ -46,7 +46,7 @@
   #sideScroll::-webkit-scrollbar{width:4px;}
   #sideScroll::-webkit-scrollbar-thumb{background:#1b2a55; border-radius:3px;}
   #dock{
-    position:absolute; left:8px; right:126px; bottom:8px; height:82px;
+    position:absolute; left:0; right:126px; bottom:8px; height:82px;
     display:flex; gap:5px; align-items:stretch;
     overflow-x:auto; overflow-y:hidden; z-index:3;
     background:#0a0f1f; border:1px solid var(--line); border-radius:10px; padding:5px;
@@ -656,7 +656,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.16';
+const VERSION='4.17';
 const W=1000, H=500, CELL=50, COLS=20, ROWS=10, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
