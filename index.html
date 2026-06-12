@@ -650,7 +650,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.12';
+const VERSION='4.13';
 const W=800, H=520, CELL=40, COLS=20, ROWS=13, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -706,33 +706,45 @@ const META=[
 /* ============================== MAPS ============================== */
 /* shorter routes on a coarser 40px grid — bigger cells, easier to tap */
 const MAPS=[
-  /* roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed) */
-  {name:'SERPENT', coreBack:150, path:[[-40,140],[560,140],[560,320],[200,320],[200,460],[840,460]]},
-  {name:'GAUNTLET', coreBack:120, path:[[-40,120],[680,120],[680,280],[120,280],[120,440],[760,440],[760,560]]},
-  {name:'ORBIT', coreBack:60, path:[[-40,200],[620,200],[620,440],[160,440],[160,300],[440,300]]},
+  /* short Arknights-style lanes: multiple spawns/exits per stage.
+     Roads steer clear of the floating HUD corners (top-left pause/mute, top-right speed). */
+  {name:'SERPENT', coreBack:110, paths:[          /* 2 spawns converge into 1 exit */
+    [[-40,140],[400,140],[400,300],[840,300]],
+    [[-40,460],[400,460],[400,300],[840,300]]
+  ]},
+  {name:'GAUNTLET', coreBack:110, paths:[         /* 1 spawn forks into 2 exits */
+    [[-40,260],[360,260],[360,120],[840,120]],
+    [[-40,260],[360,260],[360,440],[840,440]]
+  ]},
+  {name:'ORBIT', coreBack:90, paths:[             /* 2 spawns, 2 exits, lanes cross */
+    [[-40,180],[560,180],[560,380],[840,380]],
+    [[200,-40],[200,300],[640,300],[640,560]]
+  ]},
   /* tutorial-only straight road — hidden from quick play */
   {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,260],[840,260]]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL=null, CORE=null;
-let roadTiles=[], roadEdges=[], roadChevrons=[];
+let LANES=[], roadTiles=[], roadEdges=[], roadChevrons=[];
 const stars=[], props=[];
 /* flora clusters scattered around the field — pure scenery, hidden under placed towers */
 let grove=[];
 /* ruins of the long dark — dead structures on the outskirts */
 let ruins=[];
 
-function pointAt(d){
-  d=Math.max(0,Math.min(PATH_LEN,d));
-  for(const s of SEGS){
+function pointAt(d,ln=0){
+  const L=LANES[ln]||{segs:SEGS,len:PATH_LEN};
+  const SEGSL=L.segs, LENL=L.len;
+  d=Math.max(0,Math.min(LENL,d));
+  for(const s of SEGSL){
     if(d<=s.start+s.len){
       const t=(d-s.start)/s.len;
       return {x:s.a.x+(s.b.x-s.a.x)*t, y:s.a.y+(s.b.y-s.a.y)*t,
               dx:(s.b.x-s.a.x)/s.len, dy:(s.b.y-s.a.y)/s.len};
     }
   }
-  const s=SEGS[SEGS.length-1];
+  const s=SEGSL[SEGSL.length-1];
   return {x:s.b.x,y:s.b.y,dx:(s.b.x-s.a.x)/s.len,dy:(s.b.y-s.a.y)/s.len};
 }
 function genProps(){
@@ -799,15 +811,20 @@ function buildMap(i,persistSel=true){
   mapIndex=i;
   if(persistSel && !MAPS[i].hidden){ SAVE.map=i; persist(); }
   const m=MAPS[i];
-  PATH=m.path.map(p=>({x:p[0],y:p[1]}));
-  SEGS=[]; PATH_LEN=0;
-  for(let j=0;j<PATH.length-1;j++){
-    const a=PATH[j],b=PATH[j+1],len=Math.hypot(b.x-a.x,b.y-a.y);
-    SEGS.push({a,b,len,start:PATH_LEN}); PATH_LEN+=len;
-  }
+  /* one or many lanes per stage (Arknights-style multi spawn/exit) */
+  LANES=(m.paths||[m.path]).map(pd=>{
+    const P=pd.map(p=>({x:p[0],y:p[1]}));
+    const segs=[]; let len=0;
+    for(let j=0;j<P.length-1;j++){
+      const a=P[j],b=P[j+1],l=Math.hypot(b.x-a.x,b.y-a.y);
+      segs.push({a,b,len:l,start:len}); len+=l;
+    }
+    return {PATH:P,segs,len};
+  });
+  PATH=LANES[0].PATH; SEGS=LANES[0].segs; PATH_LEN=LANES[0].len;
   blocked=new Set();
   const roadCells=new Set();
-  for(const s of SEGS){
+  for(const L of LANES) for(const s of L.segs){
     const steps=Math.ceil(s.len/4);
     for(let j=0;j<=steps;j++){
       const x=s.a.x+(s.b.x-s.a.x)*j/steps, y=s.a.y+(s.b.y-s.a.y)*j/steps;
@@ -829,11 +846,15 @@ function buildMap(i,persistSel=true){
     if(!roadCells.has((c+1)+','+r)) roadEdges.push([x+CELL,y,x+CELL,y+CELL]);
   }
   roadChevrons=[];
-  for(let d=70; d<PATH_LEN-50; d+=90){
-    const p=pointAt(d);
-    roadChevrons.push({x:p.x,y:p.y,a:Math.atan2(p.dy,p.dx)});
-  }
-  PORTAL=pointAt(46); CORE=pointAt(PATH_LEN-m.coreBack);
+  LANES.forEach((L,li)=>{
+    for(let d=70; d<L.len-50; d+=90){
+      const p=pointAt(d,li);
+      roadChevrons.push({x:p.x,y:p.y,a:Math.atan2(p.dy,p.dx)});
+    }
+    L.portal=pointAt(46,li);
+    L.core=pointAt(L.len-m.coreBack,li);
+  });
+  PORTAL=LANES[0].portal; CORE=LANES[0].core;
   /* building is only allowed within 2 cells of the road */
   buildable=new Set();
   for(const key of roadCells){
@@ -843,10 +864,11 @@ function buildMap(i,persistSel=true){
       if(c>=0&&c<COLS&&r>=0&&r<ROWS&&!blocked.has(k)) buildable.add(k);
     }
   }
-  /* ...but never right at the spawn mouth — no camping the portal */
+  /* ...but never right at a spawn mouth — no camping the portals */
   for(const k of [...buildable]){
     const [c,r]=k.split(',').map(Number);
-    if(Math.hypot(c*CELL+CELL/2-PORTAL.x, r*CELL+CELL/2-PORTAL.y)<=110) buildable.delete(k);
+    for(const L of LANES)
+      if(Math.hypot(c*CELL+CELL/2-L.portal.x, r*CELL+CELL/2-L.portal.y)<=110){ buildable.delete(k); break; }
   }
   genProps();
 }
@@ -1326,7 +1348,7 @@ const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
 
-function spawnEnemy(type,dist,w,elite){
+function spawnEnemy(type,dist,w,elite,lane=0){
   const def=ENEMIES[type];
   const e={type,def,wref:w,hp:def.hp*w.hpMul,maxHp:def.hp*w.hpMul,
     reward:def.reward*w.rewardMul, baseSpd:def.speed*(w.spdMul||1),
@@ -1341,7 +1363,8 @@ function spawnEnemy(type,dist,w,elite){
     if(elite==='vanguard') e.bossShield=e.maxHp*.3;
     if(elite==='swift') e.baseSpd*=1.45;
   }
-  const p=pointAt(dist); e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
+  e.lane=LANES[lane]?lane:0;
+  const p=pointAt(dist,e.lane); e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
   enemies.push(e); return e;
 }
 
@@ -1405,10 +1428,10 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
     for(let i=0;i<nC&&coins.length<50;i++)
       coins.push({x:e.x,y:e.y,vx:(Math.random()-.5)*140,vy:-90-Math.random()*70,t:0});
     if(e.def.split && e.wref){
-      for(let i=0;i<e.def.split;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref);
+      for(let i=0;i<e.def.split;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref, null, e.lane);
     }
     if(e.elite==='fission' && e.wref){
-      for(let i=0;i<2;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref);
+      for(let i=0;i<2;i++) spawnEnemy('mite', Math.max(0,e.dist-5+i*10), e.wref, null, e.lane);
     }
     if(e.elite){
       addText(e.x,e.y-28,'ELITE DOWN','#ffd34d');
@@ -1598,8 +1621,9 @@ function update(dt){
     waveT+=dt;
     while(spawnQueue.length && spawnQueue[0].time<=waveT){
       const sp=spawnQueue.shift();
-      spawnEnemy(sp.type,0,curWave,sp.elite);
-      ring(PORTAL.x,PORTAL.y,16,'#39ff6a',.3);
+      const ln=Math.floor(Math.random()*LANES.length);
+      spawnEnemy(sp.type,0,curWave,sp.elite,ln);
+      ring(LANES[ln].portal.x,LANES[ln].portal.y,16,'#39ff6a',.3);
       SND.spawn();
     }
     const remaining=spawnQueue.length+enemies.length;
@@ -1665,7 +1689,7 @@ function update(dt){
     if(e.elite==='regen'&&e.hp<e.maxHp) e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.02*dt);
     const sp=e.baseSpd*(e.slowT>0?e.slowF:1);
     e.dist+=sp*dt;
-    const p=pointAt(e.dist);
+    const p=pointAt(e.dist,e.lane);
     e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
     if(e.def.heal){
       e.healT-=dt;
@@ -1685,7 +1709,7 @@ function update(dt){
       e.mSpawnT-=dt;
       if(e.mSpawnT<=0){
         e.mSpawnT=6;
-        for(let i=0;i<2;i++) spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref);
+        for(let i=0;i<2;i++) spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref,null,e.lane);
         ring(e.x,e.y,e.def.r+10,'#ffb6f9',.35);
         addText(e.x,e.y-30,'SPAWNING','#ff9af8');
         SND.spawn();
@@ -1706,12 +1730,13 @@ function update(dt){
         }
       }
     }
-    if(e.dist>=PATH_LEN){
+    if(e.dist>=(LANES[e.lane]||LANES[0]).len){
       e.dead=true;
       lives-=e.def.lives;
+      const lc=(LANES[e.lane]||LANES[0]).core;
       shake=Math.max(shake,6); leakFlash=1;
-      addText(CORE.x,CORE.y-34,'-'+e.def.lives+' CORE','#ff4d6a',true);
-      ring(CORE.x,CORE.y,30,'#ff4d6a',.4);
+      addText(lc.x,lc.y-34,'-'+e.def.lives+' CORE','#ff4d6a',true);
+      ring(lc.x,lc.y,30,'#ff4d6a',.4);
       SND.leak(); bumpStat('livesV'); vib(45);
       if(lives<=0){ lives=0; loseGame(); return; }
     }
@@ -2357,22 +2382,30 @@ function draw(){
     ctx.setLineDash([]); ctx.globalAlpha=1;
   }
 
-  /* spawn portal */
+  /* spawn portals — one per lane, deduped when lanes share a gate */
   {
-    const p=PORTAL, pl=Math.sin(time*4);
-    ctx.strokeStyle='#39ff6a'; ctx.lineWidth=2; glow(ctx,'#39ff6a',14);
-    for(let i=0;i<3;i++){
-      const a0=time*2+i*TAU/3;
-      ctx.beginPath(); ctx.arc(p.x,p.y,14+pl*2,a0,a0+1.6); ctx.stroke();
+    const seen=new Set();
+    for(const L of LANES){
+      const p=L.portal, k=Math.round(p.x)+','+Math.round(p.y);
+      if(seen.has(k)) continue; seen.add(k);
+      const pl=Math.sin(time*4);
+      ctx.strokeStyle='#39ff6a'; ctx.lineWidth=2; glow(ctx,'#39ff6a',14);
+      for(let i=0;i<3;i++){
+        const a0=time*2+i*TAU/3;
+        ctx.beginPath(); ctx.arc(p.x,p.y,14+pl*2,a0,a0+1.6); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(p.x,p.y,7+pl,0,TAU); ctx.stroke();
+      noGlow(ctx);
+      ctx.fillStyle='rgba(57,255,106,.8)'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
+      ctx.fillText('SPAWN',Math.max(34,Math.min(W-34,p.x)),Math.max(14,Math.min(H-6,p.y+32)));
     }
-    ctx.beginPath(); ctx.arc(p.x,p.y,7+pl,0,TAU); ctx.stroke();
-    noGlow(ctx);
-    ctx.fillStyle='rgba(57,255,106,.8)'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
-    ctx.fillText('SPAWN',Math.max(34,p.x),p.y+32);
   }
-  /* CORE */
-  {
-    const p=CORE, hurt=lives<=5;
+  /* CORE breach points — one per exit */
+  const coreSeen=new Set();
+  for(const L of LANES){
+    const p=L.core, ck=Math.round(p.x)+','+Math.round(p.y);
+    if(coreSeen.has(ck)) continue; coreSeen.add(ck);
+    const hurt=lives<=5;
     const col=hurt?'#ff4d6a':'#4d8dff';
     ctx.save(); ctx.translate(p.x,p.y);
     ctx.strokeStyle=col; ctx.lineWidth=2; glow(ctx,col,16);
@@ -2598,7 +2631,15 @@ function draw(){
     const th=Math.max(0,1-hb*4)+Math.max(0,1-Math.abs(hb-.32)*8)*.6;
     ctx.strokeStyle='#ff4d6a';
     ctx.globalAlpha=.25+.45*th; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(CORE.x,CORE.y,26+th*8,0,TAU); ctx.stroke();
+    ctx.beginPath();
+    const hbSeen=new Set();
+    for(const L of LANES){
+      const ck=Math.round(L.core.x)+','+Math.round(L.core.y);
+      if(hbSeen.has(ck)) continue; hbSeen.add(ck);
+      ctx.moveTo(L.core.x+26+th*8,L.core.y);
+      ctx.arc(L.core.x,L.core.y,26+th*8,0,TAU);
+    }
+    ctx.stroke();
     ctx.globalAlpha=.10+.16*th; ctx.lineWidth=6;
     ctx.strokeRect(3,3,W-6,H-6);
     ctx.globalAlpha=1;
@@ -2916,17 +2957,19 @@ function buildUI(){
     el.innerHTML=`<canvas width="126" height="82"></canvas>${m.name}`;
     const c=el.querySelector('canvas').getContext('2d');
     const sx=p=>6+p[0]*.142, sy=p=>4+p[1]*.142;
-    c.strokeStyle='#16265a'; c.lineWidth=9; c.lineJoin='round'; c.lineCap='round';
-    c.beginPath();
-    m.path.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
-    c.stroke();
-    c.strokeStyle='#4d8dff'; c.lineWidth=2.5;
-    c.beginPath();
-    m.path.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
-    c.stroke();
-    const a=m.path[0], z=m.path[m.path.length-1];
-    c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.4,0,TAU); c.fill();
-    c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.4,0,TAU); c.fill();
+    const lanes=m.paths||[m.path];
+    c.lineJoin='round'; c.lineCap='round';
+    for(const w of [['#16265a',9],['#4d8dff',2.5]]){
+      c.strokeStyle=w[0]; c.lineWidth=w[1];
+      c.beginPath();
+      for(const pd of lanes) pd.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
+      c.stroke();
+    }
+    for(const pd of lanes){
+      const a=pd[0], z=pd[pd.length-1];
+      c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.4,0,TAU); c.fill();
+      c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.4,0,TAU); c.fill();
+    }
     el.onclick=()=>{
       buildMap(i); reset();
       document.querySelectorAll('.mapOpt').forEach(x=>x.classList.remove('sel'));
