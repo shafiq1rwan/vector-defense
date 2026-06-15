@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.37';
+const VERSION='4.38';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1075,7 +1075,7 @@ const TOWERS={
     color:'#7dffc8', heal:14, desc:'No attack. Repairs damaged towers in range and revives offline ones.'},
   /* structures — relics of the old defence grid, reawakened */
   reactor:{key:'8',name:'REACTOR', title:'credit generator', cost:80, range:0, rate:0, dmg:0, dtype:'phys',
-    color:'#6bffb0', footprint:[2,1], income:14,
+    color:'#6bffb0', income:14,
     desc:'Reignited grid power. Pays credits automatically every 10 seconds.'},
   bastion:{key:'9',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
     color:'#9a6bff', footprint:[2,2], splash:80,
@@ -2138,7 +2138,7 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.stroke();
     c.lineWidth=2;
   }
-  if(level>=3&&!def.footprint){
+  if(level>=3&&!def.footprint&&!def.income){   /* income towers use the countdown ring at this radius */
     c.save(); c.lineWidth=1.3; c.globalAlpha*=.8;
     poly(c,0,0,18.5,8,t*.7); c.stroke();
     c.restore();
@@ -2278,34 +2278,45 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.beginPath(); c.moveTo(0,bob-4.5); c.lineTo(0,bob+4.5); c.moveTo(-4.5,bob); c.lineTo(4.5,bob); c.stroke();
     c.lineWidth=2;
   }else if(type==='reactor'){
-    /* credit generator: housing, twin vaults, and a central coin with a
-       countdown ring that fills as the next payout approaches */
-    c.strokeRect(-32,-13,64,26);
-    c.beginPath();
-    c.moveTo(-32,-13); c.lineTo(-26,-19); c.lineTo(26,-19); c.lineTo(32,-13); c.stroke();
-    /* side vault coils */
-    for(const cx of [-20,20]){
-      c.beginPath(); c.arc(cx,0,6,0,TAU); c.stroke();
-      poly(c,cx,0,3,3,t*(cx<0?2:-2)); c.stroke();
+    /* credit generator at single-cell scale: a stacked coin token with a
+       big credit glyph, rising "+" sparks, and a payout countdown ring */
+    /* coin-stack base — reads as money, not a generic dome */
+    c.lineWidth=1.4;
+    for(let i=0;i<3;i++){
+      const yy=10-i*2.4;
+      c.beginPath(); c.ellipse(0,yy,9-i*1.2,2.4,0,0,TAU); c.stroke();
     }
-    /* central coin token with a credit glyph */
-    c.beginPath(); c.arc(0,0,9,0,TAU); c.stroke();
-    c.lineWidth=1.5;
+    c.lineWidth=2;
+    /* the coin face */
+    c.beginPath(); c.arc(0,bob-2,8.5,0,TAU); c.stroke();
+    c.beginPath(); c.arc(0,bob-2,6,0,TAU); c.stroke();
+    /* bold credit glyph on the coin */
+    c.lineWidth=1.6;
     c.beginPath();
-    c.moveTo(0,-5); c.lineTo(0,5);                       /* vertical bar of a credit mark */
-    c.moveTo(-3,-3); c.lineTo(3,-3); c.moveTo(-3,3); c.lineTo(3,3);
+    c.moveTo(0,bob-7); c.lineTo(0,bob+3);
+    c.moveTo(-3,bob-4.5); c.lineTo(3,bob-4.5);
+    c.moveTo(-3,bob+.5); c.lineTo(3,bob+.5);
     c.stroke(); c.lineWidth=2;
+    /* rising "+" sparks — signal it is generating */
+    c.fillStyle=col;
+    for(let i=0;i<2;i++){
+      const ph=((t*.8+i*.5)%1);
+      c.globalAlpha=(1-ph)*.9;
+      const sx=(i?7:-7), sy=bob-6-ph*12;
+      c.fillRect(sx-2.2,sy-.5,4.4,1); c.fillRect(sx-.5,sy-2.2,1,4.4);
+    }
+    c.globalAlpha=1;
     /* countdown ring — fills clockwise toward the next payout */
     if(incFrac>=0){
       c.strokeStyle='#0c1430'; c.lineWidth=3;
-      c.beginPath(); c.arc(0,0,13,0,TAU); c.stroke();
+      c.beginPath(); c.arc(0,bob-2,14,0,TAU); c.stroke();
       c.strokeStyle=col; glow(c,col,8);
-      c.beginPath(); c.arc(0,0,13,-Math.PI/2,-Math.PI/2+incFrac*TAU); c.stroke();
+      c.beginPath(); c.arc(0,bob-2,14,-Math.PI/2,-Math.PI/2+incFrac*TAU); c.stroke();
       noGlow(c); c.lineWidth=2; c.strokeStyle=col;
       if(incFrac>.97){                                   /* about to pay — coin pops up */
         const sp=(t*2)%1;
         c.fillStyle=col; c.globalAlpha=1-sp;
-        c.beginPath(); c.arc(0,-14-sp*8,2,0,TAU); c.fill();
+        c.beginPath(); c.arc(0,bob-16-sp*8,2.4,0,TAU); c.fill();
         c.globalAlpha=1;
       }
     }
@@ -3908,7 +3919,7 @@ function codexHeroes(){
     return `<div class="cdx">${art}<div>
       <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
       ${d.desc}<br>
-      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income}/10s · footprint ${d.footprint[0]}×${d.footprint[1]}`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
+      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income} credits / 10s`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
       <span style="color:#c46bff">★ ${SPECS[k][0].n} / ${SPECS[k][1].n}</span></div></div>`;
   }).join('');
 }
@@ -4221,7 +4232,7 @@ cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; })
 let cardDrag=null, suppressClick=false, holdTimer=null;
 function showCardInfo(type){
   const d=TOWERS[type], s=lvlStat(d,1), sp=SPECS[type];
-  const role=d.aura?'SUPPORT · AURA':d.heal?'SUPPORT · MENDER':d.income?'STRUCTURE · ECONOMY':d.footprint?'STRUCTURE · SIEGE':'TOWER · '+DT_NAMES[d.dtype].toUpperCase();
+  const role=d.aura?'SUPPORT · AURA':d.heal?'SUPPORT · MENDER':d.income?'TOWER · ECONOMY':d.footprint?'STRUCTURE · SIEGE':'TOWER · '+DT_NAMES[d.dtype].toUpperCase();
   const stat=d.aura?`<b>BUFF</b> +25% dmg · +15% rate · RNG ${d.range}`
     :d.heal?`<b>REPAIR</b> ${d.heal}/s · RNG ${d.range} · revives offline towers`
     :d.income?`<b>INCOME</b> +${d.income} credits every 10s`
