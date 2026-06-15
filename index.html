@@ -302,7 +302,7 @@
     width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none;
     background:#161204; border:1px solid #8a6d1f;
   }
-  .relicOpt .ric svg{display:block;}
+  .relicOpt .ric svg{display:block; margin:0;}
   .relicOpt:hover{border-color:#ffd34d; background:#161204; transform:translateY(-3px);}
   .relicOpt b{font-size:10.5px; letter-spacing:1px;}
   .relicOpt span.rd{font-size:9px; color:var(--dim); line-height:1.45; letter-spacing:.2px;}
@@ -745,7 +745,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.3';
+const VERSION='1.0.4';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
