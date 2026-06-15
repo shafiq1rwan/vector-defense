@@ -770,7 +770,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.1.0';
+const VERSION='1.1.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -797,7 +797,7 @@ const ICONS={
   bolt:'<path d="M9.5 1L3.5 9h3.4l-1.2 6 6-8H8.3z"/>',
   coin:'<circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5v7M5.8 6.2h3.4M5.8 9.8h3.4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
   horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>',
-  gear:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.6 1.6M11.2 11.2l1.6 1.6M12.8 3.2l-1.6 1.6M4.8 11.2l-1.6 1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>',
+  gear:'<path d="M12.92 7.10L14.59 6.80L14.59 9.20L12.92 8.90L12.11 10.84L13.51 11.81L11.81 13.51L10.84 12.11L8.90 12.92L9.20 14.59L6.80 14.59L7.10 12.92L5.16 12.11L4.19 13.51L2.49 11.81L3.89 10.84L3.08 8.90L1.41 9.20L1.41 6.80L3.08 7.10L3.89 5.16L2.49 4.19L4.19 2.49L5.16 3.89L7.10 3.08L6.80 1.41L9.20 1.41L8.90 3.08L10.84 3.89L11.81 2.49L13.51 4.19L12.11 5.16Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" stroke-width="1.3"/>',
   lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
   info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>'
 };
