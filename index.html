@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.34';
+const VERSION='4.35';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1074,7 +1074,7 @@ const TOWERS={
   medic:{key:'7',name:'JUNO', title:'the Mender', cost:110, range:100, rate:0, dmg:0, dtype:'phys',
     color:'#7dffc8', heal:14, desc:'No attack. Repairs damaged towers in range and revives offline ones.'},
   /* structures — relics of the old defence grid, reawakened */
-  reactor:{key:'8',name:'REACTOR', title:'credit generator', cost:120, range:0, rate:0, dmg:0, dtype:'phys',
+  reactor:{key:'8',name:'REACTOR', title:'credit generator', cost:80, range:0, rate:0, dmg:0, dtype:'phys',
     color:'#6bffb0', footprint:[2,1], income:14,
     desc:'Reignited grid power. Pays credits automatically every 10 seconds.'},
   bastion:{key:'9',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
