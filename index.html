@@ -769,7 +769,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.8';
+const VERSION='1.0.9';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4276,13 +4276,20 @@ function codexBiome(){
 }
 function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
-    <b>1–7</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave · hold a card to inspect it<br>
-    <b>F</b> game speed · <b>P</b> pause · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
-    <b style="color:#9db8ff">TOUCH</b> — drag a hero card from the bottom dock straight onto the grid: the tower
-    floats above your finger; release to build. Swipe the dock sideways to see more cards. The same press-drag
-    gesture aims the orbital strike.<br><br>
-    <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits · max-level towers unlock a
-    ★ specialization · towers earn XP and rank stars from kills · study the ENEMIES tab to learn weaknesses,
+    <b style="color:#9db8ff">PC — KEYBOARD &amp; MOUSE</b><br>
+    <b>1–7</b> select hero &middot; <b>8/9</b> structures &middot; <b>Q/W/E</b> abilities<br>
+    <b>click</b> a grid cell to build the selected tower &middot; <b>SHIFT+click</b> place several in a row<br>
+    <b>hover/click</b> a card to inspect it &middot; <b>click</b> a placed tower to upgrade / repair / sell<br>
+    <b>SPACE</b> start wave &middot; <b>F</b> game speed &middot; <b>P</b> pause &middot; <b>ESC</b> cancel<br>
+    click-drag the orbital strike to aim it.<br><br>
+    <b style="color:#6bffb0">MOBILE — TOUCH</b><br>
+    <b>drag</b> a hero card from the bottom dock straight onto the grid — the tower floats above your finger;
+    release to build &middot; <b>swipe</b> the dock sideways for more cards<br>
+    <b>tap</b> a placed tower to upgrade / repair / sell &middot; <b>hold</b> a card to inspect its stats<br>
+    <b>tap</b> an ability, then drag to aim the orbital strike &middot; on-screen pause / speed buttons sit in the HUD<br>
+    portrait phones auto-rotate to landscape; add to your home screen for fullscreen offline play.<br><br>
+    <b style="color:#ffd34d">TIPS</b> — chain kills within 1.3s for combo credits &middot; max-level towers unlock a
+    ★ specialization &middot; towers earn XP and rank stars from kills &middot; study the ENEMIES tab to learn weaknesses,
     then read the field — no one will tell you what marches next.</div></div>`;
 }
 /* ============================== SETTINGS ============================== */
