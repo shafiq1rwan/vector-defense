@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.36';
+const VERSION='4.37';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1947,9 +1947,10 @@ function update(dt){
     }
   }
 
-  /* reactors — passive income every INCOME_EVERY seconds, with coin animation */
+  /* reactors — passive income every INCOME_EVERY seconds, with coin animation.
+     Only after the first wave has begun — no farming during pre-wave setup. */
   for(const t of towers){
-    if(!t.def.income||t.offline||t.buildT>0) continue;
+    if(!t.def.income||t.offline||t.buildT>0||wave<1) continue;
     t.incT-=dt;
     if(t.incT<=0){
       t.incT=INCOME_EVERY;
