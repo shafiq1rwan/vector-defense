@@ -409,6 +409,13 @@
     padding:8px; font-size:10px; line-height:1.55; color:var(--dim);
   }
   .cdx canvas{flex:none; margin-top:2px;}
+  .cdx.locked{opacity:.7;}
+  .cdx.locked b{color:#3a4a7a;}
+  .cdx .lockArt{
+    flex:none; width:44px; height:44px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    background:#070d1f; border:1px dashed #2a3d72; color:#3a4a7a;
+  }
   .cdx i{color:#9db8ff; font-style:normal;}
   .cdx .wk{color:#39ff6a;} .cdx .rs{color:#ff4d6a;}
   @media (max-width:520px){ #codexBody{grid-template-columns:1fr;} }
@@ -676,7 +683,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.41';
+const VERSION='4.42';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3913,6 +3920,13 @@ function renderBiomeIcon(cv,kind){
 function codexHeroes(){
   return Object.keys(TOWERS).map(k=>{
     const d=TOWERS[k], s=lvlStat(d,1);
+    /* heroes earned through the campaign stay hidden until unlocked */
+    if(!heroUnlocked(k)){
+      const node=CAMPAIGN.find(n=>n.unlock===k);
+      const where=node?`Clear <b style="color:#9db8ff">${String(node.id+1).padStart(2,'0')} ${node.name}</b> to recruit.`:'Unlock through the campaign.';
+      return `<div class="cdx locked"><div class="lockArt">${ic('lock',22)}</div><div>
+        <b>??? </b><span style="font-size:9px">LOCKED</span><br>${where}</div></div>`;
+    }
     const art=(d.footprint||d.income)   /* structures & the reactor show their body icon, not a hero portrait */
       ? `<canvas width="44" height="44" data-hero="${k}"></canvas>`
       : `<canvas width="92" height="118" data-portrait="${k}" style="width:44px;height:56px"></canvas>`;
