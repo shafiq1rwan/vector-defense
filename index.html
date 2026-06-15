@@ -721,7 +721,6 @@
           <span class="k">Q/W/E</span><span>abilities</span>
           <span class="k">SPACE</span><span>start wave</span>
           <span class="k">F</span><span>game speed</span>
-          <span class="k">T</span><span>targeting mode</span>
           <span class="k">ESC</span><span>cancel</span>
           <span class="k">SHIFT+CLICK</span><span>multi-place</span>
           <span class="k">DRAG</span><span>place on touch</span>
@@ -746,7 +745,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.5';
+const VERSION='1.0.6';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3722,7 +3721,6 @@ function showTowerInfo(t){
     html+=`<b style="color:${t.offline?'#ff8a3a':'#7dffc8'}">HULL ${Math.ceil(t.hp)}/${t.maxHp}${t.offline?' — OFFLINE':''}</b><br>`;
   const repCost=Math.round(t.invested*.35);
   html+=`<div class="btnrow" style="margin-top:5px">
-      ${(d.aura||d.income||d.heal)?'':`<button id="targetBtn">${ic('target',11)}${MODES[t.mode]}</button>`}
       ${t.offline?`<button class="up" id="repBtn" ${money<repCost?'disabled':''}>${ic('retry',11)}FIX $${repCost}</button>`:''}
       <button class="up" id="upBtn" ${maxed||money<uc||t.offline?'disabled':''}>${maxed?'MAX':ic('up',11)+'$'+uc}</button>
       <button class="sell${sellArm===t?' arm':''}" id="sellBtn">${sellArm===t?'SELL? · $'+refund:ic('x',10)+'$'+refund}</button>
@@ -3743,7 +3741,6 @@ function showTowerInfo(t){
   /* tutorial: pulse the upgrade button so step 3 lands */
   if(campNode&&campNode.id===0&&t.level===1&&wave>=1) $('upBtn').classList.add('tut');
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
-  if(!d.aura&&!d.income&&!d.heal) $('targetBtn').onclick=()=>{ t.mode=(t.mode+1)%MODES.length; showTowerInfo(t); };
   if(t.offline&&$('repBtn')) $('repBtn').onclick=()=>{
     if(money<repCost) return;
     money-=repCost; t.hp=t.maxHp; t.offline=false;
@@ -3928,7 +3925,7 @@ function buildUI(){
   /* how-to-play steps */
   $('howList').innerHTML=[
     ['1','<b>DRAG</b> a hero card from the bottom dock onto a glowing cell to build a tower. Hold a card to read its stats.'],
-    ['2','<b>TAP</b> a placed tower to upgrade, repair, sell it or change its targeting.'],
+    ['2','<b>TAP</b> a placed tower to upgrade, repair or sell it.'],
     ['3','<b>ABILITIES</b> Q/W/E — tap STRIKE then aim the map; NOVA freezes, SURGE powers up your towers.'],
     ['4','<b>HOLD THE LINE</b> — stop every glyph before it reaches your CORE. Earn credits from kills and REACTORS.']
   ].map(s=>`<div class="howStep"><div class="hn">${s[0]}</div><div>${s[1]}</div></div>`).join('');
@@ -4139,7 +4136,7 @@ function codexBiome(){
 function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
     <b>1–7</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave · hold a card to inspect it<br>
-    <b>F</b> game speed · <b>P</b> pause · <b>T</b> targeting mode · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
+    <b>F</b> game speed · <b>P</b> pause · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
     <b style="color:#9db8ff">TOUCH</b> — drag a hero card from the bottom dock straight onto the grid: the tower
     floats above your finger; release to build. Swipe the dock sideways to see more cards. The same press-drag
     gesture aims the orbital strike.<br><br>
@@ -4505,7 +4502,6 @@ document.addEventListener('keydown',e=>{
   else if(k==='q'){useAbility('strike');}
   else if(k==='w'){useAbility('nova');}
   else if(k==='e'){useAbility('surge');}
-  else if(k==='t'&&selTower&&!selTower.def.aura){selTower.mode=(selTower.mode+1)%MODES.length; showTowerInfo(selTower);}
   else for(const tk in TOWERS) if(TOWERS[tk].key===k) selectCard(tk);
 });
 

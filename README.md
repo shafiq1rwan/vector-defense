@@ -30,11 +30,10 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 | 1–7 | Select hero (8/9 for structures) |
 | Drag a card from the dock onto the grid (any direction) | Place tower |
 | Hold a card | Inspect its stats and specs |
-| Tap a tower | Details, upgrade, repair, sell, targeting mode |
+| Tap a tower | Details, upgrade, repair, sell |
 | Q/W/E | Abilities |
 | Space | Start wave (early call = bonus credits) |
 | F | Game speed 1×/2×/3× |
-| T | Cycle targeting mode |
 | P | Pause |
 | Shift+click | Place multiple towers |
 
