@@ -770,7 +770,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.1.1';
+const VERSION='1.1.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1044,9 +1044,14 @@ function buildMap(i,persistSel=true){
   }
   roadChevrons=[]; roadAprons=[];
   const apronSeen=new Set();
+  /* dedupe arrows so overlapping/merging lanes don't stack them, and keep them
+     off the busy junction plates — gives an even, single rhythm down each road */
+  const chevTooClose=(x,y)=>roadChevrons.some(p=>Math.hypot(p.x-x,p.y-y)<48);
+  const chevNearJunction=(x,y)=>roadJunctions.some(j=>Math.hypot(j[0]-x,j[1]-y)<36);
   LANES.forEach((L,li)=>{
-    for(let d=70; d<L.len-50; d+=90){
+    for(let d=64; d<L.len-50; d+=CELL*2){
       const p=pointAt(d,li);
+      if(chevNearJunction(p.x,p.y)||chevTooClose(p.x,p.y)) continue;
       roadChevrons.push({x:p.x,y:p.y,a:Math.atan2(p.dy,p.dx)});
     }
     /* hazard aprons: green at the spawn mouth, red before the exit */
