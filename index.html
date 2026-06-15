@@ -290,22 +290,21 @@
   .howStep b{color:#9db8ff;}
   /* relic draft */
   #relicOverlay .big{animation:titleIn .5s ease-out;}
-  #relicRow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; max-width:680px; margin-top:4px;}
+  #relicRow{display:flex; gap:8px; flex-wrap:nowrap; justify-content:center; width:100%; max-width:660px; margin-top:4px;}
   .relicOpt{
-    width:164px; min-height:138px; background:#0a1126; border:1.5px solid #8a6d1f;
-    border-radius:12px; padding:14px 11px 12px; cursor:pointer; color:#ffd34d; font:inherit;
-    display:flex; flex-direction:column; align-items:center; gap:7px; flex:none;
+    flex:1 1 0; min-width:0; max-width:160px; min-height:128px; background:#0a1126; border:1.5px solid #8a6d1f;
+    border-radius:12px; padding:12px 8px; cursor:pointer; color:#ffd34d; font:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
     animation:relIn .45s ease-out;
   }
   @keyframes relIn{from{opacity:0; transform:translateY(20px) scale(.92);}}
   .relicOpt .ric{
-    width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none;
     background:#161204; border:1px solid #8a6d1f;
   }
   .relicOpt:hover{border-color:#ffd34d; background:#161204; transform:translateY(-3px);}
-  .relicOpt b{font-size:11px; letter-spacing:1.5px;}
-  .relicOpt span.rd{font-size:9.5px; color:var(--dim); line-height:1.5; letter-spacing:.3px;}
-  .relicOpt .rtag{margin-top:auto; font-size:7px; letter-spacing:1.5px; color:#8a6d1f;}
+  .relicOpt b{font-size:10.5px; letter-spacing:1px;}
+  .relicOpt span.rd{font-size:9px; color:var(--dim); line-height:1.45; letter-spacing:.2px;}
   /* in-run relic tray (side column) */
   #relicHdr{font-size:7.5px; letter-spacing:1.5px; color:#ffd34d; margin-bottom:-2px;}
   #relicHdr.hidden,#relicStrip.hidden{display:none;}
@@ -560,7 +559,7 @@
             <div id="progWrap"><div id="progFill"></div></div></div>
         </div>
         <div id="abils"></div>
-        <div id="relicHdr" class="hidden">RELICS — TAP TO INSPECT</div>
+        <div id="relicHdr" class="hidden">RELICS</div>
         <div id="relicStrip" class="hidden"></div>
         <div id="relicInfo"></div>
       </div>
@@ -737,7 +736,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.1';
+const VERSION='1.0.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1234,7 +1233,7 @@ function openDraft(title){
     const r=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
     const b=document.createElement('button');
     b.className='relicOpt';
-    b.innerHTML='<div class="ric">'+ic(r.icon,26)+'</div><b>'+r.n+'</b><span class="rd">'+r.d+'</span><span class="rtag">RUN-LONG</span>';
+    b.innerHTML='<div class="ric">'+ic(r.icon,26)+'</div><b>'+r.n+'</b><span class="rd">'+r.d+'</span>';
     b.onclick=()=>pickRelic(r.id);
     row.appendChild(b);
   }
@@ -1254,8 +1253,6 @@ function pickRelic(id){
   renderRelicStrip();
   const box=$('relicStrip');   /* flash the tray so players see where it went */
   if(box){ box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); }
-  $('relicInfo').textContent=r.n+' — '+r.d;
-  clearTimeout(riT); riT=setTimeout(()=>{$('relicInfo').textContent='';},4500);
   SND.ability(); vib(15);
 }
 function renderRelicStrip(){
@@ -1303,7 +1300,7 @@ const ENEMIES={
     desc:'stops to bombard your towers', res:{phys:.7,expl:.85,energy:1.2}},
   boss:{hp:1400, speed:21, reward:160, lives:5, r:22, color:'#ff3af0', shape:'golem',
     bossLike:true, golem:true, label:'OVERMIND', desc:'ancient war golem', res:{phys:.8,ice:.8,expl:.8,energy:.8}},
-  revenant:{hp:1250, speed:34, reward:170, lives:5, r:19, color:'#aef3ff', shape:'kite',
+  revenant:{hp:1250, speed:34, reward:170, lives:5, r:19, color:'#b486ff', shape:'kite',
     bossLike:true, revenant:true, label:'REVENANT', desc:'phasing relay-ghost — only hittable between blinks',
     res:{phys:.85,ice:.85,expl:.85,energy:.85}},
   prime:{hp:2600, speed:21, reward:320, lives:8, r:24, color:'#ff3af0', shape:'golem',
@@ -3546,21 +3543,21 @@ function draw(){
     const ease=1-Math.pow(1-Math.min(1,T/.45),3);
     const out=T>2.0?Math.min(1,(T-2.0)/.6):0;
     const colMain=isBoss?'#ff3af0':'#4d8dff';
-    const y=58-out*16, bw=ease*230;
+    const y=66-out*18, bw=ease*300;
     ctx.save();
     ctx.globalAlpha=1-out;
-    ctx.fillStyle='rgba(6,10,20,.82)';
-    ctx.fillRect(W/2-bw,y-23,bw*2,46);
-    ctx.strokeStyle=colMain; ctx.lineWidth=1.5;
+    ctx.fillStyle='rgba(6,10,20,.85)';
+    ctx.fillRect(W/2-bw,y-30,bw*2,60);
+    ctx.strokeStyle=colMain; ctx.lineWidth=1.8;
     glow(ctx,colMain,9);
     ctx.beginPath();
-    ctx.moveTo(W/2-bw,y-23); ctx.lineTo(W/2+bw,y-23);
-    ctx.moveTo(W/2-bw,y+23); ctx.lineTo(W/2+bw,y+23);
+    ctx.moveTo(W/2-bw,y-30); ctx.lineTo(W/2+bw,y-30);
+    ctx.moveTo(W/2-bw,y+30); ctx.lineTo(W/2+bw,y+30);
     ctx.stroke();
     ctx.fillStyle=colMain;
     for(const s of [-1,1]){
       ctx.beginPath();
-      ctx.moveTo(W/2+s*(bw+12),y); ctx.lineTo(W/2+s*(bw+4),y-5); ctx.lineTo(W/2+s*(bw+4),y+5);
+      ctx.moveTo(W/2+s*(bw+14),y); ctx.lineTo(W/2+s*(bw+5),y-7); ctx.lineTo(W/2+s*(bw+5),y+7);
       ctx.closePath(); ctx.fill();
     }
     noGlow(ctx);
@@ -3568,20 +3565,20 @@ function draw(){
       ctx.globalAlpha=(ease-.6)/.4*(1-out);
       ctx.textAlign='center';
       ctx.fillStyle=isBoss?'#ff9af8':'#9db8ff';
-      ctx.font='bold 8px monospace';
-      const sub=isBoss ? 'OVERMIND SIGNATURE DETECTED'
-        :(curWave&&curWave.mod) ? (curWave.mod.label+' PROTOCOL — '+curWave.mod.desc).toUpperCase()
+      ctx.font='bold 13px monospace';
+      const sub=isBoss ? 'BOSS SIGNATURE DETECTED'
+        :(curWave&&curWave.mod) ? (curWave.mod.label+' — '+curWave.mod.desc).toUpperCase()
         :'HOSTILE COLUMN INBOUND';
-      ctx.fillText(sub,W/2,y-9);
+      ctx.fillText(sub,W/2,y-12);
       ctx.fillStyle='#fff';
-      ctx.font='bold 23px monospace';
-      glow(ctx,colMain,14);
-      ctx.fillText((isBoss?'BOSS WAVE ':'WAVE ')+wave,W/2,y+14);
+      ctx.font='bold 30px monospace';
+      glow(ctx,colMain,16);
+      ctx.fillText((isBoss?'BOSS WAVE ':'WAVE ')+wave,W/2,y+16);
       noGlow(ctx);
       const nE=curWave?curWave.spawns.filter(s=>s.elite).length:0;
       if(nE){
-        ctx.fillStyle='#ffd34d'; ctx.font='bold 9px monospace';
-        ctx.fillText(nE+' ELITE'+(nE>1?'S':'')+' IN COLUMN',W/2,y+35);
+        ctx.fillStyle='#ffd34d'; ctx.font='bold 12px monospace';
+        ctx.fillText(nE+' ELITE'+(nE>1?'S':'')+' IN COLUMN',W/2,y+44);
       }
     }
     ctx.restore(); ctx.globalAlpha=1;
