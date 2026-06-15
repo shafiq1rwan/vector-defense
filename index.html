@@ -154,6 +154,7 @@
   @keyframes pul{50%{box-shadow:0 0 14px rgba(77,141,255,.7); border-color:#7db2ff;}}
   .up{background:#123a1e; border-color:#2f7a40;} .up:hover{background:#1a5a2c;}
   .sell{background:#3a1220; border-color:#7a2f40;} .sell:hover{background:#5a1a2c;}
+  .sell.arm{background:#6a1226; border-color:#ff4d6a; color:#fff; animation:pul 1s infinite;}
   .specBtn{background:#2a1a3a; border-color:#6a3fa0; font-size:9px; line-height:1.3;}
   .specBtn:hover{background:#3d2658;}
   .specBtn small{display:block; font-weight:400; color:var(--dim); font-size:8px;}
@@ -745,7 +746,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.4';
+const VERSION='1.0.5';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3699,7 +3700,8 @@ function refreshUI(){
     b.querySelector('.cdt').textContent=cd>0?Math.ceil(cd)+'s':ABILITIES[k].name;
   }
 }
-function hidePop(){ $('towerPop').classList.add('hidden'); }
+let sellArm=null, sellArmT=null;
+function hidePop(){ sellArm=null; clearTimeout(sellArmT); $('towerPop').classList.add('hidden'); }
 function showTowerInfo(t){
   const d=t.def, s=t.stats;
   const maxed=t.level>=MAX_LVL;
@@ -3723,7 +3725,7 @@ function showTowerInfo(t){
       ${(d.aura||d.income||d.heal)?'':`<button id="targetBtn">${ic('target',11)}${MODES[t.mode]}</button>`}
       ${t.offline?`<button class="up" id="repBtn" ${money<repCost?'disabled':''}>${ic('retry',11)}FIX $${repCost}</button>`:''}
       <button class="up" id="upBtn" ${maxed||money<uc||t.offline?'disabled':''}>${maxed?'MAX':ic('up',11)+'$'+uc}</button>
-      <button class="sell" id="sellBtn">${ic('x',10)}$${refund}</button>
+      <button class="sell${sellArm===t?' arm':''}" id="sellBtn">${sellArm===t?'SELL? · $'+refund:ic('x',10)+'$'+refund}</button>
     </div>`;
   if(maxed && !t.spec){
     const cc=specCost(d), sp=SPECS[t.type];
@@ -3767,6 +3769,12 @@ function showTowerInfo(t){
     showTowerInfo(t); refreshUI();
   };
   $('sellBtn').onclick=()=>{
+    if(sellArm!==t){   /* first tap arms it — guards against accidental sells on mobile */
+      sellArm=t; clearTimeout(sellArmT);
+      sellArmT=setTimeout(()=>{ if(sellArm===t){ sellArm=null; if(selTower===t) showTowerInfo(t); } },2200);
+      showTowerInfo(t); SND.deny(); return;
+    }
+    sellArm=null; clearTimeout(sellArmT);
     money+=refund; soldAny=true;
     t.keys.forEach(k=>occ.delete(k));
     towers=towers.filter(x=>x!==t);
