@@ -798,7 +798,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.1.4';
+const VERSION='1.2.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -919,13 +919,18 @@ const MAPS=[
     [[247.5,-40],[247.5,302.5],[687.5,302.5],[687.5,535]]
   ]},
   /* tutorial-only straight road — hidden from quick play */
-  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,247.5],[1030,247.5]]}
+  {name:'OUTPOST', coreBack:120, hidden:true, path:[[-40,247.5],[1030,247.5]]},
+  /* RIFT — a warp gate: the lane crosses an empty void where enemies teleport
+     from the entry gate to the exit gate (seg 3). Total road length stays normal. */
+  {name:'RIFT', coreBack:100, tag:'1 SPAWN · 1 EXIT · WARP', paths:[
+    [[-40,137.5],[247.5,137.5],[247.5,357.5],[357.5,357.5],[632.5,137.5],[742.5,137.5],[742.5,357.5],[1030,357.5]]
+  ], warps:[{lane:0,seg:3}]}
 ];
 let mapIndex=Math.min(SAVE.map||0,MAPS.length-1);
 if(MAPS[mapIndex].hidden) mapIndex=0;
 let PATH=[], SEGS=[], PATH_LEN=0, blocked=new Set(), buildable=new Set(), PORTAL=null, CORE=null;
 let LANES=[], roadTiles=[], roadEdges=[], roadChevrons=[];
-let roadPosts=[], roadJunctions=[], roadWear=[], roadAprons=[];
+let roadPosts=[], roadJunctions=[], roadWear=[], roadAprons=[], warpLinks=[];
 const stars=[], props=[];
 /* flora clusters scattered around the field — pure scenery, hidden under placed towers */
 let grove=[];
@@ -1016,19 +1021,24 @@ function buildMap(i,persistSel=true){
   if(persistSel && !MAPS[i].hidden){ SAVE.map=i; persist(); }
   const m=MAPS[i];
   /* one or many lanes per stage (Arknights-style multi spawn/exit) */
-  LANES=(m.paths||[m.path]).map(pd=>{
+  LANES=(m.paths||[m.path]).map((pd,li)=>{
     const P=pd.map(p=>({x:p[0],y:p[1]}));
     const segs=[]; let len=0;
     for(let j=0;j<P.length-1;j++){
       const a=P[j],b=P[j+1],l=Math.hypot(b.x-a.x,b.y-a.y);
       segs.push({a,b,len:l,start:len}); len+=l;
     }
-    return {PATH:P,segs,len};
+    /* mark warp segments (enemies teleport across them; no road is laid there) */
+    for(const w of (m.warps||[])) if(w.lane===li && segs[w.seg]) segs[w.seg].warp=true;
+    const L={PATH:P,segs,len}; L.warps=segs.filter(s=>s.warp); return L;
   });
   PATH=LANES[0].PATH; SEGS=LANES[0].segs; PATH_LEN=LANES[0].len;
+  warpLinks=[];
+  for(const L of LANES) for(const s of L.warps) warpLinks.push({a:{x:s.a.x,y:s.a.y}, b:{x:s.b.x,y:s.b.y}});
   blocked=new Set();
   const roadCells=new Set();
   for(const L of LANES) for(const s of L.segs){
+    if(s.warp) continue;   /* the rift is a void — no road tiles across it */
     const steps=Math.ceil(s.len/4);
     for(let j=0;j<=steps;j++){
       const x=s.a.x+(s.b.x-s.a.x)*j/steps, y=s.a.y+(s.b.y-s.a.y)*j/steps;
@@ -1079,6 +1089,7 @@ function buildMap(i,persistSel=true){
   const chevNearJunction=(x,y)=>roadJunctions.some(j=>Math.hypot(j[0]-x,j[1]-y)<36);
   LANES.forEach((L,li)=>{
     for(let d=64; d<L.len-50; d+=CELL*2){
+      if(L.segs.some(s=>s.warp && d>=s.start && d<=s.start+s.len)) continue;   /* no arrows in the void */
       const p=pointAt(d,li);
       if(chevNearJunction(p.x,p.y)||chevTooClose(p.x,p.y)) continue;
       roadChevrons.push({x:p.x,y:p.y,a:Math.atan2(p.dy,p.dx)});
@@ -1624,6 +1635,11 @@ function shatter(x,y,r,shape,color,ang=0,sp=1){
 }
 const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+Math.round(n);
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
+/* rift teleport: magenta collapse at the entry gate, cyan bloom at the exit */
+function warpFx(ax,ay,bx,by){
+  ring(ax,ay,20,'#b06bff',.3); spray(ax,ay,'#b06bff',10,150,.4,2.2);
+  ring(bx,by,10,'#6bdcff',.35); spray(bx,by,'#6bdcff',12,200,.5,2.6);
+}
 /* heavy AOE detonation — reads as area damage: a flat coverage disc at the exact
    splash radius, a thick shockwave punching past it, and a white core flash */
 function blast(x,y,r,color){
@@ -2046,6 +2062,16 @@ function update(dt){
     let sp=planted ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
     if(e.def.revenant&&e.rev&&e.rev.ph==='vuln') sp*=.5;   /* crawls while exposed */
     e.dist+=sp*dt;
+    /* rift gate: blink instantly from the entry gate to the exit gate */
+    const _ln=LANES[e.lane];
+    if(_ln && _ln.warps && _ln.warps.length) for(const s of _ln.warps){
+      if(e.dist>s.start && e.dist<s.start+s.len){
+        warpFx(s.a.x,s.a.y,s.b.x,s.b.y);
+        e.dist=s.start+s.len+0.5;
+        SND.tesla();
+        break;
+      }
+    }
     const p=pointAt(e.dist,e.lane);
     e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
     if(e.def.heal){
@@ -3367,6 +3393,28 @@ function draw(){
       ctx.fillText('SPAWN',Math.max(34,Math.min(W-34,p.x)),Math.max(14,Math.min(H-6,p.y+32)));
     }
   }
+
+  /* rift gates — paired warp portals; enemies blink from entry to exit */
+  for(const wl of warpLinks){
+    /* faint tether so the pairing reads */
+    ctx.strokeStyle='rgba(140,120,255,.16)'; ctx.lineWidth=1.5;
+    ctx.setLineDash([6,10]); ctx.lineDashOffset=-time*22;
+    ctx.beginPath(); ctx.moveTo(wl.a.x,wl.a.y); ctx.lineTo(wl.b.x,wl.b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    const pl=Math.sin(time*4);
+    for(const g of [[wl.a,'#b06bff',1],[wl.b,'#6bdcff',-1]]){
+      const p=g[0], col=g[1], dir=g[2];
+      ctx.strokeStyle=col; ctx.lineWidth=2; glow(ctx,col,14);
+      for(let i=0;i<3;i++){
+        const a0=dir*time*2.4+i*TAU/3;
+        ctx.beginPath(); ctx.arc(p.x,p.y,13+pl*2,a0,a0+1.5); ctx.stroke();
+      }
+      poly(ctx,p.x,p.y,6,4,dir*time*1.4); ctx.stroke();
+      noGlow(ctx);
+      ctx.fillStyle=col; ctx.font='bold 8px monospace'; ctx.textAlign='center';
+      ctx.fillText('RIFT',p.x,Math.max(12,Math.min(H-6,p.y+26)));
+    }
+  }
   /* CORE breach points — one per exit */
   const coreSeen=new Set();
   for(const L of LANES){
@@ -4069,13 +4117,27 @@ function buildUI(){
     const c=el.querySelector('canvas').getContext('2d');
     const sx=p=>8+p[0]*.128, sy=p=>8+p[1]*.128;
     const lanes=m.paths||[m.path];
+    const isWarp=(li,j)=>(m.warps||[]).some(w=>w.lane===li&&w.seg===j);
     c.lineJoin='round'; c.lineCap='round';
-    for(const w of [['#1c2c60',10],['#5a9aff',3]]){
-      c.strokeStyle=w[0]; c.lineWidth=w[1];
-      c.beginPath();
-      for(const pd of lanes) pd.forEach((p,j)=>{ j?c.lineTo(sx(p),sy(p)):c.moveTo(sx(p),sy(p)); });
-      c.stroke();
-    }
+    lanes.forEach((pd,li)=>{
+      /* solid road, drawn per-segment so warp segments can be skipped */
+      for(const w of [['#1c2c60',10],['#5a9aff',3]]){
+        c.strokeStyle=w[0]; c.lineWidth=w[1];
+        for(let j=0;j<pd.length-1;j++){
+          if(isWarp(li,j)) continue;
+          c.beginPath(); c.moveTo(sx(pd[j]),sy(pd[j])); c.lineTo(sx(pd[j+1]),sy(pd[j+1])); c.stroke();
+        }
+      }
+      /* warp segments — dashed rift line with paired gate dots */
+      for(let j=0;j<pd.length-1;j++){
+        if(!isWarp(li,j)) continue;
+        c.strokeStyle='#b06bff'; c.lineWidth=2; c.setLineDash([4,4]);
+        c.beginPath(); c.moveTo(sx(pd[j]),sy(pd[j])); c.lineTo(sx(pd[j+1]),sy(pd[j+1])); c.stroke();
+        c.setLineDash([]);
+        c.fillStyle='#b06bff'; c.beginPath(); c.arc(sx(pd[j]),sy(pd[j]),3,0,TAU); c.fill();
+        c.fillStyle='#6bdcff'; c.beginPath(); c.arc(sx(pd[j+1]),sy(pd[j+1]),3,0,TAU); c.fill();
+      }
+    });
     for(const pd of lanes){
       const a=pd[0], z=pd[pd.length-1];
       c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.6,0,TAU); c.fill();
