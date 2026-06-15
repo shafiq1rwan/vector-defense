@@ -113,7 +113,7 @@
   }
   .abtn b{display:block; font-size:13px; color:var(--ac,#4d8dff);}
   .abtn .atag{font-size:6.5px; font-weight:400; letter-spacing:.3px; color:var(--dim);}
-  .abtn.aim .atag,.abtn.aim .cdt{color:#04060d;}
+  .abtn.aim b,.abtn.aim .atag,.abtn.aim .cdt{color:#04060d;}
   .abtn:hover{border-color:var(--ac,#4d8dff);}
   .abtn.ready{border-color:var(--ac); color:var(--ac); animation:pul 1.6s infinite;}
   .abtn.cool{opacity:.45; cursor:not-allowed;}
@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.33';
+const VERSION='4.34';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
