@@ -728,6 +728,7 @@
         <div class="setHead">DISPLAY</div>
         <div class="setRow"><span>SCREEN SHAKE</span><button id="setShake" class="tog"></button></div>
         <div class="setRow"><span>VIBRATION</span><button id="setHaptics" class="tog"></button></div>
+        <div class="setRow"><span>PERFORMANCE<br><i style="font-size:10px;color:#8497c7">lighter visuals on slow phones</i></span><button id="setPerf" class="tog"></button></div>
       </div>
       <div class="setCard danger">
         <div class="setHead">DATA</div>
@@ -769,7 +770,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.9';
+const VERSION='1.1.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -813,6 +814,7 @@ SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
 SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{}},SAVE.cosmetics||{});
 SAVE.seenIntro=!!SAVE.seenIntro;
+SAVE.perf=(SAVE.perf==='on'||SAVE.perf==='off')?SAVE.perf:'auto';   /* perf mode: 'auto' | 'on' | 'off' */
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
@@ -1563,7 +1565,7 @@ function musicTick(){
 /* ============================== HELPERS ============================== */
 const dist2=(a,b)=>{const dx=a.x-b.x,dy=a.y-b.y;return dx*dx+dy*dy;};
 function spray(x,y,color,n,sp=140,life=.5,size=2.4){
-  if(parts.length>240) return;
+  if(parts.length>(perfLite?120:240)) return;
   for(let i=0;i<n;i++){
     const a=Math.random()*TAU, v=sp*(.3+Math.random()*.7);
     parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,color,size:size*(.5+Math.random())});
@@ -1573,7 +1575,7 @@ function addText(x,y,str,color,big){texts.push({x,y,str,color,life:1,big});}
 /* vector shatter — the enemy's outline breaks into spinning line fragments */
 const SHARD_N={tri:3,square:4,diamond:4,hex:6,cross:8,pent:5,spark:6,golem:7};
 function shatter(x,y,r,shape,color,ang=0,sp=1){
-  if(parts.length>260) return;
+  if(parts.length>(perfLite?130:260)) return;
   const n=SHARD_N[shape]||5, vs=[];
   for(let i=0;i<n;i++){ const a=ang+i/n*TAU; vs.push({x:x+Math.cos(a)*r, y:y+Math.sin(a)*r}); }
   for(let i=0;i<n;i++){
@@ -2259,6 +2261,20 @@ function poly(c,x,y,r,n,rot=0){
 /* glow governor: shadowBlur is the #1 mobile GPU cost — heavy scenes drop it */
 let fxLite=false;
 let incFrac=-1;   /* reactor payout fraction set per-tower before drawTowerBody */
+/* ---- adaptive performance governor ----------------------------------------
+   perfLite drops the expensive neon glow + trims the particle budgets;
+   perfThrottle additionally caps the canvas to ~30fps to free GPU headroom.
+   SAVE.perf 'auto' lets the FPS sampler LATCH these on for weak devices (latch =
+   never auto-recovers within a session, so the glow can't flicker on/off);
+   'on' forces both (lightest look), 'off' keeps full effects. */
+let perfLite=false, perfThrottle=false, autoLite=false, autoThrottle=false;
+let curFps=60, fpsAccum=0, fpsFrames=0, loStreak=0, drawTick=0;
+function computePerf(){
+  if(SAVE.perf==='off'){ perfLite=false; perfThrottle=false; }
+  else if(SAVE.perf==='on'){ perfLite=true; perfThrottle=true; }
+  else { perfLite=autoLite; perfThrottle=autoThrottle; }
+}
+computePerf();
 function glow(c,color,blur){ if(fxLite) return; c.shadowColor=color; c.shadowBlur=blur; }
 function noGlow(c){ c.shadowBlur=0; }
 /* small vector lightning bolt (unit-sized, scaled by s) */
@@ -3211,8 +3227,8 @@ function drawFireflies(){
 /* ============================== DRAW: SCENE ============================== */
 function draw(){
   const TH=THEME();
-  /* glow governor: heavy scenes drop shadowBlur for smooth frames */
-  fxLite=(enemies.length+towers.length+parts.length/3)>60;
+  /* glow governor: heavy scenes (or lite/performance mode) drop shadowBlur for smooth frames */
+  fxLite=perfLite||(enemies.length+towers.length+parts.length/3)>60;
   ctx.save();
   if(shake>0&&SAVE.shake) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.clearRect(-20,-20,W+40,H+40);
@@ -4297,6 +4313,10 @@ let settingsReturn='titleOverlay', resetArmed=false;
 function refreshSettings(){
   const set=(id,on)=>{const b=$(id); b.textContent=on?'ON':'OFF'; b.classList.toggle('on',on); b.classList.toggle('off',!on);};
   set('setMusic',SAVE.music); set('setSfx',SAVE.sfx); set('setShake',SAVE.shake); set('setHaptics',SAVE.haptics);
+  const pb=$('setPerf'), pm=SAVE.perf;
+  pb.textContent = pm==='auto'?'AUTO':pm==='on'?'ON':'OFF';
+  pb.classList.toggle('on', pm!=='off');
+  pb.classList.toggle('off', pm==='off');
   $('volSlider').value=Math.round(vol*100);
   $('volVal').textContent=Math.round(vol*100)+'%';
   $('resetSave').textContent=resetArmed?'SURE?':'RESET';
@@ -4311,12 +4331,19 @@ function toggleSetting(key){
   SAVE[key]=!SAVE[key]; persist(); refreshSettings();
   SND.place();
 }
+function cyclePerf(){
+  /* AUTO → ON → OFF → AUTO; manual choice clears any latched auto-verdict */
+  SAVE.perf = SAVE.perf==='auto'?'on' : SAVE.perf==='on'?'off' : 'auto';
+  autoLite=false; autoThrottle=false; loStreak=0;
+  computePerf(); persist(); refreshSettings(); SND.place();
+}
 function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
-  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,
+  SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,perf:'auto',
         camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},
         cosmetics:{owned:{},theme:'default',skins:{}}};
+  autoLite=false; autoThrottle=false; loStreak=0; computePerf();
   applyCosmetics();
   vol=.8; if(master) master.gain.value=vol;
   diffIndex=1; resetArmed=false;
@@ -4710,6 +4737,7 @@ $('setMusic').onclick=()=>toggleSetting('music');
 $('setSfx').onclick=()=>toggleSetting('sfx');
 $('setShake').onclick=()=>toggleSetting('shake');
 $('setHaptics').onclick=()=>{ toggleSetting('haptics'); if(SAVE.haptics) vib(20); };
+$('setPerf').onclick=cyclePerf;
 $('resetSave').onclick=()=>doResetSave();
 $('codexBack').onclick=()=>{
   $('codexOverlay').classList.add('hidden');
@@ -5146,6 +5174,17 @@ $('launchBtn').onclick=()=>{
 let last=performance.now();
 function frame(now){
   let dt=Math.min(.05,(now-last)/1000); last=now;
+  /* FPS sampler + auto governor: latch lite mode (and, if still struggling, the
+     30fps cap) on devices that can't hold frame-rate. Latched = no flicker. */
+  fpsAccum+=dt; fpsFrames++;
+  if(fpsAccum>=.5){
+    curFps=fpsFrames/fpsAccum; fpsAccum=0; fpsFrames=0;
+    if(SAVE.perf==='auto'){
+      loStreak = curFps<45 ? loStreak+1 : 0;
+      if(!autoLite && loStreak>=3){ autoLite=true; computePerf(); }        /* ~1.5s under 45fps → drop glow + particles */
+      else if(autoLite && !autoThrottle && curFps<32 && loStreak>=4){ autoThrottle=true; computePerf(); } /* still choking → cap to 30fps */
+    }
+  }
   if(hitStop>0){
     hitStop=Math.max(0,hitStop-dt);          /* the world holds its breath */
   }else if(running&&!paused&&!gameOver&&!drafting){
@@ -5154,7 +5193,10 @@ function frame(now){
     time+=dt;
   }
   tickCelebration();
-  draw();
+  /* throttle: in deep-lite, draw every other frame (clean 30fps on a 60Hz panel).
+     The simulation still steps every frame off real dt, so timing stays correct. */
+  drawTick++;
+  if(!perfThrottle || (drawTick&1)===0) draw();
   musicTick();
   requestAnimationFrame(frame);
 }
