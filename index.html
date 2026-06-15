@@ -211,20 +211,43 @@
   .menuCard:hover{border-color:#7db2ff; color:#fff; background:#101c42;}
   .menuCard .mSub{font-size:8px; font-weight:400; letter-spacing:1px; color:var(--dim);}
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
-  .shopGrid{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; max-width:700px;}
-  .shopSec{width:100%; font-size:9px; letter-spacing:3px; color:var(--dim); margin-top:5px; text-align:center;}
-  .cosCard{
-    flex:none; width:122px; background:#0a1126; border:1px solid var(--line); border-radius:10px;
-    padding:8px 6px 7px; cursor:pointer; font:inherit; color:var(--txt);
-    display:flex; flex-direction:column; align-items:center; gap:4px;
+  /* core shop — a proper storefront */
+  #shopWallet{
+    display:inline-flex; align-items:center; gap:9px;
+    background:#0a1126; border:1px solid #8a6d1f; border-radius:22px; padding:7px 18px;
   }
-  .cosCard b{font-size:9.5px; letter-spacing:.5px;}
-  .cosCard small{font-size:8px; color:#9db8ff; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:2px;}
-  .cosCard.eq{border-color:#39ff6a;}
-  .cosCard.eq small{color:#39ff6a;}
-  .cosCard:disabled{opacity:.4; cursor:not-allowed;}
+  #shopWallet svg{color:#ffd34d; display:block;}
+  #shopWallet .wv{color:#ffd34d; font-size:19px; font-weight:800; letter-spacing:1px;}
+  #shopWallet .wl{font-size:9px; letter-spacing:2px; color:var(--dim);}
+  #shopRefund{font-size:9px; color:#39ff6a; letter-spacing:.5px;}
+  #shopRefund:empty{display:none;}
+  .shopGrid{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:720px;}
+  .shopSec{
+    width:100%; font-size:9px; letter-spacing:3px; color:#9db8ff; margin-top:8px;
+    display:flex; align-items:center; gap:8px; text-align:left;
+  }
+  .shopSec::after{content:''; flex:1; height:1px; background:var(--line);}
+  .cosCard{
+    flex:none; width:128px; background:#0a1126; border:1px solid var(--line); border-radius:11px;
+    padding:9px 7px 8px; cursor:pointer; font:inherit; color:var(--txt); position:relative;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    transition:border-color .12s, transform .1s;
+  }
   .cosCard canvas{display:block;}
-  .cosCard:hover{border-color:#7db2ff;}
+  .cosCard b{font-size:9.5px; letter-spacing:.5px;}
+  .cosCard .price{
+    display:flex; align-items:center; gap:3px; font-size:10px; font-weight:800; color:#ffd34d;
+    background:#161204; border:1px solid #8a6d1f; border-radius:11px; padding:2px 9px;
+  }
+  .cosCard .price svg{display:block;}
+  .cosCard .own{font-size:8.5px; font-weight:700; letter-spacing:1px; color:#9db8ff;}
+  .cosCard:hover{border-color:#7db2ff; transform:translateY(-2px);}
+  .cosCard.eq{border-color:#39ff6a; background:#0c1f14;}
+  .cosCard.eq .own{color:#39ff6a;}
+  .cosCard.locked{opacity:.5; cursor:not-allowed;}
+  .cosCard.locked .price{color:#6b7fb3; border-color:#2a3d72; background:#0a1126;}
+  .cosCard.bought{animation:bought .7s ease-out;}
+  @keyframes bought{0%{box-shadow:0 0 0 rgba(57,255,106,0);}30%{box-shadow:0 0 16px rgba(57,255,106,.9); border-color:#39ff6a; transform:scale(1.06);}}
   /* campaign map — compact */
   #campOverlay{gap:7px;}
   #campOverlay .big{font-size:15px; letter-spacing:5px;}
@@ -662,9 +685,10 @@
     <div id="shopOverlay" class="overlay solid vcenter hidden">
       <button id="shopBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:20px; letter-spacing:6px">CORE SHOP</div>
-      <div id="shopBal" class="sub"></div>
+      <div id="shopWallet"></div>
+      <div id="shopRefund"></div>
       <div id="metaShop" class="shopGrid"></div>
-      <div class="sub" style="font-size:10px">Earn cores by surviving waves — spend them on grid themes and hero skins. Style only, no stat changes.</div>
+      <div class="sub" style="font-size:10px">Earn ⬡ cores by surviving waves — spend them on grid themes and hero skins. Style only, no stat changes.</div>
     </div>
 
     <div id="codexOverlay" class="overlay solid hidden">
@@ -745,7 +769,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.6';
+const VERSION='1.0.7';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1956,22 +1980,22 @@ function update(dt){
         }
       }
     }
-    /* REVENANT phase-dash: vulnerable window (solid, crawling) then a blink */
+    /* REVENANT phase-dash: long vulnerable window, brief blink (eased) */
     if(e.def.revenant){
-      if(e.rev===undefined) e.rev={ph:'vuln',t:3};
+      if(e.rev===undefined) e.rev={ph:'vuln',t:4};
       e.rev.t-=dt;
       if(e.rev.ph==='vuln'){
         e.phased=false;
         if(e.rev.t<=0){
-          e.rev.ph='phase'; e.rev.t=2; e.phased=true;
+          e.rev.ph='phase'; e.rev.t=1.4; e.phased=true;
           ring(e.x,e.y,e.def.r+8,e.def.color,.45); spray(e.x,e.y,e.def.color,10,150,.4);
           SND.tesla();
-          e.dist=Math.min((LANES[e.lane]||LANES[0]).len-1, e.dist+110);   /* blink ~2 cells */
+          e.dist=Math.min((LANES[e.lane]||LANES[0]).len-1, e.dist+65);   /* blink ~1 cell */
           const np=pointAt(e.dist,e.lane); ring(np.x,np.y,e.def.r+8,e.def.color,.45);
         }
       }else{
         e.phased=true;
-        if(e.rev.t<=0){ e.rev.ph='vuln'; e.rev.t=3; e.phased=false; ring(e.x,e.y,e.def.r+6,'#fff',.3); }
+        if(e.rev.t<=0){ e.rev.ph='vuln'; e.rev.t=4; e.phased=false; ring(e.x,e.y,e.def.r+6,'#fff',.3); }
       }
     }
     const planted=(e.def.siege&&e.siegeT>0)||(e.slamPhase&&e.slamPhase!=='idle')||e.riseT>0
@@ -3955,61 +3979,61 @@ function buildLogo(){
     renderEnemyIcon($('aboutLogoR'),'revenant',1.25);
   }
 }
+let justBought=null;
 function buildShop(){
   const box=$('metaShop');
   if(!box) return;
-  let bal=ic('hex',11)+'BALANCE: <b style="color:#9db8ff">'+SAVE.cores+'</b> cores';
-  if(SAVE.metaRefund){
-    bal+=' · <span style="color:#39ff6a">OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED</span>';
-  }
-  $('shopBal').innerHTML=bal;
+  $('shopWallet').innerHTML=ic('hex',18)+'<span class="wv">'+SAVE.cores+'</span><span class="wl">CORES</span>';
+  $('shopRefund').textContent=SAVE.metaRefund?('OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED'):'';
   box.innerHTML='';
   const own=id=>id==='default'||SAVE.cosmetics.owned[id];
   const sec=t=>{ const d=document.createElement('div'); d.className='shopSec'; d.textContent=t; box.appendChild(d); };
+  /* footer state: equipped / owned-tap-to-equip / price (afford or not) */
+  const footer=(id,cost)=>{
+    if(SAVE.cosmetics.theme===id||Object.values(SAVE.cosmetics.skins).includes(id)) return '<span class="own">✓ EQUIPPED</span>';
+    if(own(id)) return '<span class="own">TAP TO EQUIP</span>';
+    return '<span class="price">'+ic('hex',10)+cost+'</span>';
+  };
 
-  sec('GRID THEMES — restyle the battlefield');
+  sec('GRID THEMES');
   for(const t of THEMES){
-    const equipped=SAVE.cosmetics.theme===t.id;
+    const equipped=SAVE.cosmetics.theme===t.id, owned=own(t.id), afford=owned||SAVE.cores>=t.cost;
     const b=document.createElement('button');
-    b.className='cosCard'+(equipped?' eq':'');
-    b.innerHTML=`<canvas width="64" height="40"></canvas><b>${t.n}</b>
-      <small>${equipped?'EQUIPPED':own(t.id)?'TAP TO EQUIP':ic('hex',8)+' '+t.cost}</small>`;
+    b.className='cosCard'+(equipped?' eq':'')+(afford?'':' locked')+(justBought===t.id?' bought':'');
+    b.innerHTML=`<canvas width="64" height="40"></canvas><b>${t.n}</b>${footer(t.id,t.cost)}`;
     const c=b.querySelector('canvas').getContext('2d');
     c.fillStyle=t.tile; c.fillRect(4,7,56,26);
     c.strokeStyle=t.rim; c.lineWidth=2; c.strokeRect(4,7,56,26);
     c.beginPath(); c.moveTo(27,14); c.lineTo(35,20); c.lineTo(27,26); c.stroke();
-    b.disabled=!own(t.id)&&SAVE.cores<t.cost;
     b.onclick=()=>{
-      if(!own(t.id)){
-        if(SAVE.cores<t.cost) return;
-        SAVE.cores-=t.cost; SAVE.cosmetics.owned[t.id]=true;
-      }
+      const wasOwned=own(t.id);
+      if(!wasOwned){ if(SAVE.cores<t.cost){SND.deny();return;} SAVE.cores-=t.cost; SAVE.cosmetics.owned[t.id]=true; justBought=t.id; }
       SAVE.cosmetics.theme=equipped?'default':t.id;
-      persist(); rebuildBg(); buildShop(); SND.upgrade();
+      persist(); rebuildBg(); buildShop();
+      justBought=null;
+      wasOwned?SND.place():SND.coinBig();
     };
     box.appendChild(b);
   }
 
-  sec('HERO SKINS — new colors for the roster');
+  sec('HERO SKINS');
   for(const k in SKINS){
-    const s=SKINS[k], equipped=SAVE.cosmetics.skins[k]===s.id;
+    const s=SKINS[k], equipped=SAVE.cosmetics.skins[k]===s.id, owned=own(s.id), afford=owned||SAVE.cores>=s.cost;
     const b=document.createElement('button');
-    b.className='cosCard'+(equipped?' eq':'');
-    b.innerHTML=`<canvas width="44" height="44"></canvas><b style="color:${s.color}">${s.n}</b>
-      <small>${equipped?'EQUIPPED':own(s.id)?'TAP TO EQUIP':ic('hex',8)+' '+s.cost}</small>`;
+    b.className='cosCard'+(equipped?' eq':'')+(afford?'':' locked')+(justBought===s.id?' bought':'');
+    b.innerHTML=`<canvas width="44" height="44"></canvas><b style="color:${s.color}">${s.n}</b>${footer(s.id,s.cost)}`;
     const cv=b.querySelector('canvas'), c2=cv.getContext('2d');
     const keep=TOWERS[k].color;
     TOWERS[k].color=s.color;
     c2.save(); c2.translate(22,22); drawTowerBody(c2,k,1,-Math.PI/4,1.2,false); c2.restore();
     TOWERS[k].color=keep;
-    b.disabled=!own(s.id)&&SAVE.cores<s.cost;
     b.onclick=()=>{
-      if(!own(s.id)){
-        if(SAVE.cores<s.cost) return;
-        SAVE.cores-=s.cost; SAVE.cosmetics.owned[s.id]=true;
-      }
+      const wasOwned=own(s.id);
+      if(!wasOwned){ if(SAVE.cores<s.cost){SND.deny();return;} SAVE.cores-=s.cost; SAVE.cosmetics.owned[s.id]=true; justBought=s.id; }
       SAVE.cosmetics.skins[k]=equipped?null:s.id;
-      applyCosmetics(); persist(); buildUI(); SND.upgrade();
+      applyCosmetics(); persist(); buildUI(); buildShop();
+      justBought=null;
+      wasOwned?SND.place():SND.coinBig();
     };
     box.appendChild(b);
   }
