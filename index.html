@@ -292,19 +292,30 @@
   #relicOverlay .big{animation:titleIn .5s ease-out;}
   #relicRow{display:flex; gap:8px; flex-wrap:nowrap; justify-content:center; width:100%; max-width:660px; margin-top:4px;}
   .relicOpt{
-    flex:1 1 0; min-width:0; max-width:160px; min-height:128px; background:#0a1126; border:1.5px solid #8a6d1f;
-    border-radius:12px; padding:12px 8px; cursor:pointer; color:#ffd34d; font:inherit;
-    display:flex; flex-direction:column; align-items:center; gap:6px;
+    flex:1 1 0; min-width:0; max-width:160px; background:#0a1126; border:1.5px solid #8a6d1f;
+    border-radius:12px; padding:13px 9px; cursor:pointer; color:#ffd34d; font:inherit;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
     animation:relIn .45s ease-out;
   }
   @keyframes relIn{from{opacity:0; transform:translateY(20px) scale(.92);}}
   .relicOpt .ric{
-    width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none;
+    width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none;
     background:#161204; border:1px solid #8a6d1f;
   }
+  .relicOpt .ric svg{display:block;}
   .relicOpt:hover{border-color:#ffd34d; background:#161204; transform:translateY(-3px);}
   .relicOpt b{font-size:10.5px; letter-spacing:1px;}
   .relicOpt span.rd{font-size:9px; color:var(--dim); line-height:1.45; letter-spacing:.2px;}
+  /* relic inspect popup — centered over the stage, fully readable */
+  #relicPop{
+    position:absolute; left:50%; bottom:100px; transform:translateX(-50%);
+    z-index:6; width:240px; max-width:80%; background:rgba(10,15,31,.97);
+    border:1px solid #8a6d1f; border-radius:10px; padding:10px 12px; text-align:center;
+  }
+  #relicPop.hidden{display:none;}
+  #relicPop .rpn{display:flex; align-items:center; justify-content:center; gap:6px; color:#ffd34d; font-size:12px; letter-spacing:1px; margin-bottom:3px;}
+  #relicPop .rpn svg{display:block;}
+  #relicPop .rpd{font-size:10.5px; color:var(--txt); line-height:1.5;}
   /* in-run relic tray (side column) */
   #relicHdr{font-size:7.5px; letter-spacing:1.5px; color:#ffd34d; margin-bottom:-2px;}
   #relicHdr.hidden,#relicStrip.hidden{display:none;}
@@ -316,9 +327,7 @@
     border:1px solid #8a6d1f; border-radius:6px; color:#ffd34d; background:#141104;
     padding:0; flex:none; cursor:pointer;
   }
-  .rChip svg{margin:0;}
-  #relicInfo{font-size:8.5px; color:#ffd34d; letter-spacing:.4px; line-height:1.4;}
-  #relicInfo:empty{display:none;}
+  .rChip svg{margin:0; display:block;}
   /* achievements */
   .achGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; width:100%;}
   .achCard{border:1px solid var(--line); border-radius:8px; padding:8px 9px; background:#0a1126; text-align:left;}
@@ -549,6 +558,7 @@
     </div>
     <div id="towerPop" class="hidden"></div>
     <div id="cardInfo" class="hidden"></div>
+    <div id="relicPop" class="hidden"></div>
 
     <div id="sideCol">
       <div id="sideScroll">
@@ -561,7 +571,6 @@
         <div id="abils"></div>
         <div id="relicHdr" class="hidden">RELICS</div>
         <div id="relicStrip" class="hidden"></div>
-        <div id="relicInfo"></div>
       </div>
     </div>
     <div id="startBox">
@@ -736,7 +745,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0.2';
+const VERSION='1.0.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1265,12 +1274,16 @@ function renderRelicStrip(){
     const r=RELICS.find(x=>x.id===id);
     const b=document.createElement('button');
     b.className='rChip'; b.innerHTML=ic(r.icon,14); b.title=r.n+' — '+r.d;
-    b.onclick=()=>{
-      $('relicInfo').textContent=r.n+' — '+r.d;
-      clearTimeout(riT); riT=setTimeout(()=>{$('relicInfo').textContent='';},4000);
-    };
+    b.onclick=()=>showRelicPop(r);
     box.appendChild(b);
   }
+}
+function showRelicPop(r){
+  const p=$('relicPop');
+  p.innerHTML='<div class="rpn">'+ic(r.icon,14)+r.n+'</div><div class="rpd">'+r.d+'</div>';
+  p.classList.remove('hidden');
+  p.onclick=()=>p.classList.add('hidden');
+  clearTimeout(riT); riT=setTimeout(()=>p.classList.add('hidden'),3500);
 }
 
 /* ============================== ENEMY CAST ============================== */
@@ -1406,7 +1419,7 @@ function reset(){
   hitStop=0; shownMoney=money; heartT=0; coins=[]; cracks=[];
   openingDraftDue=totalStars()>=24;
   $('relicOverlay').classList.add('hidden');
-  $('relicInfo').textContent='';
+  $('relicPop').classList.add('hidden');
   renderRelicStrip();
   cds={strike:0,nova:0,surge:0}; aiming=null; surgeT=0; dragMode=null;
   $('speedBtn').innerHTML=ic('ff')+'1×';
