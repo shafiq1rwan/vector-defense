@@ -17,8 +17,9 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Relic drafts** — every boss you down lets you pick 1-of-3 run-long relics (damage, range, economy, ability recharge and more); campaign star milestones widen the draft and open every run with a relic cache
 - **Elite enemies** — gold-crowned champions with affixes (shielded vanguard, swift, regenerating, fission) and triple bounties, from wave 4 onward
 - **Wave modifiers** (fast / regen / horde / wealth), kill-combo credits, wave MVP damage rankings
-- **Core shop** — earn ⬡ cores every run and spend them on cosmetics: grid themes that restyle the whole battlefield (ember/frost/jade/void) and alternate color skins for every hero
-- **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls, plus a RECORDS tab with lifetime stats and 14 achievements
+- **Commander rank** — every run earns account XP that levels up a persistent Commander rank (Recruit → Sentinel → Vanguard → Warden → Ascendant), with a neon rank insignia on the title and results screens. Pure vanity progression — no gameplay power
+- **Core shop & Collection** — earn ⬡ cores every run and **unlock** cosmetics in the shop: grid themes that restyle the whole battlefield (ember/frost/jade/void), alternate color skins for every hero, and **kill effects** that change how enemies burst on death (bounty burst, spark nova, void implosion). Owned cosmetics live in your **Collection** (a codex tab) where you equip them and see locked silhouettes of what's left to earn
+- **Codex** — in-game encyclopedia of heroes, enemies, biome lore and controls, a COLLECTION tab for your cosmetics, plus a RECORDS tab with lifetime stats, your Commander rank, and 14 achievements
 - **Game feel** — towers assemble behind a rising scan line when placed, enemies shatter into their own outline fragments, heavy hits land with a micro hit-stop, bounty chips arc into your credits, the core beats audibly when integrity runs low, and phones get haptic feedback throughout
 - **Procedural music** — WebAudio synth score that intensifies with combat and boss waves
 - **Mobile-first** — drag-to-place touch controls with a lifted ghost, auto-landscape rotation in portrait, safe-area aware layout, installable PWA with offline support

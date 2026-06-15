@@ -392,6 +392,8 @@
   .card .lockB.hidden{display:none;}
   .sub{color:var(--dim); font-size:11.5px; max-width:640px; line-height:1.6;}
   #bestLine{font-size:10px; letter-spacing:2px; color:var(--gold);}
+  #rankRow{display:flex; align-items:center; justify-content:center; gap:7px; font-size:10px; letter-spacing:1.5px; color:var(--dim);}
+  #rankRow canvas{width:28px; height:28px;}
   .roster{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
   .roster div{font-size:9px; color:var(--dim); letter-spacing:.5px;}
   .roster canvas{display:block; margin:0 auto 2px;}
@@ -634,6 +636,7 @@
         </div>
         <canvas id="logoR" width="56" height="56"></canvas>
       </div>
+      <div id="rankRow"><canvas id="rankBadgeC" width="28" height="28"></canvas><span id="rankTxt"></span></div>
       <div id="bestLine"></div>
       <div class="menuRow">
         <button id="campBtn" class="menuCard"></button>
@@ -716,7 +719,7 @@
       <div id="shopWallet"></div>
       <div id="shopRefund"></div>
       <div id="metaShop" class="shopGrid"></div>
-      <div class="sub" style="font-size:10px">Earn ⬡ cores by surviving waves — spend them on grid themes and hero skins. Style only, no stat changes.</div>
+      <div class="sub" style="font-size:10px">Earn ⬡ cores by surviving waves — unlock grid themes, hero skins and kill effects. Equip them in your COLLECTION (Codex). Style only, no stat changes.</div>
     </div>
 
     <div id="codexOverlay" class="overlay solid hidden">
@@ -725,6 +728,7 @@
       <div class="btnrow" id="codexTabs">
         <button data-tab="heroes">HEROES</button>
         <button data-tab="enemies">ENEMIES</button>
+        <button data-tab="collection">COLLECTION</button>
         <button data-tab="biome">BIOME</button>
         <button data-tab="records">RECORDS</button>
         <button data-tab="controls">CONTROLS</button>
@@ -798,7 +802,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.2.0';
+const VERSION='1.3.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -841,7 +845,9 @@ SAVE.music=SAVE.music!==false; SAVE.sfx=SAVE.sfx!==false; SAVE.shake=SAVE.shake!
 SAVE.haptics=SAVE.haptics!==false;
 SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
-SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{}},SAVE.cosmetics||{});
+SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{},killfx:'shards'},SAVE.cosmetics||{});
+if(!SAVE.cosmetics.killfx) SAVE.cosmetics.killfx='shards';
+SAVE.commander=Object.assign({xp:0,level:1},SAVE.commander||{});
 SAVE.seenIntro=!!SAVE.seenIntro;
 SAVE.perf=(SAVE.perf==='on'||SAVE.perf==='off')?SAVE.perf:'auto';   /* perf mode: 'auto' | 'on' | 'off' */
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
@@ -897,6 +903,38 @@ function applyCosmetics(){
     if(!TOWERS[k].baseColor) TOWERS[k].baseColor=TOWERS[k].color;
     TOWERS[k].color=SAVE.cosmetics.skins[k]===SKINS[k].id?SKINS[k].color:TOWERS[k].baseColor;
   }
+}
+/* kill-burst styles — how an enemy comes apart when it dies (looks, not power) */
+const KILLFX=[
+  {id:'shards', n:'OUTLINE SHARDS', cost:0,  color:'#cfe1ff'},
+  {id:'coins',  n:'BOUNTY BURST',   cost:20, color:'#ffd34d'},
+  {id:'nova',   n:'SPARK NOVA',     cost:20, color:'#3ad6ff'},
+  {id:'void',   n:'VOID IMPLOSION', cost:25, color:'#b06bff'}
+];
+/* ---- Commander progression: pure-vanity account level + rank insignia ---- */
+const RANKS=[
+  {lvl:1, n:'RECRUIT',   col:'#9db8ff'},
+  {lvl:5, n:'SENTINEL',  col:'#39ff6a'},
+  {lvl:12,n:'VANGUARD',  col:'#ffd34d'},
+  {lvl:24,n:'WARDEN',    col:'#ffa53a'},
+  {lvl:40,n:'ASCENDANT', col:'#ff3af0'}
+];
+const rankFor=lvl=>{ let r=RANKS[0]; for(const t of RANKS) if(lvl>=t.lvl) r=t; return r; };
+const rankIndexFor=lvl=>{ let i=0; for(let j=0;j<RANKS.length;j++) if(lvl>=RANKS[j].lvl) i=j; return i; };
+const xpStep=n=>60+n*30;                                   /* XP to go from level n → n+1 (n is 1-based) */
+function levelFromXp(xp){ let n=1,x=0; while(x+xpStep(n)<=xp){ x+=xpStep(n); n++; } return n; }   /* LV1 at xp 0 */
+function xpBaseForLevel(n){ let x=0; for(let i=1;i<n;i++) x+=xpStep(i); return x; }                /* cumulative XP to reach LV n */
+/* neon rank emblem: an (index+3)-sided polygon + ring, in the tier colour */
+function drawRankBadge(canvas,level){
+  const c=canvas.getContext('2d'), w=canvas.width, h=canvas.height;
+  c.clearRect(0,0,w,h); c.save(); c.translate(w/2,h/2);
+  const r=Math.min(w,h)*.36, rk=rankFor(level), idx=rankIndexFor(level);
+  c.strokeStyle=rk.col; c.lineWidth=2; glow(c,rk.col,8);
+  poly(c,0,0,r,idx+3,-Math.PI/2); c.stroke();
+  poly(c,0,0,r*.55,idx+3,Math.PI/2); c.stroke();
+  noGlow(c);
+  c.fillStyle=rk.col; c.beginPath(); c.arc(0,0,r*.16,0,TAU); c.fill();
+  c.restore();
 }
 
 /* ============================== MAPS ============================== */
@@ -1647,6 +1685,31 @@ function blast(x,y,r,color){
   beams.push({ring:true,x,y,r:r*1.16,r0:r*.34,color,w:4,life:.42,max:.42});             /* expanding shockwave */
   beams.push({ring:true,x,y,r:r*.55,r0:2,color:'#ffffff',w:3,life:.18,max:.18});         /* detonation core */
 }
+/* equipped kill-FX cosmetic decides how an enemy comes apart on death (looks only) */
+function killBurst(e){
+  const r=e.def.r, x=e.x, y=e.y, col=e.def.color, lite=perfLite;
+  const fx=(SAVE.cosmetics&&SAVE.cosmetics.killfx)||'shards';
+  if(fx==='coins'){
+    spray(x,y,'#ffd34d',lite?5:Math.min(12,r+2),150,.45,2.6);
+    shatter(x,y,r,e.def.shape,col,e.wob||0);
+    ring(x,y,r*1.8,'#ffd34d',.3);
+    for(let i=0;i<(lite?2:4)&&coins.length<50;i++) coins.push({x,y,vx:(Math.random()-.5)*120,vy:-70-Math.random()*60,t:0});
+  }else if(fx==='nova'){
+    spray(x,y,'#bfefff',lite?8:18,260,.5,2.2);
+    shatter(x,y,r,e.def.shape,col,e.wob||0);
+    ring(x,y,r*1.6,'#bfefff',.32); ring(x,y,r*2.4,col,.26);
+  }else if(fx==='void'){
+    shatter(x,y,r,e.def.shape,col,e.wob||0);
+    const N=lite?5:10;
+    for(let i=0;i<N&&parts.length<240;i++){ const a=i/N*TAU, R=r*2.2, sp=120+Math.random()*60;
+      parts.push({x:x+Math.cos(a)*R,y:y+Math.sin(a)*R,vx:-Math.cos(a)*sp,vy:-Math.sin(a)*sp,life:.4,max:.4,color:'#b06bff',size:2.2}); }
+    beams.push({ring:true,x,y,r:r*.4,r0:r*2.2,color:'#b06bff',w:2.5,life:.35,max:.35});
+  }else{   /* shards — default */
+    spray(x,y,col,Math.min(10,r),150,.45);
+    shatter(x,y,r,e.def.shape,col,e.wob||0);
+    ring(x,y,r*2,col,.3);
+  }
+}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
 
 function spawnEnemy(type,dist,w,elite,lane=0){
@@ -1722,9 +1785,7 @@ function damageEnemy(e,dmg,dtype='phys',o={}){
       }
     }
     addText(e.x,e.y-14,'+'+rw+(extra?' +'+extra:''), extra?'#ffe14d':'#ffd34d');
-    spray(e.x,e.y,e.def.color,Math.min(10,e.def.r),150,.45);
-    shatter(e.x,e.y,e.def.r,e.def.shape,e.def.color,e.wob||0);
-    ring(e.x,e.y,e.def.r*2,e.def.color,.3);
+    killBurst(e);
     const nC=e.def.bossLike?6:e.elite?4:2;
     for(let i=0;i<nC&&coins.length<50;i++)
       coins.push({x:e.x,y:e.y,vx:(Math.random()-.5)*140,vy:-90-Math.random()*70,t:0});
@@ -4229,63 +4290,100 @@ function buildLogo(){
   }
 }
 let justBought=null;
+/* ---- shared cosmetic preview renderers (used by shop + collection) ---- */
+function previewTheme(canvas,t){
+  const c=canvas.getContext('2d'); c.clearRect(0,0,canvas.width,canvas.height);
+  c.fillStyle=t.tile; c.fillRect(4,7,56,26);
+  c.strokeStyle=t.rim; c.lineWidth=2; c.strokeRect(4,7,56,26);
+  c.beginPath(); c.moveTo(27,14); c.lineTo(35,20); c.lineTo(27,26); c.stroke();
+}
+function previewSkin(canvas,k,color){
+  const c=canvas.getContext('2d'); c.clearRect(0,0,canvas.width,canvas.height);
+  const keep=TOWERS[k].color; TOWERS[k].color=color;
+  c.save(); c.translate(canvas.width/2,canvas.height/2); drawTowerBody(c,k,1,-Math.PI/4,1.1,false); c.restore();
+  TOWERS[k].color=keep;
+}
+function previewKillfx(canvas,fx){
+  const c=canvas.getContext('2d'); c.clearRect(0,0,canvas.width,canvas.height);
+  c.save(); c.translate(canvas.width/2,canvas.height/2);
+  const col=fx.color; c.strokeStyle=col; c.fillStyle=col; c.lineWidth=1.6; glow(c,col,6);
+  if(fx.id==='coins'){ for(let i=0;i<4;i++){const a=-Math.PI/2+(i-1.5)*.5; c.beginPath(); c.arc(Math.cos(a)*9,Math.sin(a)*9-2,2.4,0,TAU); c.stroke();} }
+  else if(fx.id==='nova'){ for(let i=0;i<8;i++){const a=i/8*TAU; c.beginPath(); c.moveTo(Math.cos(a)*4,Math.sin(a)*4); c.lineTo(Math.cos(a)*12,Math.sin(a)*12); c.stroke();} c.beginPath(); c.arc(0,0,13,0,TAU); c.stroke(); }
+  else if(fx.id==='void'){ c.beginPath(); c.arc(0,0,12,0,TAU); c.stroke(); for(let i=0;i<6;i++){const a=i/6*TAU; c.beginPath(); c.moveTo(Math.cos(a)*11,Math.sin(a)*11); c.lineTo(Math.cos(a)*5,Math.sin(a)*5); c.stroke();} c.beginPath(); c.arc(0,0,2.5,0,TAU); c.fill(); }
+  else { for(let i=0;i<6;i++){const a=i/6*TAU+.3; c.beginPath(); c.moveTo(Math.cos(a)*5,Math.sin(a)*5); c.lineTo(Math.cos(a)*13,Math.sin(a)*13); c.stroke();} }
+  noGlow(c); c.restore();
+}
+const ownCos=id=>id==='default'||id==='shards'||!!SAVE.cosmetics.owned[id];
+/* equip (no purchase) — used by the Collection and by the shop's auto-equip on buy */
+function equipCosmetic(kind,id,key){
+  if(kind==='theme'){ SAVE.cosmetics.theme=id; persist(); rebuildBg(); }
+  else if(kind==='skin'){ SAVE.cosmetics.skins[key]=(SAVE.cosmetics.skins[key]===id?null:id); applyCosmetics(); persist(); buildUI(); }
+  else if(kind==='killfx'){ SAVE.cosmetics.killfx=id; persist(); }
+}
+/* SHOP = unlock store: lists only items you don't own; buying auto-equips and the
+   item then lives in your Collection (Codex) for re-equipping. */
 function buildShop(){
   const box=$('metaShop');
   if(!box) return;
   $('shopWallet').innerHTML=ic('hex',18)+'<span class="wv">'+SAVE.cores+'</span><span class="wl">CORES</span>';
   $('shopRefund').textContent=SAVE.metaRefund?('OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED'):'';
   box.innerHTML='';
-  const own=id=>id==='default'||SAVE.cosmetics.owned[id];
   const sec=t=>{ const d=document.createElement('div'); d.className='shopSec'; d.textContent=t; box.appendChild(d); };
-  /* footer state: equipped / owned-tap-to-equip / price (afford or not) */
-  const footer=(id,cost)=>{
-    if(SAVE.cosmetics.theme===id||Object.values(SAVE.cosmetics.skins).includes(id)) return '<span class="own">✓ EQUIPPED</span>';
-    if(own(id)) return '<span class="own">TAP TO EQUIP</span>';
-    return '<span class="price">'+ic('hex',10)+cost+'</span>';
+  let any=false;
+  const card=(id,name,cost,nameCol,drawPrev,onbuy)=>{
+    any=true;
+    const afford=SAVE.cores>=cost;
+    const b=document.createElement('button');
+    b.className='cosCard'+(afford?'':' locked')+(justBought===id?' bought':'');
+    b.innerHTML=`<canvas width="64" height="40"></canvas><b style="color:${nameCol||'#cfe1ff'}">${name}</b><span class="price">${ic('hex',10)}${cost}</span>`;
+    drawPrev(b.querySelector('canvas'));
+    b.onclick=()=>{
+      if(SAVE.cores<cost){SND.deny();return;}
+      SAVE.cores-=cost; SAVE.cosmetics.owned[id]=true; justBought=id;
+      onbuy();                          /* auto-equip the new unlock */
+      persist(); buildShop();
+      justBought=null; SND.coinBig();
+    };
+    box.appendChild(b);
   };
-
-  sec('GRID THEMES');
-  for(const t of THEMES){
-    const equipped=SAVE.cosmetics.theme===t.id, owned=own(t.id), afford=owned||SAVE.cores>=t.cost;
+  const themesLeft=THEMES.filter(t=>!ownCos(t.id));
+  if(themesLeft.length){ sec('GRID THEMES'); for(const t of themesLeft) card(t.id,t.n,t.cost,null,cv=>previewTheme(cv,t),()=>equipCosmetic('theme',t.id)); }
+  const skinKeys=Object.keys(SKINS).filter(k=>!ownCos(SKINS[k].id));
+  if(skinKeys.length){ sec('HERO SKINS'); for(const k of skinKeys){ const s=SKINS[k]; card(s.id,s.n,s.cost,s.color,cv=>previewSkin(cv,k,s.color),()=>{SAVE.cosmetics.skins[k]=s.id;applyCosmetics();buildUI();}); } }
+  const fxLeft=KILLFX.filter(f=>!ownCos(f.id));
+  if(fxLeft.length){ sec('KILL EFFECTS'); for(const f of fxLeft) card(f.id,f.n,f.cost,f.color,cv=>previewKillfx(cv,f),()=>{SAVE.cosmetics.killfx=f.id;}); }
+  if(!any){ const d=document.createElement('div'); d.className='sub'; d.style.cssText='grid-column:1/-1;text-align:center;padding:18px;color:var(--dim)'; d.innerHTML='ALL UNLOCKED — manage your looks in the <b>COLLECTION</b> (Codex)'; box.appendChild(d); }
+}
+/* COLLECTION (Codex tab) = your owned cosmetics, equippable; locked items show as
+   dimmed silhouettes with their price to tease the chase. Commander rank up top. */
+function buildCollection(){
+  const box=$('codexBody'); box.innerHTML='';
+  const lvl=SAVE.commander.level||1, rk=rankFor(lvl), cur=(SAVE.commander.xp||0)-xpBaseForLevel(lvl), need=xpStep(lvl);
+  const cp=document.createElement('div'); cp.className='sub';
+  cp.style.cssText='grid-column:1/-1;display:flex;align-items:center;gap:12px;justify-content:center;max-width:none';
+  cp.innerHTML='<canvas data-rankbadge width="44" height="44" style="width:44px;height:44px"></canvas>'
+    +'<div style="text-align:left">COMMANDER <b style="color:'+rk.col+'">'+rk.n+'</b> · LV '+lvl
+    +'<br><span style="color:var(--dim);font-size:9px">'+cur+' / '+need+' XP to next tier</span></div>';
+  box.appendChild(cp);
+  const wrap=document.createElement('div'); wrap.className='shopGrid'; wrap.style.gridColumn='1/-1'; box.appendChild(wrap);
+  const sec=t=>{ const d=document.createElement('div'); d.className='shopSec'; d.textContent=t; wrap.appendChild(d); };
+  const card=(id,name,nameCol,equipped,owned,cost,drawPrev,onEquip)=>{
     const b=document.createElement('button');
-    b.className='cosCard'+(equipped?' eq':'')+(afford?'':' locked')+(justBought===t.id?' bought':'');
-    b.innerHTML=`<canvas width="64" height="40"></canvas><b>${t.n}</b>${footer(t.id,t.cost)}`;
-    const c=b.querySelector('canvas').getContext('2d');
-    c.fillStyle=t.tile; c.fillRect(4,7,56,26);
-    c.strokeStyle=t.rim; c.lineWidth=2; c.strokeRect(4,7,56,26);
-    c.beginPath(); c.moveTo(27,14); c.lineTo(35,20); c.lineTo(27,26); c.stroke();
-    b.onclick=()=>{
-      const wasOwned=own(t.id);
-      if(!wasOwned){ if(SAVE.cores<t.cost){SND.deny();return;} SAVE.cores-=t.cost; SAVE.cosmetics.owned[t.id]=true; justBought=t.id; }
-      SAVE.cosmetics.theme=equipped?'default':t.id;
-      persist(); rebuildBg(); buildShop();
-      justBought=null;
-      wasOwned?SND.place():SND.coinBig();
-    };
-    box.appendChild(b);
-  }
-
-  sec('HERO SKINS');
-  for(const k in SKINS){
-    const s=SKINS[k], equipped=SAVE.cosmetics.skins[k]===s.id, owned=own(s.id), afford=owned||SAVE.cores>=s.cost;
-    const b=document.createElement('button');
-    b.className='cosCard'+(equipped?' eq':'')+(afford?'':' locked')+(justBought===s.id?' bought':'');
-    b.innerHTML=`<canvas width="44" height="44"></canvas><b style="color:${s.color}">${s.n}</b>${footer(s.id,s.cost)}`;
-    const cv=b.querySelector('canvas'), c2=cv.getContext('2d');
-    const keep=TOWERS[k].color;
-    TOWERS[k].color=s.color;
-    c2.save(); c2.translate(22,22); drawTowerBody(c2,k,1,-Math.PI/4,1.2,false); c2.restore();
-    TOWERS[k].color=keep;
-    b.onclick=()=>{
-      const wasOwned=own(s.id);
-      if(!wasOwned){ if(SAVE.cores<s.cost){SND.deny();return;} SAVE.cores-=s.cost; SAVE.cosmetics.owned[s.id]=true; justBought=s.id; }
-      SAVE.cosmetics.skins[k]=equipped?null:s.id;
-      applyCosmetics(); persist(); buildUI(); buildShop();
-      justBought=null;
-      wasOwned?SND.place():SND.coinBig();
-    };
-    box.appendChild(b);
-  }
+    b.className='cosCard'+(equipped?' eq':'')+(owned?'':' locked');
+    const foot=owned?(equipped?'<span class="own">✓ EQUIPPED</span>':'<span class="own">TAP TO EQUIP</span>')
+                    :('<span class="price">'+ic('lock',9)+ic('hex',9)+cost+'</span>');
+    b.innerHTML=`<canvas width="64" height="40"></canvas><b style="color:${owned?(nameCol||'#cfe1ff'):'#56627e'}">${name}</b>${foot}`;
+    drawPrev(b.querySelector('canvas'));
+    if(owned) b.onclick=()=>{ onEquip(); buildCollection(); SND.place(); };
+    wrap.appendChild(b);
+  };
+  sec('GRID THEMES — '+THEMES.filter(t=>ownCos(t.id)).length+'/'+THEMES.length);
+  for(const t of THEMES) card(t.id,t.n,null,SAVE.cosmetics.theme===t.id,ownCos(t.id),t.cost,cv=>previewTheme(cv,t),()=>equipCosmetic('theme',t.id));
+  sec('HERO SKINS — '+Object.keys(SKINS).filter(k=>ownCos(SKINS[k].id)).length+'/'+Object.keys(SKINS).length);
+  for(const k in SKINS){ const s=SKINS[k]; card(s.id,s.n,s.color,SAVE.cosmetics.skins[k]===s.id,ownCos(s.id),s.cost,cv=>previewSkin(cv,k,s.color),()=>equipCosmetic('skin',s.id,k)); }
+  sec('KILL EFFECTS — '+KILLFX.filter(f=>ownCos(f.id)).length+'/'+KILLFX.length);
+  for(const f of KILLFX) card(f.id,f.n,f.color,SAVE.cosmetics.killfx===f.id,ownCos(f.id),f.cost,cv=>previewKillfx(cv,f),()=>equipCosmetic('killfx',f.id));
+  drawRankBadge(box.querySelector('canvas[data-rankbadge]'),lvl);
 }
 /* ============================== CODEX ============================== */
 const BIOME_LORE=[
@@ -4457,8 +4555,8 @@ function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
   SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,perf:'auto',
-        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},
-        cosmetics:{owned:{},theme:'default',skins:{}}};
+        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},commander:{xp:0,level:1},
+        cosmetics:{owned:{},theme:'default',skins:{},killfx:'shards'}};
   autoLite=false; autoThrottle=false; loStreak=0; computePerf();
   applyCosmetics();
   vol=.8; if(master) master.gain.value=vol;
@@ -4487,7 +4585,12 @@ const ACH=[
 ];
 function codexRecords(){
   const done=ACH.filter(a=>a[2]()).length;
-  return '<div class="sub" style="font-size:10px;grid-column:1/-1;max-width:none">'
+  const lvl=SAVE.commander.level||1, rk=rankFor(lvl), cur=(SAVE.commander.xp||0)-xpBaseForLevel(lvl), need=xpStep(lvl);
+  return '<div class="sub" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;justify-content:center;max-width:none">'
+    +'<canvas data-rankbadge width="40" height="40" style="width:40px;height:40px"></canvas>'
+    +'<div style="text-align:left">COMMANDER <b style="color:'+rk.col+'">'+rk.n+'</b> · LV '+lvl
+    +'<br><span style="color:var(--dim);font-size:9px">'+cur+' / '+need+' XP to next tier</span></div></div>'
+    +'<div class="sub" style="font-size:10px;grid-column:1/-1;max-width:none">'
     +'LIFETIME — KILLS '+fmt(SAVE.life.kills)+' · WAVES '+SAVE.life.waves
     +' · BOSSES '+SAVE.life.bossKills+' · WINS '+(SAVE.wins||0)
     +' · BEST WAVE '+(SAVE.bestWave||0)+' · BEST COMBO ×'+(SAVE.bestCombo||0)
@@ -4498,7 +4601,8 @@ function codexRecords(){
     }).join('')+'</div>';
 }
 function showCodexTab(tab){
-  $('codexBody').innerHTML =
+  if(tab==='collection'){ buildCollection(); }
+  else $('codexBody').innerHTML =
     tab==='heroes'?codexHeroes():tab==='enemies'?codexEnemies():tab==='biome'?codexBiome()
     :tab==='records'?codexRecords():codexControls();
   document.querySelectorAll('#codexTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.tab===tab));
@@ -4506,6 +4610,7 @@ function showCodexTab(tab){
   document.querySelectorAll('#codexBody canvas[data-portrait]').forEach(cv=>renderHeroPortrait(cv,cv.dataset.portrait));
   document.querySelectorAll('#codexBody canvas[data-enemy]').forEach(cv=>renderEnemyIcon(cv,cv.dataset.enemy,.9));
   document.querySelectorAll('#codexBody canvas[data-biome]').forEach(cv=>renderBiomeIcon(cv,cv.dataset.biome));
+  document.querySelectorAll('#codexBody canvas[data-rankbadge]').forEach(cv=>drawRankBadge(cv,SAVE.commander.level||1));
 }
 function openCodex(fromId){
   codexReturn=fromId;
@@ -4518,6 +4623,10 @@ function updateBestLine(){
   $('bestLine').textContent = SAVE.bestWave
     ? 'BEST WAVE '+SAVE.bestWave+' · BEST COMBO ×'+(SAVE.bestCombo||0)+' · WINS '+(SAVE.wins||0)
     : 'NO RECORDS YET — GOOD LUCK, COMMANDER';
+  const lvl=SAVE.commander.level||1, rk=rankFor(lvl);
+  const cur=(SAVE.commander.xp||0)-xpBaseForLevel(lvl), need=xpStep(lvl);
+  drawRankBadge($('rankBadgeC'),lvl);
+  $('rankTxt').innerHTML='LV '+lvl+' · <b style="color:'+rk.col+'">'+rk.n+'</b> · '+cur+'/'+need+' XP';
 }
 /* no enemy intel anymore — the player reads the field; only a boss klaxon remains */
 function updateNextPreview(){
@@ -4563,6 +4672,7 @@ function showMedals(){
     box.appendChild(el);
   }
 }
+let lastXpGain=0, lastRankUp=null;
 function recordEnd(won){
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
@@ -4572,14 +4682,31 @@ function recordEnd(won){
   SAVE.life.kills+=kills;
   SAVE.life.bossKills+=runBossKills;
   SAVE.life.waves+=wave;
+  /* Commander XP — vanity progression; a rank-up nudges a few bonus cores */
+  const prevLvl=SAVE.commander.level||levelFromXp(SAVE.commander.xp||0);
+  lastXpGain=Math.max(1,Math.round((wave*5+(won?40:0))*[.6,1,1.5][diffIndex]));
+  SAVE.commander.xp=(SAVE.commander.xp||0)+lastXpGain;
+  const newLvl=levelFromXp(SAVE.commander.xp);
+  lastRankUp=null;
+  if(newLvl>prevLvl){
+    const rankBonus=(newLvl-prevLvl)*5; SAVE.cores+=rankBonus;
+    lastRankUp={from:prevLvl,to:newLvl,rank:rankFor(newLvl).n,bonus:rankBonus};
+  }
+  SAVE.commander.level=newLvl;
   persist(); updateBestLine(); buildShop();
   return earned;
+}
+/* XP / rank-up line appended to every results screen */
+function rankLine(){
+  let s=`<br>${ic('star',10)}Commander XP <b style="color:#cfe1ff">+${lastXpGain}</b> · LV ${SAVE.commander.level}`;
+  if(lastRankUp) s+=` <b style="color:${rankFor(lastRankUp.to).col}">— RANK UP! ${lastRankUp.rank}</b> (+${lastRankUp.bonus} ${ic('hex',9)})`;
+  return s;
 }
 function loseGame(){
   gameOver=true; const earned=recordEnd(false);
   $('endTitle').textContent='CORE LOST';
   $('endTitle').style.textShadow='0 0 18px #ff4d6a';
-  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
+  $('endSub').innerHTML=`The glyphs broke through on <b>wave ${wave}</b> (${DIFF().label} · ${MAPS[mapIndex].name}).<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop${rankLine()}`;
   $('continueBtn').style.display='none';
   showMedals();
   $('endOverlay').classList.remove('hidden');
@@ -4612,7 +4739,7 @@ function finishWin(){
     $('endSub').innerHTML=`<div id="starRow">${[0,1,2].map(i=>
         `<span class="winStar${i<stars?' on':''}" style="animation-delay:${.2+i*.3}s">★</span>`).join('')}</div>
       <b>${campNode.name}</b> complete<br>
-      Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${unlockNote}${fin}`;
+      Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${rankLine()}${unlockNote}${fin}`;
     for(let i=0;i<stars;i++) setTimeout(()=>SND.combo(3+i*2),300+i*300);
     const next=CAMPAIGN[campNode.id+1];
     if(next){
@@ -4621,7 +4748,7 @@ function finishWin(){
       cb.onclick=()=>{ ac(); $('endOverlay').classList.add('hidden'); launchMission(next.id); };
     }else cb.style.display='none';
   }else{
-    $('endSub').innerHTML=`All <b>${finalWave} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop`;
+    $('endSub').innerHTML=`All <b>${finalWave} waves</b> repelled on ${DIFF().label} · ${MAPS[mapIndex].name}!<br>Lives: <b>${lives}</b> · Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · Credits: <b>${Math.floor(money)}</b><br>${ic('hex',10)}Cores earned: <b style="color:#9db8ff">+${earned}</b> (bank: ${SAVE.cores}) — spend them in the MENU shop${rankLine()}`;
     cb.style.display='block';
     cb.innerHTML=ic('inf')+'ENDLESS';
     cb.onclick=goEndless;
