@@ -770,7 +770,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.1.2';
+const VERSION='1.1.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1595,6 +1595,13 @@ function shatter(x,y,r,shape,color,ang=0,sp=1){
 }
 const fmt=n=>n>=10000?Math.round(n/1000)+'k':n>=1000?(n/1000).toFixed(1)+'k':''+Math.round(n);
 function ring(x,y,r,color,life=.25){beams.push({ring:true,x,y,r,color,life,max:life});}
+/* heavy AOE detonation — reads as area damage: a flat coverage disc at the exact
+   splash radius, a thick shockwave punching past it, and a white core flash */
+function blast(x,y,r,color){
+  beams.push({ring:true,x,y,r,r0:r,color,fill:true,fillA:.16,w:2.5,life:.34,max:.34});  /* coverage flash at full radius */
+  beams.push({ring:true,x,y,r:r*1.16,r0:r*.34,color,w:4,life:.42,max:.42});             /* expanding shockwave */
+  beams.push({ring:true,x,y,r:r*.55,r0:2,color:'#ffffff',w:3,life:.18,max:.18});         /* detonation core */
+}
 function bumpStat(id){const el=$(id).parentElement; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');}
 
 function spawnEnemy(type,dist,w,elite,lane=0){
@@ -1786,9 +1793,9 @@ function fire(t,target){
     SND.frost();
   }else if(t.type==='cannon'||t.type==='bastion'){
     projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:t.type==='bastion'?200:250,dmg,kind:'shell',color:c,dtype,src:t,
-                splash:s.splash, napalm:t.spec==='napalm'||t.spec==='hellfire'});
+                splash:s.splash, napalm:t.spec==='napalm'||t.spec==='hellfire', heavy:t.type==='bastion'});
     SND.cannon();
-    if(t.type==='bastion') shake=Math.max(shake,2);
+    if(t.type==='bastion'){ shake=Math.max(shake,4); spray(t.x,t.y,c,8,140,.35,2.6); }   /* heavier recoil kick */
   }else if(t.type==='tesla'){
     const falloff=t.spec==='super'?.9:.75;
     const hitlist=[target]; let cur=target, d2=dmg;
@@ -2195,13 +2202,22 @@ function update(dt){
     if(d<=step+4){
       p.hit=true;
       if(p.kind==='shell'){
-        SND.boom(); shake=Math.max(shake,3.5);
-        spray(p.tx,p.ty,p.color,22,200,.5,3);
-        ring(p.tx,p.ty,p.splash,p.color,.22);
+        if(p.heavy){
+          /* BASTION: weighty area detonation that clearly shows its AOE footprint */
+          SND.boom(); shake=Math.max(shake,7); hitStop=Math.max(hitStop,.05); vib(25);
+          blast(p.tx,p.ty,p.splash,p.color);
+          shatter(p.tx,p.ty,p.splash*.4,'hex',p.color,0,1.7);   /* hurled debris chunks */
+          spray(p.tx,p.ty,p.color,30,280,.6,3.6);
+          spray(p.tx,p.ty,'#d7c4ff',14,150,.7,2);               /* dust kick */
+        }else{
+          SND.boom(); shake=Math.max(shake,3.5);
+          spray(p.tx,p.ty,p.color,22,200,.5,3);
+          ring(p.tx,p.ty,p.splash,p.color,.22);
+        }
         for(const e of enemies){
           if(e.dead) continue;
           const dd=Math.hypot(e.x-p.tx,e.y-p.ty);
-          if(dd<=p.splash) damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src});
+          if(dd<=p.splash){ damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src}); if(p.heavy) e.flash=Math.max(e.flash,.12); }
         }
         if(p.napalm) zones.push({x:p.tx,y:p.ty,r:40,t:3,max:3,dps:p.dmg*.5,color:'#ff6a2a',src:p.src});
       }else if(p.tgt && !p.tgt.dead){
@@ -3583,8 +3599,10 @@ function draw(){
     ctx.globalAlpha=a;
     ctx.strokeStyle=b.color; glow(ctx,b.color,10);
     if(b.ring){
-      ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(b.x,b.y,b.r*(1.25-a*.25),0,TAU); ctx.stroke();
+      const rr = b.r0!=null ? b.r0+(b.r-b.r0)*(1-a) : b.r*(1.25-a*.25);
+      if(b.fill){ ctx.globalAlpha=a*a*(b.fillA||.18); ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(b.x,b.y,rr,0,TAU); ctx.fill(); ctx.globalAlpha=a; }
+      ctx.lineWidth=b.w||2;
+      ctx.beginPath(); ctx.arc(b.x,b.y,rr,0,TAU); ctx.stroke();
     }else{
       ctx.lineWidth=b.jag?2:1.5;
       ctx.beginPath();
