@@ -75,14 +75,24 @@
   .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
   #progFill{height:100%; width:0%; background:#5a96f0; transition:width .25s;}
   @keyframes pul2{50%{opacity:.4;}}
-  #cards,#structs{display:flex; gap:5px; flex:none;}
+  #cards,#structs{display:flex; gap:5px; flex:1 1 auto; min-width:0;}
   .card{
-    width:60px; flex:none;
+    flex:1 1 0; min-width:0;
     background:#0a1126; border:1px solid var(--line); border-radius:8px;
     padding:4px 2px 3px; text-align:center; cursor:pointer; position:relative;
     transition:border-color .12s, transform .08s;
-    touch-action:pan-x;   /* horizontal swipe scrolls the dock; vertical drag deploys */
+    touch-action:none;   /* card fully owns the gesture — drag any direction to deploy */
   }
+  #cardInfo{
+    position:absolute; left:8px; bottom:98px; z-index:6; width:200px;
+    background:rgba(10,15,31,.97); border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px; font-size:10px; line-height:1.55; color:var(--dim); text-align:left;
+    pointer-events:none;
+  }
+  #cardInfo.hidden{display:none;}
+  #cardInfo .ttl{font-size:12px; letter-spacing:.5px; margin-bottom:2px;}
+  #cardInfo .role{color:#9db8ff; font-size:8.5px; letter-spacing:1px;}
+  #cardInfo .sp{color:#c46bff;}
   .card:hover{border-color:var(--neon); transform:translateY(-2px);}
   .card.sel{border-color:#fff; box-shadow:0 0 10px rgba(77,141,255,.5);}
   .card.lift{transform:translateY(-10px) scale(1.06); border-color:#7db2ff; box-shadow:0 0 12px rgba(77,141,255,.55);}
@@ -96,12 +106,14 @@
   }
   #abils{display:flex; flex-direction:column; gap:6px; flex:none;}
   .abtn{
-    flex:none; height:48px; background:#0a1126; border:1.5px solid var(--line); border-radius:15px;
+    flex:none; height:54px; background:#0a1126; border:1.5px solid var(--line); border-radius:15px;
     padding:4px 2px; font-size:8px; font-weight:700; letter-spacing:.5px; color:var(--txt);
-    cursor:pointer; text-align:center; line-height:1.25;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    cursor:pointer; text-align:center; line-height:1.2;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
   }
-  .abtn b{display:block; font-size:14px; color:var(--ac,#4d8dff);}
+  .abtn b{display:block; font-size:13px; color:var(--ac,#4d8dff);}
+  .abtn .atag{font-size:6.5px; font-weight:400; letter-spacing:.3px; color:var(--dim);}
+  .abtn.aim .atag,.abtn.aim .cdt{color:#04060d;}
   .abtn:hover{border-color:var(--ac,#4d8dff);}
   .abtn.ready{border-color:var(--ac); color:var(--ac); animation:pul 1.6s infinite;}
   .abtn.cool{opacity:.45; cursor:not-allowed;}
@@ -359,7 +371,7 @@
     box-shadow:0 0 10px rgba(77,141,255,.4);
   }
   #hudTL button:hover,#hudTR button:hover{border-color:#7db2ff; color:#fff;}
-  #hudTL button svg,#hudTR button svg{margin:0 2px 0 0; vertical-align:middle;}
+  #hudTL button svg,#hudTR button svg,#hudTL button svg.ic,#hudTR button svg.ic{margin:0; vertical-align:middle;}
   /* settings */
   .gearBtn{
     position:absolute; top:10px; right:10px; z-index:6;
@@ -496,6 +508,7 @@
       <button id="speedBtn" title="Game speed"></button>
     </div>
     <div id="towerPop" class="hidden"></div>
+    <div id="cardInfo" class="hidden"></div>
 
     <div id="sideCol">
       <div id="sideScroll">
@@ -663,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.32';
+const VERSION='4.33';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -993,28 +1006,28 @@ const EPILOGUE="The gates collapse behind it. One by one, the old relays hum bac
 const CAMPAIGN=[
   {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:3,  mod:null,    unlock:null,
     brief:"A straight stretch of the old supply road — perfect ground to learn the trade. Deploy a hero beside the lane, let the kills pay you, and call the waves when you're ready."},
-  {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:5,  mod:null,    unlock:null,
-    brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count. And Commander... something big walks at the back of their column."},
-  {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:6,  mod:null,    unlock:'tesla',
+  {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:3,  mod:null,    unlock:null,
+    brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
+  {id:2, act:1, name:'SPIRAL LOCK',     map:2, diff:0, waves:3,  mod:null,    unlock:'tesla',
     brief:"A storm answers our distress call. Win here, and VOLTA the Stormcaller joins your roster."},
-  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:7,  mod:'fast',  unlock:'reactor',
-    brief:"The glyphs are accelerating — and something massive is stirring behind them. Hold to wave seven, and our engineers will reignite a buried GRID REACTOR: old power for a new war."},
-  {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:8,  mod:null,    unlock:'sniper',
+  {id:3, act:1, name:'OVERCLOCKED',     map:0, diff:1, waves:3,  mod:'fast',  unlock:'reactor',
+    brief:"The glyphs are accelerating. Hold the line, and our engineers will reignite a buried GRID REACTOR: old power for a new war."},
+  {id:4, act:2, name:'SIEGE OF LANES',  map:1, diff:1, waves:5,  mod:null,    unlock:'sniper',
     brief:"A deadeye watches this siege from the ridge line. Break it, and REX shoots for you."},
-  {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:9,  mod:'horde', unlock:'medic',
+  {id:5, act:2, name:'THE SWARM',       map:2, diff:1, waves:5,  mod:'horde', unlock:'medic',
     brief:"A swarm without end. Thin them with fire and frost before they drown the core. A field mender works the wreckage out there — win, and JUNO joins you."},
-  {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:10, mod:null,    unlock:'aura',
-    brief:"Ten waves. Hold the line, Commander, and LUMA herself will stand with you."},
-  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:10, mod:'regen', unlock:null,
+  {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:5,  mod:null,    unlock:'aura',
+    brief:"Hold the line, Commander, and LUMA herself will stand with you."},
+  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:5,  mod:'regen', unlock:null,
     brief:"These ones knit themselves back together as they walk. Hit harder than they heal."},
-  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:11, mod:null,    unlock:'bastion',
+  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:7,  mod:null,    unlock:'bastion',
     brief:"The void spiral — even light walks carefully here. Beneath it sleeps a BASTION of the first war. Survive, and we wake it for you."},
-  {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:12, mod:'wealth',unlock:null,
+  {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:7,  mod:'wealth',unlock:null,
     brief:"Their war chest marches with the column. Take it from them, bolt by bolt."},
-  {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:12, mod:'horde', unlock:null,
+  {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:7,  mod:'horde', unlock:null,
     brief:"Everything they have, all at once. Breaking point — theirs, or ours."},
-  {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:15, mod:null,    unlock:null,
-    brief:"The OVERMIND PRIME walks. Fifteen waves between it and the core. End this, Commander — for the grid."}
+  {id:11,act:3, name:'OVERMIND PRIME',  map:0, diff:2, waves:7,  mod:null,    boss:true, unlock:null,
+    brief:"The OVERMIND PRIME walks. Seven waves between it and the core — and it leads the last one itself. End this, Commander."}
 ];
 const NODE_POS=[[5,38],[13,20],[21,42],[29,22],[38,40],[46,20],[54,42],[62,22],[70,40],[78,18],[86,40],[94,24]];
 const ACT_COL=['#4d8dff','#ffa53a','#ff3af0'];
@@ -1061,9 +1074,9 @@ const TOWERS={
   medic:{key:'7',name:'JUNO', title:'the Mender', cost:110, range:100, rate:0, dmg:0, dtype:'phys',
     color:'#7dffc8', heal:14, desc:'No attack. Repairs damaged towers in range and revives offline ones.'},
   /* structures — relics of the old defence grid, reawakened */
-  reactor:{key:'8',name:'REACTOR', title:'relic power plant', cost:120, range:0, rate:0, dmg:0, dtype:'phys',
-    color:'#6bffb0', footprint:[2,1], income:10,
-    desc:'Reignited grid power. Pays credits at every wave clear.'},
+  reactor:{key:'8',name:'REACTOR', title:'credit generator', cost:120, range:0, rate:0, dmg:0, dtype:'phys',
+    color:'#6bffb0', footprint:[2,1], income:14,
+    desc:'Reignited grid power. Pays credits automatically every 10 seconds.'},
   bastion:{key:'9',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
     color:'#9a6bff', footprint:[2,2], splash:80,
     desc:'A fortress of the first war. Slow, devastating mortar shells.'}
@@ -1122,13 +1135,14 @@ const XP_T=[120,350,800], MAX_RANK=3;   /* veterancy: +5% dmg, +3% rate per rank
 
 /* ============================== ABILITIES ============================== */
 const ABILITIES={
-  strike:{key:'Q', name:'STRIKE', full:'ORBITAL STRIKE', cd:40, color:'#ffa53a',
-    desc:'Click the map — heavy area damage'},
-  nova:{key:'W', name:'NOVA', full:'FROST NOVA', cd:55, color:'#3ad6ff',
+  strike:{key:'Q', name:'STRIKE', tag:'AIM · AREA', full:'ORBITAL STRIKE', cd:40, color:'#ffa53a',
+    desc:'Tap then aim the map — heavy area damage'},
+  nova:{key:'W', name:'NOVA', tag:'FREEZE 2.5s', full:'FROST NOVA', cd:55, color:'#3ad6ff',
     desc:'Freeze every enemy for 2.5s'},
-  surge:{key:'E', name:'SURGE', full:'OVERDRIVE', cd:50, color:'#c46bff',
+  surge:{key:'E', name:'SURGE', tag:'+60% PWR', full:'OVERDRIVE', cd:50, color:'#c46bff',
     desc:'+60% tower damage & speed for 8s'}
 };
+const INCOME_EVERY=10;   /* reactor pays passively every 10s */
 let cds={strike:0,nova:0,surge:0}, aiming=null, surgeT=0;
 /* touch drag-to-place: 'place' | 'strike' while a finger drag is active */
 let dragMode=null;
@@ -1218,7 +1232,7 @@ const ENEMIES={
   breaker:{hp:280, speed:30, reward:32, lives:2, r:13, color:'#ff8a3a', shape:'square',
     siege:{range:135,dmg:22,rate:1.4,stopT:3.2,cd:5}, label:'BREAKER',
     desc:'stops to bombard your towers', res:{phys:.7,expl:.85,energy:1.2}},
-  boss:{hp:1900, speed:21, reward:160, lives:5, r:22, color:'#ff3af0', shape:'golem',
+  boss:{hp:1400, speed:21, reward:160, lives:5, r:22, color:'#ff3af0', shape:'golem',
     bossLike:true, label:'OVERMIND', desc:'ancient war golem', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
 };
 const DT_NAMES={phys:'physical',ice:'frost',expl:'explosive',energy:'energy'};
@@ -1258,7 +1272,9 @@ function makeWave(n){
   if(n>=6) add('breaker', Math.max(1,Math.floor(n/6)), 2.6);
   if(n>=10) add('statik', Math.floor(n/5), 2.2);
   if(n>=11) add('phaser', Math.floor(n/4), 1.6);
-  if(n%5===0) add('boss', Math.floor(n/10)+1, 5);
+  /* finale forces its namesake boss on the last wave; otherwise bosses ride wave%5 */
+  const bossNow = (campNode&&campNode.boss) ? n===finalWave : (n%5===0);
+  if(bossNow) add('boss', Math.floor(n/10)+1, 5);
   let hpMul=(1+(n-1)*.30+Math.pow(Math.max(0,n-8),2)*.012)*DIFF().hp;
   let rewardMul=(.7+n*.015)*DIFF().reward;
   let spdMul=1;
@@ -1414,14 +1430,18 @@ function musicTick(){
   const sd=inten===3?.105:.125;
   while(MUSIC.next<t+.3){
     const s=MUSIC.step, when=MUSIC.next;
+    /* soft rounded bass pad on each bar quarter */
     if(s%4===0)
-      mnote(SEMI(BASS_SEQ[(s/4)%16]+(inten===3?-2:0)),when,.22,'triangle',.07);
+      mnote(SEMI(BASS_SEQ[(s/4)%16]+(inten===3?-2:0)),when,.34,'sine',.06);
+    /* gentle bell arpeggio — sparse when calm, fuller in combat, never a buzz */
     const arp=inten===3?ARP_BOSS:ARP;
-    const play=inten===3 ? true : inten===2 ? s%2===0 : s%4===2;
+    const play=inten===3 ? s%2===0 : inten===2 ? s%4===0 : s%8===0;
     if(play)
-      mnote(220*Math.pow(2,arp[s%arp.length]/12),when,.12,'square',inten===1?.018:.03);
-    if(inten>=2 && s%4===2) mhat(when,.025);
-    if(inten===3 && s%16===0) mnote(SEMI(-5),when,1.6,'sawtooth',.022);
+      mnote(220*Math.pow(2,arp[s%arp.length]/12),when,.5,'triangle',inten===1?.016:.024);
+    /* hushed hat only in combat */
+    if(inten>=2 && s%8===4) mhat(when,.014);
+    /* low swelling drone under the boss instead of a sawtooth rasp */
+    if(inten===3 && s%16===0) mnote(SEMI(-5),when,2.4,'sine',.03);
     MUSIC.step=(MUSIC.step+1)%64;
     MUSIC.next+=sd;
   }
@@ -1464,7 +1484,7 @@ function spawnEnemy(type,dist,w,elite,lane=0){
     x:0,y:0,dist,slowT:0,slowF:1,healT:1.5,flash:0,dead:false,wob:Math.random()*TAU,
     shieldHits:def.shield||0,maxShield:def.shield||0,phaseClock:Math.random()*4.2,
     poisonT:0,poisonDps:0,brittleT:0,phased:false,
-    bossShield:def.bossLike?def.hp*w.hpMul*.25:0,mSpawnT:6,empPulseT:10};
+    bossShield:def.bossLike?def.hp*w.hpMul*.18:0,mSpawnT:6,empPulseT:10};
   if(elite){
     e.elite=elite;
     e.maxHp*=2.2; e.hp=e.maxHp;
@@ -1598,7 +1618,7 @@ function placeTower(type,c,r){
   const t={type,def,c,r,x:(c+fp[0]/2)*CELL,y:(r+fp[1]/2)*CELL,level:1,cd:0,angle:-Math.PI/2,
            invested:def.cost,flash:0,spawnT:0,buildT:.7,spec:null,mode:0,buffD:0,buffR:0,
            empT:0,totalDmg:0,waveDmg:0,xp:0,rank:0,keys:[],
-           hp:hpBase,maxHp:hpBase,offline:false,shieldT:0};
+           hp:hpBase,maxHp:hpBase,offline:false,shieldT:0,incT:INCOME_EVERY};
   for(let dc=0;dc<fp[0];dc++)for(let dr=0;dr<fp[1];dr++) t.keys.push((c+dc)+','+(r+dr));
   t.stats=computeStats(t);
   towers.push(t);
@@ -1739,7 +1759,7 @@ function update(dt){
   if(!waveActive && interT>0 && !gameOver){
     interT-=dt;
     if(interT<=0){ interT=0; startWave(); }
-    else $('waveBtn').textContent='WAVE '+(wave+1)+' IN '+Math.ceil(interT)+'s · EARLY +'+(Math.ceil(interT)*2);
+    else $('waveBtn').textContent='WAVE '+(wave+1)+' IN '+Math.ceil(interT)+'s · TAP TO START';
   }
 
   /* spawning */
@@ -1760,21 +1780,12 @@ function update(dt){
       const bonus=Math.round(8+wave*1.5);
       money+=bonus;
       addText(W/2,90,'WAVE '+wave+' CLEAR  +'+bonus,'#4d8dff',true);
-      /* reactors pay out, aid cells patch the core */
-      let inc=0, healed=0;
-      for(const t of towers){
-        if(!t.def.income||t.offline) continue;
-        inc+=t.stats.income;
-        if(t.spec==='cells'&&lives<maxLives()){ lives++; healed++; }
-      }
       /* FIELD KIT medics patch the whole grid at wave clear */
       if(towers.some(t=>t.def.heal&&t.spec==='fieldkit'&&!t.offline)){
         let patched=0;
         for(const t of towers){ if(!t.offline&&t.hp<t.maxHp){ t.hp=t.maxHp; patched++; } }
         if(patched) addText(W/2,196,'FIELD KIT — GRID PATCHED','#7dffc8');
       }
-      if(inc){ money+=inc; addText(W/2,138,'REACTORS +'+inc,'#6bffb0'); bumpStat('moneyV'); }
-      if(healed){ addText(W/2,158,'CORE PATCHED +'+healed,'#39ff6a'); bumpStat('livesV'); }
       if(relicHas('toll')){ money+=45; addText(W/2,178,'TOLL GATE +45','#ffd34d'); }
       const mvps=towers.filter(t=>t.waveDmg>0).sort((a,b)=>b.waveDmg-a.waveDmg).slice(0,3);
       if(mvps.length)
@@ -1936,6 +1947,23 @@ function update(dt){
     }
   }
 
+  /* reactors — passive income every INCOME_EVERY seconds, with coin animation */
+  for(const t of towers){
+    if(!t.def.income||t.offline||t.buildT>0) continue;
+    t.incT-=dt;
+    if(t.incT<=0){
+      t.incT=INCOME_EVERY;
+      const pay=t.stats.income;
+      money+=pay; bumpStat('moneyV');
+      addText(t.x,t.y-26,'+'+pay,'#6bffb0',true);
+      ring(t.x,t.y,24,'#6bffb0',.4);
+      for(let i=0;i<3&&coins.length<50;i++)
+        coins.push({x:t.x,y:t.y,vx:(Math.random()-.5)*90,vy:-70-Math.random()*50,t:0});
+      if(t.spec==='cells'&&lives<maxLives()){ lives++; bumpStat('livesV'); addText(t.x,t.y-42,'CORE +1','#39ff6a'); }
+      SND.coinBig();
+    }
+  }
+
   /* menders — repair damaged towers, revive offline ones */
   for(const t of towers){
     if(!t.def.heal||t.offline||t.empT>0||t.buildT>0) continue;
@@ -2071,6 +2099,7 @@ function poly(c,x,y,r,n,rot=0){
 }
 /* glow governor: shadowBlur is the #1 mobile GPU cost — heavy scenes drop it */
 let fxLite=false;
+let incFrac=-1;   /* reactor payout fraction set per-tower before drawTowerBody */
 function glow(c,color,blur){ if(fxLite) return; c.shadowColor=color; c.shadowBlur=blur; }
 function noGlow(c){ c.shadowBlur=0; }
 /* small vector lightning bolt (unit-sized, scaled by s) */
@@ -2084,25 +2113,6 @@ function drawBolt(c,x,y,s,color){
   c.restore();
 }
 
-/* shared mounting plinth — grounds every 1x1 hero tower on its tile */
-function basePad(c,col){
-  c.save();
-  c.fillStyle='#131e42'; c.strokeStyle='#2a3d72'; c.lineWidth=1.4;
-  c.beginPath();
-  for(let i=0;i<8;i++){
-    const a=i/8*TAU+Math.PI/8;
-    const x=Math.cos(a)*15.5, y=Math.sin(a)*15.5;
-    i?c.lineTo(x,y):c.moveTo(x,y);
-  }
-  c.closePath(); c.fill(); c.stroke();
-  c.strokeStyle=col; c.globalAlpha*=.45; c.lineWidth=1.3;
-  c.beginPath();
-  for(const s of [[-1,-1],[1,-1],[1,1],[-1,1]]){
-    c.moveTo(s[0]*13,s[1]*9); c.lineTo(s[0]*9,s[1]*13);
-  }
-  c.stroke();
-  c.restore();
-}
 function muzzleFlash(c,x,col){
   c.save(); c.translate(x,0);
   c.strokeStyle='#fff'; c.lineWidth=1.6; glow(c,col,10);
@@ -2115,7 +2125,6 @@ function muzzleFlash(c,x,col){
 }
 function drawTowerBody(c,type,level,angle,t,firing){
   const def=TOWERS[type], col=def.color;
-  if(!def.footprint) basePad(c,col);
   c.lineWidth=2; c.strokeStyle=col; glow(c,col,10);
   const bob=Math.sin(t*3)*1.2;
   /* upgrade tiers readable at a glance: LV2 corner pylons, LV3 rotating halo */
@@ -2268,30 +2277,37 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.beginPath(); c.moveTo(0,bob-4.5); c.lineTo(0,bob+4.5); c.moveTo(-4.5,bob); c.lineTo(4.5,bob); c.stroke();
     c.lineWidth=2;
   }else if(type==='reactor'){
-    /* relic power plant: long housing, twin coils, pulsing energy bus */
+    /* credit generator: housing, twin vaults, and a central coin with a
+       countdown ring that fills as the next payout approaches */
     c.strokeRect(-32,-13,64,26);
-    for(const cx of [-16,16]){
-      c.beginPath(); c.arc(cx,0,8,0,TAU); c.stroke();
-      poly(c,cx,0,3.8,3,t*(cx<0?2.2:-2.2)); c.stroke();   /* spinning rotor */
-    }
-    /* vent stacks */
-    c.lineWidth=1.4;
-    c.beginPath(); c.moveTo(-10,-19); c.lineTo(-10,-23); c.moveTo(-6,-19); c.lineTo(-6,-23); c.stroke();
-    c.lineWidth=2;
-    glow(c,col,12);
-    c.globalAlpha=.6+.35*Math.sin(t*4);
-    c.beginPath(); c.moveTo(-24,0); c.lineTo(-8,0); c.moveTo(8,0); c.lineTo(24,0); c.stroke();
-    c.globalAlpha=1;
-    /* vent fins */
     c.beginPath();
-    c.moveTo(-32,-13); c.lineTo(-26,-19); c.lineTo(26,-19); c.lineTo(32,-13);
-    c.stroke();
-    /* rising spark */
-    const sp=(t*.9)%1;
-    c.globalAlpha=1-sp;
-    c.fillStyle=col;
-    c.beginPath(); c.arc(0,-14-sp*10,1.6,0,TAU); c.fill();
-    c.globalAlpha=1;
+    c.moveTo(-32,-13); c.lineTo(-26,-19); c.lineTo(26,-19); c.lineTo(32,-13); c.stroke();
+    /* side vault coils */
+    for(const cx of [-20,20]){
+      c.beginPath(); c.arc(cx,0,6,0,TAU); c.stroke();
+      poly(c,cx,0,3,3,t*(cx<0?2:-2)); c.stroke();
+    }
+    /* central coin token with a credit glyph */
+    c.beginPath(); c.arc(0,0,9,0,TAU); c.stroke();
+    c.lineWidth=1.5;
+    c.beginPath();
+    c.moveTo(0,-5); c.lineTo(0,5);                       /* vertical bar of a credit mark */
+    c.moveTo(-3,-3); c.lineTo(3,-3); c.moveTo(-3,3); c.lineTo(3,3);
+    c.stroke(); c.lineWidth=2;
+    /* countdown ring — fills clockwise toward the next payout */
+    if(incFrac>=0){
+      c.strokeStyle='#0c1430'; c.lineWidth=3;
+      c.beginPath(); c.arc(0,0,13,0,TAU); c.stroke();
+      c.strokeStyle=col; glow(c,col,8);
+      c.beginPath(); c.arc(0,0,13,-Math.PI/2,-Math.PI/2+incFrac*TAU); c.stroke();
+      noGlow(c); c.lineWidth=2; c.strokeStyle=col;
+      if(incFrac>.97){                                   /* about to pay — coin pops up */
+        const sp=(t*2)%1;
+        c.fillStyle=col; c.globalAlpha=1-sp;
+        c.beginPath(); c.arc(0,-14-sp*8,2,0,TAU); c.fill();
+        c.globalAlpha=1;
+      }
+    }
   }else if(type==='bastion'){
     /* ancient siege fortress: walls, corner blocks, rotating mortar */
     c.strokeRect(-32,-32,64,64);
@@ -2310,12 +2326,17 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.beginPath(); c.moveTo(-4,0); c.lineTo(4,0); c.stroke();
     c.beginPath(); c.arc(0,0,1.3,0,TAU); c.stroke();
     c.restore();
+    /* armored turret ring */
     poly(c,0,0,20,8,t*.15); c.stroke();
+    poly(c,0,0,13,8,-t*.1); c.stroke();
     c.save(); c.rotate(angle);
     const rec=firing?-4:0;
-    c.strokeRect(4+rec,-8,30,16);
-    c.beginPath(); c.moveTo(34+rec,-10); c.lineTo(34+rec,10); c.stroke();
-    if(firing) muzzleFlash(c,37+rec,col);
+    /* heavy twin-plated barrel with a loaded round */
+    c.strokeRect(4+rec,-9,30,18);
+    c.beginPath(); c.moveTo(4+rec,0); c.lineTo(34+rec,0); c.stroke();   /* barrel seam */
+    c.beginPath(); c.moveTo(34+rec,-11); c.lineTo(34+rec,11); c.stroke();
+    if(!firing){ c.fillStyle=col; glow(c,col,6); c.beginPath(); c.arc(12,0,2.4,0,TAU); c.fill(); noGlow(c); }
+    if(firing) muzzleFlash(c,38+rec,col);
     c.restore();
     glow(c,col,12);
     c.beginPath(); c.arc(0,0,5+Math.sin(t*4)*1.2,0,TAU); c.stroke();
@@ -3045,7 +3066,15 @@ function draw(){
     ctx.moveTo(mouse.x,mouse.y-12); ctx.lineTo(mouse.x,mouse.y+12);
     ctx.stroke();
     ctx.fillStyle='rgba(255,165,58,.85)'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
-    ctx.fillText(dragMode==='strike'?'RELEASE TO FIRE':'CLICK TO STRIKE',mouse.x,mouse.y-100);
+    ctx.fillText(dragMode==='strike'?'RELEASE TO FIRE':'TAP OR DRAG TO STRIKE',mouse.x,mouse.y-100);
+  }
+  /* strike armed but finger not yet on the field — tell the player what to do */
+  if(aiming==='strike' && !mouse.inside){
+    const tw=210;
+    ctx.fillStyle='rgba(26,16,8,.85)'; ctx.fillRect(W/2-tw/2,12,tw,24);
+    ctx.strokeStyle='#ffa53a'; ctx.lineWidth=1.2; ctx.strokeRect(W/2-tw/2,12,tw,24);
+    ctx.fillStyle='#ffd2a0'; ctx.font='bold 11px monospace'; ctx.textAlign='center';
+    ctx.fillText('TAP OR DRAG THE MAP TO STRIKE',W/2,28);
   }
 
   /* range circles */
@@ -3116,6 +3145,7 @@ function draw(){
     }
     if(t.empT>0) ctx.globalAlpha=.4+.1*Math.sin(time*20);
     if(t.offline) ctx.globalAlpha=.28;
+    incFrac=t.def.income?1-Math.max(0,t.incT)/INCOME_EVERY:-1;   /* reactor payout countdown */
     /* bodies were drawn for 40px cells; 1.27 refits them to the 55px grid */
     const tsc=1.27*(t.def.footprint?1:1+(t.level-1)*.05);
     if(t.buildT>0){
@@ -3315,7 +3345,7 @@ function draw(){
   /* boss bar */
   {
     let hp=0,max=0,sh=0,shMax=0;
-    for(const e of enemies) if(e.def.bossLike&&!e.dead){hp+=e.hp;max+=e.maxHp;sh+=e.bossShield;shMax+=e.maxHp*.25;}
+    for(const e of enemies) if(e.def.bossLike&&!e.dead){hp+=e.hp;max+=e.maxHp;sh+=e.bossShield;shMax+=e.maxHp*.18;}
     if(max>0){
       const bw=320, x=(W-bw)/2, y=16;
       ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(x-2,y-2,bw+4,12);
@@ -3434,7 +3464,7 @@ function draw(){
           : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
       }else if(tut&&wave===1&&!waveActive){
         msg=towers.some(tw=>tw.level>1)
-          ? 'STEP 4 — UPGRADES STACK. CALL THE NEXT WAVE EARLY FOR BONUS CREDITS'
+          ? 'STEP 4 — DEPLOY A REACTOR FOR PASSIVE INCOME, THEN CALL THE NEXT WAVE'
           : 'STEP 3 — TAP YOUR TOWER, THEN HIT THE GREEN ARROW BUTTON TO UPGRADE IT';
       }
     }
@@ -3495,7 +3525,7 @@ function showTowerInfo(t){
     : d.heal
     ? `<b>REPAIR</b> ${s.heal} hull/s · <b>RNG</b> ${s.range} · revives offline towers<br>`
     : d.income
-    ? `<b>INCOME</b> +${s.income} credits at every wave clear<br>`
+    ? `<b>INCOME</b> +${s.income} credits every 10s<br>`
     : `<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · <b>AOE</b> ${s.splash}`:''}${s.chain?` · <b>CHAIN</b> ${s.chain}`:''} · <b style="color:#9db8ff">DEALT ${fmt(t.totalDmg)}</b>
       · <b style="color:#ffd34d">${'★'.repeat(t.rank)||'☆'}</b>${t.rank<MAX_RANK?` <span style="font-size:9px">(${Math.floor(t.xp)}/${XP_T[t.rank]} XP)</span>`:' MAX'}<br>`;
   if(t.hp<t.maxHp||t.offline)
@@ -3622,7 +3652,7 @@ function buildUI(){
     b.className='abtn'; b.id='ab_'+k;
     b.style.setProperty('--ac',a.color);
     b.title=a.full+' — '+a.desc+' ['+a.key+']';
-    b.innerHTML=`<b>${a.key}</b><span class="cdt">${a.name}</span>`;
+    b.innerHTML=`<b>${a.key}</b><span class="cdt">${a.name}</span><span class="atag">${a.tag}</span>`;
     b.onclick=()=>{ac(); useAbility(k);};
     ab.appendChild(b);
   }
@@ -3860,7 +3890,7 @@ function codexHeroes(){
     return `<div class="cdx">${art}<div>
       <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
       ${d.desc}<br>
-      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income}/wave · footprint ${d.footprint[0]}×${d.footprint[1]}`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
+      ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income}/10s · footprint ${d.footprint[0]}×${d.footprint[1]}`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
       <span style="color:#c46bff">★ ${SPECS[k][0].n} / ${SPECS[k][1].n}</span></div></div>`;
   }).join('');
 }
@@ -3888,7 +3918,7 @@ function codexBiome(){
 }
 function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
-    <b>1–7</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave (early = bonus credits)<br>
+    <b>1–7</b> select hero · <b>Q/W/E</b> abilities · <b>SPACE</b> start wave · hold a card to inspect it<br>
     <b>F</b> game speed · <b>P</b> pause · <b>T</b> targeting mode · <b>ESC</b> cancel · <b>SHIFT+click</b> multi-place<br><br>
     <b style="color:#9db8ff">TOUCH</b> — drag a hero card from the bottom dock straight onto the grid: the tower
     floats above your finger; release to build. Swipe the dock sideways to see more cards. The same press-drag
@@ -4002,12 +4032,7 @@ function startWave(){
 }
 function callWave(){
   if(!running||gameOver||waveActive) return;
-  if(interT>0){
-    const b=Math.ceil(interT)*2;
-    money+=b;
-    addText(W/2,110,'EARLY CALL +'+b,'#ffd34d',true);
-    SND.coinBig(); interT=0;
-  }
+  interT=0;   /* early call just starts the wave now — no money pressure */
   startWave();
 }
 function earnedMedals(){
@@ -4175,17 +4200,35 @@ cvs.addEventListener('pointerup',e=>{
 cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; });
 
 /* drag a card straight onto the grid — Arknights-style deployment */
-let cardDrag=null, suppressClick=false;
+let cardDrag=null, suppressClick=false, holdTimer=null;
+function showCardInfo(type){
+  const d=TOWERS[type], s=lvlStat(d,1), sp=SPECS[type];
+  const role=d.aura?'SUPPORT · AURA':d.heal?'SUPPORT · MENDER':d.income?'STRUCTURE · ECONOMY':d.footprint?'STRUCTURE · SIEGE':'TOWER · '+DT_NAMES[d.dtype].toUpperCase();
+  const stat=d.aura?`<b>BUFF</b> +25% dmg · +15% rate · RNG ${d.range}`
+    :d.heal?`<b>REPAIR</b> ${d.heal}/s · RNG ${d.range} · revives offline towers`
+    :d.income?`<b>INCOME</b> +${d.income} credits every 10s`
+    :`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · AOE ${s.splash}`:''}${s.chain?` · CHAIN ${s.chain}`:''}`;
+  const p=$('cardInfo');
+  p.innerHTML=`<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:8px;color:#6b7fb3">$${d.cost}</span></div>`
+    +`<div class="role">${role}</div>${d.desc}<br>${stat}`
+    +`<br><span class="sp">★ ${sp[0].n} / ${sp[1].n}</span>`;
+  p.classList.remove('hidden');
+}
 function startCardDrag(type,e){
   if(!running||gameOver||drafting||paused) return;
-  if(campNode&&!heroUnlocked(type)) return;
-  if(money<TOWERS[type].cost) return;
+  /* hold to inspect — works even when unaffordable/locked */
+  clearTimeout(holdTimer);
+  holdTimer=setTimeout(()=>{ if(cardDrag&&!cardDrag.moved){ showCardInfo(type); cardDrag.holding=true; ac(); } },380);
+  if(campNode&&!heroUnlocked(type)){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
+  if(money<TOWERS[type].cost){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
   cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false};
 }
 window.addEventListener('pointermove',e=>{
   if(!cardDrag||e.pointerId!==cardDrag.id) return;
   if(!cardDrag.moved){
     if(Math.hypot(e.clientX-cardDrag.sx,e.clientY-cardDrag.sy)<9) return;
+    clearTimeout(holdTimer);
+    if(cardDrag.holding||cardDrag.noDeploy){ cardDrag=null; $('cardInfo').classList.add('hidden'); return; }
     cardDrag.moved=true;
     ac();
     if(placing!==cardDrag.type) selectCard(cardDrag.type);
@@ -4200,8 +4243,11 @@ window.addEventListener('pointermove',e=>{
 });
 window.addEventListener('pointerup',e=>{
   if(!cardDrag||e.pointerId!==cardDrag.id) return;
-  const moved=cardDrag.moved; cardDrag=null;
+  clearTimeout(holdTimer);
+  const moved=cardDrag.moved, held=cardDrag.holding; cardDrag=null;
   document.querySelectorAll('.card.lift').forEach(c=>c.classList.remove('lift'));
+  $('cardInfo').classList.add('hidden');
+  if(held){ suppressClick=true; return; }   /* releasing a hold dismisses the info */
   if(!moved) return;                       /* plain tap → the card's click handler takes it */
   suppressClick=true;
   dragMode=null;
@@ -4218,8 +4264,10 @@ window.addEventListener('pointerup',e=>{
 });
 window.addEventListener('pointercancel',e=>{
   if(cardDrag&&e.pointerId===cardDrag.id){
+    clearTimeout(holdTimer);
     cardDrag=null; cancelPlacing(); mouse.inside=false;
     document.querySelectorAll('.card.lift').forEach(c=>c.classList.remove('lift'));
+    $('cardInfo').classList.add('hidden');
   }
 });
 cvs.addEventListener('contextmenu',e=>{
