@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.38';
+const VERSION='4.39';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1777,7 +1777,7 @@ function update(dt){
     $('waveBtn').textContent='WAVE '+wave+' — '+remaining+' HOSTILES';
     if(!spawnQueue.length && !enemies.length){
       waveActive=false;
-      const bonus=Math.round(8+wave*1.5);
+      const bonus=Math.round(15+wave*4);
       money+=bonus;
       addText(W/2,90,'WAVE '+wave+' CLEAR  +'+bonus,'#4d8dff',true);
       /* FIELD KIT medics patch the whole grid at wave clear */
@@ -4122,7 +4122,7 @@ function finishWin(){
   const cb=$('continueBtn');
   if(campNode){
     const leaks=maxLives()-lives;
-    const stars=leaks<=0?3:leaks<=3?2:1;
+    const stars=leaks<=1?3:leaks<=5?2:1;   /* one leak still earns full stars */
     const prev=SAVE.camp.stars[campNode.id]||0;
     let bonus=0;
     if(stars>prev){ bonus=(stars-prev)*3; SAVE.cores+=bonus; SAVE.camp.stars[campNode.id]=stars; persist(); }
