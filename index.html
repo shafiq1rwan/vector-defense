@@ -288,21 +288,33 @@
     background:#0c2347; border:1px solid #2f6fd0; color:#7db2ff; font-weight:800; font-size:12px;
   }
   .howStep b{color:#9db8ff;}
-  /* relics */
-  #relicRow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:660px;}
+  /* relic draft */
+  #relicOverlay .big{animation:titleIn .5s ease-out;}
+  #relicRow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; max-width:680px; margin-top:4px;}
   .relicOpt{
-    width:150px; min-height:104px; background:#0a1126; border:1px solid #8a6d1f;
-    border-radius:10px; padding:12px 10px; cursor:pointer; color:#ffd34d; font:inherit;
-    display:flex; flex-direction:column; align-items:center; gap:6px; flex:none;
+    width:164px; min-height:138px; background:#0a1126; border:1.5px solid #8a6d1f;
+    border-radius:12px; padding:14px 11px 12px; cursor:pointer; color:#ffd34d; font:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:7px; flex:none;
+    animation:relIn .45s ease-out;
   }
-  .relicOpt:hover{border-color:#ffd34d; background:#161204;}
-  .relicOpt b{font-size:10.5px; letter-spacing:1.5px;}
+  @keyframes relIn{from{opacity:0; transform:translateY(20px) scale(.92);}}
+  .relicOpt .ric{
+    width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:#161204; border:1px solid #8a6d1f;
+  }
+  .relicOpt:hover{border-color:#ffd34d; background:#161204; transform:translateY(-3px);}
+  .relicOpt b{font-size:11px; letter-spacing:1.5px;}
   .relicOpt span.rd{font-size:9.5px; color:var(--dim); line-height:1.5; letter-spacing:.3px;}
-  #relicStrip{display:flex; gap:4px; flex-wrap:wrap;}
-  #relicStrip.hidden{display:none;}
+  .relicOpt .rtag{margin-top:auto; font-size:7px; letter-spacing:1.5px; color:#8a6d1f;}
+  /* in-run relic tray (side column) */
+  #relicHdr{font-size:7.5px; letter-spacing:1.5px; color:#ffd34d; margin-bottom:-2px;}
+  #relicHdr.hidden,#relicStrip.hidden{display:none;}
+  #relicStrip{display:flex; gap:5px; flex-wrap:wrap;}
+  #relicStrip.flash{animation:rflash .8s ease-out;}
+  @keyframes rflash{0%,100%{filter:none;}30%{filter:drop-shadow(0 0 6px #ffd34d);}}
   .rChip{
-    width:24px; height:21px; display:flex; align-items:center; justify-content:center;
-    border:1px solid #8a6d1f; border-radius:5px; color:#ffd34d; background:#141104;
+    width:30px; height:26px; display:flex; align-items:center; justify-content:center;
+    border:1px solid #8a6d1f; border-radius:6px; color:#ffd34d; background:#141104;
     padding:0; flex:none; cursor:pointer;
   }
   .rChip svg{margin:0;}
@@ -548,6 +560,7 @@
             <div id="progWrap"><div id="progFill"></div></div></div>
         </div>
         <div id="abils"></div>
+        <div id="relicHdr" class="hidden">RELICS — TAP TO INSPECT</div>
         <div id="relicStrip" class="hidden"></div>
         <div id="relicInfo"></div>
       </div>
@@ -713,8 +726,8 @@
     </div>
 
     <div id="relicOverlay" class="overlay solid vcenter hidden">
-      <div class="big" id="relicTitle" style="font-size:15px; letter-spacing:5px">RELIC RECOVERED</div>
-      <div class="sub" style="font-size:10px">Choose one — active for the rest of this run</div>
+      <div class="big" id="relicTitle" style="font-size:16px; letter-spacing:5px">RELIC RECOVERED</div>
+      <div class="sub" style="font-size:10.5px; max-width:430px">The fallen boss dropped ancient grid-tech. <b style="color:#ffd34d">Pick one</b> — it boosts you for the rest of this run. Your relics live in the side panel under <b style="color:#ffd34d">RELICS</b>.</div>
       <div id="relicRow"></div>
     </div>
   </div>
@@ -724,7 +737,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.0';
+const VERSION='1.0.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1210,7 +1223,7 @@ const RELICS=[
   {id:'aegis',   n:'AEGIS PROTOCOL',icon:'home',   d:'+2 core integrity when a boss falls'},
   {id:'magnet',  n:'MAGNET CORE',   icon:'up',     d:'Kill combos last 1s longer'}
 ];
-let relics=[], drafting=false, openingDraftDue=false, runBossKills=0, riT=null;
+let relics=[], drafting=false, openingDraftDue=false, runBossKills=0, riT=null, draftPendT=0;
 const relicHas=id=>relics.includes(id);
 function openDraft(title){
   const pool=RELICS.filter(r=>!relicHas(r.id));
@@ -1221,7 +1234,7 @@ function openDraft(title){
     const r=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
     const b=document.createElement('button');
     b.className='relicOpt';
-    b.innerHTML=ic(r.icon,22)+'<b>'+r.n+'</b><span class="rd">'+r.d+'</span>';
+    b.innerHTML='<div class="ric">'+ic(r.icon,26)+'</div><b>'+r.n+'</b><span class="rd">'+r.d+'</span><span class="rtag">RUN-LONG</span>';
     b.onclick=()=>pickRelic(r.id);
     row.appendChild(b);
   }
@@ -1237,18 +1250,24 @@ function pickRelic(id){
   drafting=false;
   $('relicOverlay').classList.add('hidden');
   const r=RELICS.find(x=>x.id===id);
-  addText(W/2,200,r.n+' ONLINE','#ffd34d',true);
+  addText(W/2,200,r.n+' ONLINE — SAVED TO RELICS','#ffd34d',true);
   renderRelicStrip();
+  const box=$('relicStrip');   /* flash the tray so players see where it went */
+  if(box){ box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); }
+  $('relicInfo').textContent=r.n+' — '+r.d;
+  clearTimeout(riT); riT=setTimeout(()=>{$('relicInfo').textContent='';},4500);
   SND.ability(); vib(15);
 }
 function renderRelicStrip(){
   const box=$('relicStrip'); if(!box) return;
+  const hdr=$('relicHdr');
   box.classList.toggle('hidden',!relics.length);
+  if(hdr) hdr.classList.toggle('hidden',!relics.length);
   box.innerHTML='';
   for(const id of relics){
     const r=RELICS.find(x=>x.id===id);
     const b=document.createElement('button');
-    b.className='rChip'; b.innerHTML=ic(r.icon,12); b.title=r.n+' — '+r.d;
+    b.className='rChip'; b.innerHTML=ic(r.icon,14); b.title=r.n+' — '+r.d;
     b.onclick=()=>{
       $('relicInfo').textContent=r.n+' — '+r.d;
       clearTimeout(riT); riT=setTimeout(()=>{$('relicInfo').textContent='';},4000);
@@ -1386,7 +1405,7 @@ function reset(){
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
   endless=false; gameOver=false; shake=0; leakFlash=0; speedMult=1; interT=0;
   combo=0; comboT=0; bestCombo=0; kills=0; soldAny=false; usedTypes=new Set();
-  relics=[]; drafting=false; runBossKills=0;
+  relics=[]; drafting=false; runBossKills=0; draftPendT=0;
   hitStop=0; shownMoney=money; heartT=0; coins=[]; cracks=[];
   openingDraftDue=totalStars()>=24;
   $('relicOverlay').classList.add('hidden');
@@ -1809,6 +1828,8 @@ function update(dt){
   time+=dt;
   /* 24★ milestone — every run opens with a relic cache */
   if(openingDraftDue){ openingDraftDue=false; openDraft('OPENING CACHE'); return; }
+  /* boss-drop draft opens after a short beat */
+  if(draftPendT>0){ draftPendT-=dt; if(draftPendT<=0) openDraft(); }
   if(shake>0) shake=Math.max(0,shake-dt*22);
   if(leakFlash>0) leakFlash-=dt*1.6;
   if(comboPop>0) comboPop-=dt;
@@ -1858,8 +1879,12 @@ function update(dt){
       wb.disabled=false; wb.classList.add('pulse');
       interT=INTERMISSION;
       updateNextPreview();
-      /* boss down — salvage teams bring back a relic to draft */
-      if(wave%5===0 && relics.length<RELICS.length) openDraft();
+      /* boss down — a beat of fanfare, then the relic draft opens (less jarring) */
+      if(wave%5===0 && relics.length<RELICS.length){
+        draftPendT=1.5;
+        addText(W/2,168,'RELIC RECOVERED','#ffd34d',true);
+        addText(W/2,192,'salvaging ancient tech...','#9db8ff');
+      }
     }
   }
 
