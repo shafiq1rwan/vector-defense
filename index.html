@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.40';
+const VERSION='4.41';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1286,7 +1286,7 @@ function makeWave(n){
     if(mod.id==='wealth') rewardMul*=1.5;
     if(mod.id==='horde'){
       const extra=[];
-      q.forEach((s,i)=>{ if(i%2===0) extra.push({type:s.type,time:s.time+.35}); });
+      q.forEach((s,i)=>{ if(i%2===0 && s.type!=='boss') extra.push({type:s.type,time:s.time+.35}); });
       q.push(...extra); q.sort((a,b)=>a.time-b.time);
       hpMul*=.85;
     }
