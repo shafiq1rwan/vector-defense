@@ -331,24 +331,38 @@
   .selRow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center;}
   .selRow .lbl{font-size:9px; letter-spacing:2px; color:var(--dim);}
   .mapOpt{
-    border:1px solid var(--line); border-radius:10px; padding:7px 7px 6px; cursor:pointer;
+    border:1px solid var(--line); border-radius:10px; padding:6px 6px 5px; cursor:pointer;
     background:#0e1734; text-align:center; transition:border-color .12s, transform .1s;
   }
-  .mapOpt canvas{display:block; margin:0 auto 4px; background:#0a1122; border-radius:6px;}
+  .mapOpt canvas{display:block; margin:0 auto 3px; width:124px; height:70px; background:#0a1122; border-radius:6px;}
   .mapOpt .mnm{font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--txt);}
   .mapOpt .mtag{font-size:7px; letter-spacing:.8px; color:var(--dim); margin-top:1px;}
   .mapOpt:hover{border-color:#7db2ff;}
   .mapOpt.sel{border-color:var(--neon); background:#142250; box-shadow:0 0 12px rgba(77,141,255,.4); transform:translateY(-2px);}
   .mapOpt.sel .mnm{color:#fff;}
   .diffOpt{
-    flex:none; padding:8px 15px; font-size:11px; border-radius:10px;
-    display:flex; flex-direction:column; gap:3px; align-items:center;
+    flex:none; padding:7px 14px; font-size:11px; border-radius:10px;
+    display:flex; flex-direction:column; gap:2px; align-items:center;
   }
   .diffOpt b{color:var(--dc,#4d8dff); letter-spacing:1.5px;}
   .diffOpt .dd{font-size:7.5px; color:var(--dim); letter-spacing:.5px; font-weight:400;}
   .diffOpt.sel{border-color:var(--dc,#fff); background:#16265a; box-shadow:0 0 10px rgba(77,141,255,.3);}
-  #qpOverlay{gap:10px;}
-  #qpLaunch{padding:11px 46px; font-size:12px; letter-spacing:2px;}
+  /* quick play — compact column that always shows LAUNCH without scrolling */
+  #qpOverlay{gap:7px;}
+  #qpOverlay .big{font-size:17px;}
+  #qpOverlay .shopSec{margin-top:2px;}
+  #qpSub{font-size:9px;}
+  #mapSel,#diffSel{gap:8px;}
+  #qpLaunch{padding:11px 52px; font-size:13px; letter-spacing:2px; margin-top:2px;}
+  /* short landscape phones: shrink previews so the whole screen fits */
+  @media (max-height:520px){
+    #qpOverlay{gap:5px;}
+    #qpOverlay .big{font-size:15px;}
+    .mapOpt canvas{width:104px; height:58px;}
+    .mapOpt{padding:4px 5px 4px;}
+    .diffOpt{padding:5px 11px; font-size:10px;}
+    #qpLaunch{padding:9px 44px;}
+  }
   .overlay button.cta{flex:none; padding:11px 34px; font-size:14px;}
   #medals{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:560px;}
   .medal{
@@ -683,7 +697,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.42';
+const VERSION='4.43';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3101,20 +3115,20 @@ function draw(){
     for(const k in ABILITIES) if(cds[k]>0) chips.push({c:ABILITIES[k].color,t:ABILITIES[k].name+' '+Math.ceil(cds[k])+'s',live:false});
     if(surgeT>0) chips.push({c:'#c46bff',t:'OVERDRIVE '+Math.ceil(surgeT)+'s',live:true});
     if(chips.length){
-      ctx.font='bold 13px monospace'; ctx.textAlign='center';
-      const ws=chips.map(ch=>ctx.measureText(ch.t).width+18);
-      let total=ws.reduce((a,b)=>a+b,0)+7*(chips.length-1), x=W/2-total/2;
+      ctx.font='bold 18px monospace'; ctx.textAlign='center';
+      const H2=34, ws=chips.map(ch=>ctx.measureText(ch.t).width+28);
+      let total=ws.reduce((a,b)=>a+b,0)+9*(chips.length-1), x=W/2-total/2;
       for(let i=0;i<chips.length;i++){
         const w=ws[i], ch=chips[i];
-        ctx.globalAlpha=ch.live?.95:.8;
-        ctx.fillStyle='rgba(8,12,24,.82)'; ctx.fillRect(x,11,w,24);
-        ctx.strokeStyle=ch.c; ctx.lineWidth=1.3; ctx.globalAlpha=ch.live?1:.6; ctx.strokeRect(x,11,w,24);
+        ctx.globalAlpha=ch.live?.95:.82;
+        ctx.fillStyle='rgba(8,12,24,.86)'; ctx.fillRect(x,10,w,H2);
+        ctx.strokeStyle=ch.c; ctx.lineWidth=1.6; ctx.globalAlpha=ch.live?1:.65; ctx.strokeRect(x,10,w,H2);
         ctx.globalAlpha=1;
-        ctx.fillStyle=ch.live?ch.c:'#cfe0ff';
-        if(ch.live) glow(ctx,ch.c,6);
-        ctx.fillText(ch.t,x+w/2,27);
+        ctx.fillStyle=ch.live?ch.c:'#dbe9ff';
+        if(ch.live) glow(ctx,ch.c,7);
+        ctx.fillText(ch.t,x+w/2,10+H2/2+6);
         noGlow(ctx);
-        x+=w+7;
+        x+=w+9;
       }
     }
   }
