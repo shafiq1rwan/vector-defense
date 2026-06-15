@@ -1,6 +1,6 @@
 # ⬡ VECTOR DEFENSE
 
-A neon vector-style tower defense game in a **single HTML file** — no build step, no dependencies.
+A neon vector-style tower defense game in a **single HTML file** — no build step, no dependencies. **Now at v1.0.**
 
 **▶ Play it now: https://shafiq1rwan.github.io/vector-defense/** (works on phone — add it to your home screen for fullscreen offline play)
 
@@ -10,8 +10,9 @@ A neon vector-style tower defense game in a **single HTML file** — no build st
 - **Quick Play** — mission-prep screen with road-topology previews of all 3 maps (spawn/exit tags like "2 SPAWNS · 1 EXIT") and color-coded threat levels showing the real numbers; endless mode after wave 20
 - **Arknights-style stages** — short multi-lane roads (two spawns converging, a fork into two exits, crossing lanes) rendered as flat tiled lanes with a neon rim; hero cards dock at the bottom and deploy by dragging straight onto the grid
 - **7 hero towers** — SLY (archer), GLACE (frost), BRUNO (cannon), VOLTA (tesla), REX (sniper), LUMA (support aura with a visible buff glow on boosted towers), JUNO (field mender who repairs damaged towers and revives offline ones), each with two specialization branches at max level, veterancy ranks earned from kills, and an android portrait in the codex, tower popup and unlock screens
-- **12 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, the BREAKER siege sapper that plants itself and bombards your towers offline (repair them, or let JUNO mend them), and the OVERMIND war golem boss with energy shield, minion spawns and EMP pulses
-- **Structures** — multi-cell relics of the old grid: the 2×1 REACTOR (generates credits automatically every 10s — a passive economy engine with a visible payout countdown) and the 2×2 BASTION siege fortress, both reawakened through the campaign
+- **11 enemy types** with damage-type resistances — splitters, shield-bearers, phasers, the STATIK walking EMP, the BREAKER siege sapper that plants itself and bombards your towers offline (repair them, or let JUNO mend them)
+- **3 distinct bosses**, one climax per act — the OVERMIND war golem that smashes the road to spawn minions and pulses EMP; THE REVENANT, a phasing relay-ghost that blinks down the lane and is only hittable between phases; and OVERMIND PRIME, a three-phase finale that drops its shield, enrages, then unleashes a last-light EMP storm
+- **Structures** — the REACTOR (a credit generator that pays automatically every 10s, with a visible payout countdown) and the 2×2 BASTION siege fortress, both reawakened through the campaign
 - **Active abilities** — Orbital Strike, Frost Nova, Overdrive (Q/W/E)
 - **Relic drafts** — every boss you down lets you pick 1-of-3 run-long relics (damage, range, economy, ability recharge and more); campaign star milestones widen the draft and open every run with a relic cache
 - **Elite enemies** — gold-crowned champions with affixes (shielded vanguard, swift, regenerating, fission) and triple bounties, from wave 4 onward

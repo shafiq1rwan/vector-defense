@@ -178,10 +178,10 @@
   #logo canvas{animation:bob 3s ease-in-out infinite;}
   #logo canvas:last-child{animation-delay:1.5s;}
   @keyframes bob{50%{transform:translateY(-7px);}}
-  #logoTxt{font-weight:800; font-size:42px; letter-spacing:3px; line-height:1; white-space:nowrap;}
-  #logoTxt span{display:inline-block; animation:wave 2.6s ease-in-out infinite; animation-delay:calc(var(--i)*.07s);}
-  #logoTxt .lw{color:#fff; text-shadow:0 0 14px rgba(77,141,255,.9);}
-  #logoTxt .lb{color:var(--bg); -webkit-text-stroke:1.6px #4d8dff; text-shadow:0 0 16px rgba(77,141,255,.55);}
+  #logoTxt,#aboutLogoTxt{font-weight:800; font-size:42px; letter-spacing:3px; line-height:1; white-space:nowrap;}
+  #logoTxt span,#aboutLogoTxt span{display:inline-block; animation:wave 2.6s ease-in-out infinite; animation-delay:calc(var(--i)*.07s);}
+  #logoTxt .lw,#aboutLogoTxt .lw{color:#fff; text-shadow:0 0 14px rgba(77,141,255,.9);}
+  #logoTxt .lb,#aboutLogoTxt .lb{color:var(--bg); -webkit-text-stroke:1.6px #4d8dff; text-shadow:0 0 16px rgba(77,141,255,.55);}
   @keyframes wave{50%{transform:translateY(-6px);}}
   #logoSub{font-size:9px; letter-spacing:7px; color:var(--dim); margin-top:7px; text-align:center;}
   #logoBar{width:230px; height:2px; background:#4d8dff; margin:5px auto 0; animation:pul2 2.2s infinite;}
@@ -280,6 +280,14 @@
     #lumaCv{width:66px; height:85px;}
     #campStars .starsHint{display:none;}
   }
+  /* how-to-play */
+  #howList{display:flex; flex-direction:column; gap:9px; max-width:430px; text-align:left;}
+  .howStep{display:flex; gap:10px; align-items:center; font-size:11.5px; color:var(--txt); line-height:1.4;}
+  .howStep .hn{
+    flex:none; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:#0c2347; border:1px solid #2f6fd0; color:#7db2ff; font-weight:800; font-size:12px;
+  }
+  .howStep b{color:#9db8ff;}
   /* relics */
   #relicRow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:660px;}
   .relicOpt{
@@ -556,6 +564,7 @@
       <canvas id="titleBg"></canvas>
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
       <button id="codexBtn" class="gearBtn" style="right:58px" title="Codex"></button>
+      <button id="aboutBtn" class="gearBtn" style="right:106px" title="About"></button>
       <div id="logo">
         <canvas id="logoL" width="56" height="56"></canvas>
         <div>
@@ -573,6 +582,24 @@
       </div>
       <span id="credTag">BY: SAISS &amp; CLAUDE</span>
       <span id="verTag"></span>
+    </div>
+
+    <div id="howOverlay" class="overlay solid vcenter hidden">
+      <div class="big" style="font-size:18px; letter-spacing:5px">HOW TO PLAY</div>
+      <div id="howList"></div>
+      <button id="howBtn" class="cta">START PLAYING</button>
+    </div>
+
+    <div id="aboutOverlay" class="overlay solid vcenter hidden">
+      <button id="aboutBack" class="gearBtn backTL" title="Back"></button>
+      <div id="logo" style="transform:scale(.9)">
+        <canvas id="aboutLogoL" width="56" height="56"></canvas>
+        <div><div id="aboutLogoTxt"></div><div id="logoSub">NEON GRID TOWER DEFENSE</div></div>
+        <canvas id="aboutLogoR" width="56" height="56"></canvas>
+      </div>
+      <div class="sub" style="max-width:440px">A self-contained neon tower-defense built in a single HTML file — no engine, no dependencies. Hold a hero card to inspect it, drag it onto the grid to build, and hold the line across twelve campaign missions and endless quick-play runs.</div>
+      <div id="aboutMeta" class="sub" style="font-size:10px; color:#9db8ff"></div>
+      <div class="sub" style="font-size:12px; letter-spacing:2px; color:#ffd34d">BY SAISS &amp; CLAUDE</div>
     </div>
 
     <div id="qpOverlay" class="overlay solid vcenter hidden">
@@ -697,7 +724,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.44';
+const VERSION='1.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -725,7 +752,8 @@ const ICONS={
   coin:'<circle cx="8" cy="8" r="5.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.5v7M5.8 6.2h3.4M5.8 9.8h3.4" stroke="currentColor" stroke-width="1.2" fill="none"/>',
   horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>',
   gear:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2M3.2 3.2l1.6 1.6M11.2 11.2l1.6 1.6M12.8 3.2l-1.6 1.6M4.8 11.2l-1.6 1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>',
-  lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
+  lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
@@ -739,6 +767,7 @@ SAVE.haptics=SAVE.haptics!==false;
 SAVE.camp=Object.assign({stars:{},intro:false},SAVE.camp||{});
 SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
 SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{}},SAVE.cosmetics||{});
+SAVE.seenIntro=!!SAVE.seenIntro;
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
 
@@ -3850,7 +3879,18 @@ function buildUI(){
   $('settingsBack').innerHTML=ic('back',16);
   $('pSettingsBtn').innerHTML=ic('gear',15);
   $('shopBack').innerHTML=ic('back',16);
+  $('aboutBtn').innerHTML=ic('info',15);
+  $('aboutBack').innerHTML=ic('back',16);
   $('verTag').textContent='v'+VERSION;
+  /* how-to-play steps */
+  $('howList').innerHTML=[
+    ['1','<b>DRAG</b> a hero card from the bottom dock onto a glowing cell to build a tower. Hold a card to read its stats.'],
+    ['2','<b>TAP</b> a placed tower to upgrade, repair, sell it or change its targeting.'],
+    ['3','<b>ABILITIES</b> Q/W/E — tap STRIKE then aim the map; NOVA freezes, SURGE powers up your towers.'],
+    ['4','<b>HOLD THE LINE</b> — stop every glyph before it reaches your CORE. Earn credits from kills and REACTORS.']
+  ].map(s=>`<div class="howStep"><div class="hn">${s[0]}</div><div>${s[1]}</div></div>`).join('');
+  /* about screen */
+  $('aboutMeta').innerHTML='VERSION '+VERSION+' · 7 heroes · 11 enemies · 3 bosses · HTML5 Canvas, single file';
   buildLogo();
   buildShop();
   updateBestLine();
@@ -3868,6 +3908,12 @@ function buildLogo(){
   }
   renderIcon($('logoL'),'archer',1.25);
   renderEnemyIcon($('logoR'),'boss',1.25);
+  /* mirror the wordmark + icons onto the about screen */
+  const at=$('aboutLogoTxt');
+  if(at){ at.innerHTML=t.innerHTML;
+    renderIcon($('aboutLogoL'),'frost',1.25);
+    renderEnemyIcon($('aboutLogoR'),'revenant',1.25);
+  }
 }
 function buildShop(){
   const box=$('metaShop');
@@ -4454,6 +4500,9 @@ $('pHomeBtn').onclick=()=>{
   SND.sell();
 };
 $('settingsBtn').onclick=()=>{ac(); openSettings('titleOverlay');};
+$('aboutBtn').onclick=()=>{ ac(); $('titleOverlay').classList.add('hidden'); $('aboutOverlay').classList.remove('hidden'); };
+$('aboutBack').onclick=()=>{ $('aboutOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
+$('howBtn').onclick=()=>{ ac(); $('howOverlay').classList.add('hidden'); SAVE.seenIntro=true; persist(); };
 $('shopBtn').onclick=()=>{
   ac();
   $('titleOverlay').classList.add('hidden');
@@ -4931,6 +4980,8 @@ applyCosmetics();
 buildMap(mapIndex);
 buildUI();
 reset();
+/* first-ever launch: greet new players with the how-to-play card over the title */
+if(!SAVE.seenIntro) $('howOverlay').classList.remove('hidden');
 requestAnimationFrame(frame);
 requestAnimationFrame(titleBgLoop);
 
