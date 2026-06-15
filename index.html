@@ -676,7 +676,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.39';
+const VERSION='4.40';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -3547,7 +3547,7 @@ function showTowerInfo(t){
   const uc=maxed?0:upCost(d,t.level);
   const refund=Math.round(t.invested*.7);
   const specInfo=t.spec?SPECS[t.type].find(x=>x.id===t.spec):null;
-  let html=`${d.footprint?'':`<canvas class="popFace" width="92" height="118"></canvas>`}<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
+  let html=`${(d.footprint||d.income)?'':`<canvas class="popFace" width="92" height="118"></canvas>`}<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:9px;color:#6b7fb3">LV ${t.level}${maxed?' MAX':''}</span>
     ${specInfo?`<span style="font-size:9px;color:#c46bff">★ ${specInfo.n}</span>`:''}</div>`;
   html+= d.aura
     ? `<b>BUFF</b> +${Math.round(s.auraDmg*100)}% dmg · +${Math.round(s.auraRate*100)}% rate · <b>RNG</b> ${s.range}<br>`
@@ -3913,7 +3913,7 @@ function renderBiomeIcon(cv,kind){
 function codexHeroes(){
   return Object.keys(TOWERS).map(k=>{
     const d=TOWERS[k], s=lvlStat(d,1);
-    const art=d.footprint
+    const art=(d.footprint||d.income)   /* structures & the reactor show their body icon, not a hero portrait */
       ? `<canvas width="44" height="44" data-hero="${k}"></canvas>`
       : `<canvas width="92" height="118" data-portrait="${k}" style="width:44px;height:56px"></canvas>`;
     return `<div class="cdx">${art}<div>
