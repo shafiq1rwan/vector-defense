@@ -697,7 +697,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='4.43';
+const VERSION='4.44';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1039,8 +1039,8 @@ const CAMPAIGN=[
     brief:"A swarm without end. Thin them with fire and frost before they drown the core. A field mender works the wreckage out there — win, and JUNO joins you."},
   {id:6, act:2, name:'HOLD THE LINE',   map:0, diff:1, waves:5,  mod:null,    unlock:'aura',
     brief:"Hold the line, Commander, and LUMA herself will stand with you."},
-  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:5,  mod:'regen', unlock:null,
-    brief:"These ones knit themselves back together as they walk. Hit harder than they heal."},
+  {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:5,  mod:'regen', unlock:null, bossType:'revenant',
+    brief:"These ones knit themselves back together — and something worse walks point: the REVENANT, a relay-ghost that blinks through our fire. Strike it in the breath between phases."},
   {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:7,  mod:null,    unlock:'bastion',
     brief:"The void spiral — even light walks carefully here. Beneath it sleeps a BASTION of the first war. Survive, and we wake it for you."},
   {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:7,  mod:'wealth',unlock:null,
@@ -1254,7 +1254,13 @@ const ENEMIES={
     siege:{range:135,dmg:22,rate:1.4,stopT:3.2,cd:5}, label:'BREAKER',
     desc:'stops to bombard your towers', res:{phys:.7,expl:.85,energy:1.2}},
   boss:{hp:1400, speed:21, reward:160, lives:5, r:22, color:'#ff3af0', shape:'golem',
-    bossLike:true, label:'OVERMIND', desc:'ancient war golem', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
+    bossLike:true, golem:true, label:'OVERMIND', desc:'ancient war golem', res:{phys:.8,ice:.8,expl:.8,energy:.8}},
+  revenant:{hp:1250, speed:34, reward:170, lives:5, r:19, color:'#aef3ff', shape:'kite',
+    bossLike:true, revenant:true, label:'REVENANT', desc:'phasing relay-ghost — only hittable between blinks',
+    res:{phys:.85,ice:.85,expl:.85,energy:.85}},
+  prime:{hp:2600, speed:21, reward:320, lives:8, r:24, color:'#ff3af0', shape:'golem',
+    bossLike:true, golem:true, prime:true, label:'OVERMIND PRIME',
+    desc:'the true core — fights in three escalating phases', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
 };
 const DT_NAMES={phys:'physical',ice:'frost',expl:'explosive',energy:'energy'};
 function resTip(type){
@@ -1295,7 +1301,11 @@ function makeWave(n){
   if(n>=11) add('phaser', Math.floor(n/4), 1.6);
   /* finale forces its namesake boss on the last wave; otherwise bosses ride wave%5 */
   const bossNow = (campNode&&campNode.boss) ? n===finalWave : (n%5===0);
-  if(bossNow) add('boss', Math.floor(n/10)+1, 5);
+  if(bossNow){
+    /* the campaign finale fields OVERMIND PRIME; other missions use their bossType or the golem */
+    const bt=(campNode&&campNode.boss)?'prime':((campNode&&campNode.bossType)||'boss');
+    add(bt, bt==='boss'?Math.floor(n/10)+1:1, 5);
+  }
   let hpMul=(1+(n-1)*.30+Math.pow(Math.max(0,n-8),2)*.012)*DIFF().hp;
   let rewardMul=(.7+n*.015)*DIFF().reward;
   let spdMul=1;
@@ -1505,7 +1515,7 @@ function spawnEnemy(type,dist,w,elite,lane=0){
     x:0,y:0,dist,slowT:0,slowF:1,healT:1.5,flash:0,dead:false,wob:Math.random()*TAU,
     shieldHits:def.shield||0,maxShield:def.shield||0,phaseClock:Math.random()*4.2,
     poisonT:0,poisonDps:0,brittleT:0,phased:false,
-    bossShield:def.bossLike?def.hp*w.hpMul*.18:0,mSpawnT:6,empPulseT:10};
+    bossShield:def.golem?def.hp*w.hpMul*.18:0,mSpawnT:6,empPulseT:10};
   if(elite){
     e.elite=elite;
     e.maxHp*=2.2; e.hp=e.maxHp;
@@ -1882,8 +1892,28 @@ function update(dt){
         }
       }
     }
-    const planted=(e.def.siege&&e.siegeT>0)||(e.slamPhase&&e.slamPhase!=='idle')||e.riseT>0;
-    const sp=planted ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
+    /* REVENANT phase-dash: vulnerable window (solid, crawling) then a blink */
+    if(e.def.revenant){
+      if(e.rev===undefined) e.rev={ph:'vuln',t:3};
+      e.rev.t-=dt;
+      if(e.rev.ph==='vuln'){
+        e.phased=false;
+        if(e.rev.t<=0){
+          e.rev.ph='phase'; e.rev.t=2; e.phased=true;
+          ring(e.x,e.y,e.def.r+8,e.def.color,.45); spray(e.x,e.y,e.def.color,10,150,.4);
+          SND.tesla();
+          e.dist=Math.min((LANES[e.lane]||LANES[0]).len-1, e.dist+110);   /* blink ~2 cells */
+          const np=pointAt(e.dist,e.lane); ring(np.x,np.y,e.def.r+8,e.def.color,.45);
+        }
+      }else{
+        e.phased=true;
+        if(e.rev.t<=0){ e.rev.ph='vuln'; e.rev.t=3; e.phased=false; ring(e.x,e.y,e.def.r+6,'#fff',.3); }
+      }
+    }
+    const planted=(e.def.siege&&e.siegeT>0)||(e.slamPhase&&e.slamPhase!=='idle')||e.riseT>0
+                  ||(e.def.revenant&&e.rev&&e.rev.ph==='phase');
+    let sp=planted ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
+    if(e.def.revenant&&e.rev&&e.rev.ph==='vuln') sp*=.5;   /* crawls while exposed */
     e.dist+=sp*dt;
     const p=pointAt(e.dist,e.lane);
     e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
@@ -1901,7 +1931,21 @@ function update(dt){
       }
     }
     if(e.pulse>0) e.pulse-=dt;
-    if(e.def.bossLike){
+    if(e.def.golem){
+      /* OVERMIND PRIME escalates through 3 HP-gated phases */
+      if(e.def.prime){
+        if(e.phase===undefined) e.phase=1;
+        const frac=e.hp/e.maxHp, np=frac<=.3?3:frac<=.6?2:1;
+        if(np>e.phase){
+          e.phase=np;
+          shake=Math.max(shake,12); hitStop=Math.max(hitStop,.13);
+          ring(e.x,e.y,e.def.r+34,'#ff3af0',.6); ring(e.x,e.y,e.def.r+18,'#ff9af8',.5);
+          spray(e.x,e.y,'#ff9af8',22,210,.6);
+          addText(e.x,e.y-44, np===3?'!! LAST LIGHT !!':'!! ENRAGE !!','#ff5a5a',true);
+          SND.boom(); vib([40,60,90]);
+          if(np>=2){ e.baseSpd=ENEMIES.prime.speed*1.4; e.bossShield=0; }
+        }
+      }
       /* slam-spawn: stop, raise arms, smash the road, mites crawl from the crack */
       if(e.slamPhase===undefined){ e.slamPhase='idle'; e.slamT=0; }
       e.mSpawnT-=dt;
@@ -1916,19 +1960,24 @@ function update(dt){
           ring(e.x,e.y,e.def.r+16,'#ffb6f9',.4);
           spray(e.x,e.y,'#ff9af8',12,160,.45);
           SND.boom(); vib(30);
-          for(let i=0;i<2;i++){
-            const mn=spawnEnemy('mite',Math.max(0,e.dist-8+i*16),e.wref,null,e.lane);
+          const nMite=(e.def.prime&&e.phase>=2)?4:2;   /* PRIME spawns a bigger storm when enraged */
+          for(let i=0;i<nMite;i++){
+            const mn=spawnEnemy('mite',Math.max(0,e.dist-8+i*14),e.wref,null,e.lane);
             mn.riseT=.5;
+          }
+          if(e.def.prime&&e.phase>=2){   /* second crack point */
+            const p2=pointAt(Math.max(0,e.dist-40),e.lane);
+            cracks.push({x:p2.x,y:p2.y,seed:Math.random()*10,life:5,max:5});
           }
           SND.spawn();
         }
       }else if(e.slamPhase==='emerge'){
         e.slamT-=dt;
-        if(e.slamT<=0){ e.slamPhase='idle'; e.mSpawnT=6; }
+        if(e.slamT<=0){ e.slamPhase='idle'; e.mSpawnT=e.def.prime?(e.phase>=3?2:e.phase>=2?3:5):6; }
       }
       e.empPulseT-=dt;
       if(e.empPulseT<=0){
-        e.empPulseT=10;
+        e.empPulseT=(e.def.prime&&e.phase>=3)?5:10;
         let zapped=0;
         for(const t of towers){
           if(t.def.aura||t.def.income) continue;
@@ -2469,6 +2518,24 @@ function drawEnemyShape(c,shape,r,col,ang,wob,extra){
     poly(c,0,-r*.08,r*.22,3,(extra||0)*2);                    /* spinning core, stroked below */
   }
   else if(shape==='oct') poly(c,0,0,r,8,extra||0);
+  else if(shape==='kite'){
+    /* REVENANT: elongated kite with trailing after-image fins + slit core */
+    c.save(); c.rotate(ang);
+    c.beginPath();
+    c.moveTo(r,0); c.lineTo(0,r*.6); c.lineTo(-r*.9,0); c.lineTo(0,-r*.6); c.closePath();
+    c.stroke();
+    c.lineWidth=1.3;
+    c.beginPath(); c.moveTo(-r*.4,0); c.lineTo(r*.5,0); c.stroke();   /* core slit */
+    /* after-image fins behind */
+    for(let i=1;i<=2;i++){
+      c.globalAlpha*=.5;
+      c.beginPath();
+      c.moveTo(-r*.9-i*5,0); c.lineTo(-r*.5-i*5,r*.32); c.moveTo(-r*.9-i*5,0); c.lineTo(-r*.5-i*5,-r*.32);
+      c.stroke();
+    }
+    c.restore(); c.lineWidth=2;
+    return;
+  }
   else if(shape==='cross'){
     c.beginPath();
     c.moveTo(-r,0); c.lineTo(r,0); c.moveTo(0,-r); c.lineTo(0,r); c.stroke();
@@ -2483,6 +2550,8 @@ function drawEnemyShape(c,shape,r,col,ang,wob,extra){
 /* the OVERMIND in person — stomping gait, jointed arms, slam poses */
 function drawGolem(c,e,col){
   const r=e.def.r, t=time;
+  /* PRIME shifts hotter through its phases */
+  if(e.def.prime&&e.phase) col=e.phase>=3?'#ff5a5a':e.phase>=2?'#ff7ad0':'#ff3af0';
   c.lineWidth=2; c.strokeStyle=col;
   const phase=e.slamPhase||'idle', st=e.slamT||0;
   const moving=phase==='idle';
@@ -3394,21 +3463,26 @@ function draw(){
 
   /* boss bar */
   {
-    let hp=0,max=0,sh=0,shMax=0;
-    for(const e of enemies) if(e.def.bossLike&&!e.dead){hp+=e.hp;max+=e.maxHp;sh+=e.bossShield;shMax+=e.maxHp*.18;}
+    let hp=0,max=0,sh=0,shMax=0,bcol='#ff3af0',blabel='OVERMIND',phased=false;
+    for(const e of enemies) if(e.def.bossLike&&!e.dead){
+      hp+=e.hp;max+=e.maxHp;sh+=e.bossShield;shMax+=e.maxHp*.18;
+      bcol=e.def.color; blabel=e.def.label;
+      if(e.def.revenant&&e.rev&&e.rev.ph==='phase') phased=true;
+    }
     if(max>0){
       const bw=320, x=(W-bw)/2, y=16;
       ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(x-2,y-2,bw+4,12);
-      ctx.fillStyle='#ff3af0'; glow(ctx,'#ff3af0',10);
+      ctx.fillStyle=bcol; glow(ctx,bcol,10);
+      ctx.globalAlpha=phased?.4:1;   /* dim the bar while the revenant is untargetable */
       ctx.fillRect(x,y,bw*Math.max(0,hp/max),8);
-      noGlow(ctx);
+      ctx.globalAlpha=1; noGlow(ctx);
       if(sh>0){
         ctx.fillStyle='#3ad6ff';
         ctx.fillRect(x,y+9,bw*Math.min(1,sh/shMax),2);
       }
-      ctx.strokeStyle='rgba(255,58,240,.6)'; ctx.lineWidth=1; ctx.strokeRect(x-2,y-2,bw+4,12);
-      ctx.fillStyle='#ff9af8'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
-      ctx.fillText('— OVERMIND —',W/2,y+22);
+      ctx.strokeStyle=bcol; ctx.globalAlpha=.6; ctx.lineWidth=1; ctx.strokeRect(x-2,y-2,bw+4,12); ctx.globalAlpha=1;
+      ctx.fillStyle=bcol; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+      ctx.fillText('— '+blabel+(phased?' · PHASED':'')+' —',W/2,y+22);
     }
   }
 
