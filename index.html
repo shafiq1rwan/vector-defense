@@ -200,6 +200,21 @@
   #titleOverlay>*{position:relative; z-index:1;}
   #titleOverlay>#titleBg{position:absolute; inset:0; width:100%; height:100%; z-index:0;}
   #titleOverlay .gearBtn, #titleOverlay #verTag, #titleOverlay #credTag{position:absolute;}
+  #installBtn{
+    flex:none; margin-top:2px; padding:9px 18px; border-radius:9px;
+    background:#0c1a3a; border:1px solid var(--neon); color:#cfe1ff;
+    font:inherit; font-size:11px; font-weight:700; letter-spacing:2px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  #installBtn svg{margin:0;}
+  #installBtn.hidden{display:none;}
+  #iosInstall.hidden{display:none;}
+  #iosSteps{
+    width:300px; max-width:92%; background:#0a1126; border:1px solid var(--line);
+    border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:11px;
+    text-align:left; font-size:11.5px; line-height:1.5; letter-spacing:.5px; color:var(--dim);
+  }
+  #iosSteps b{color:#cfe1ff;}
   .menuRow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
   .menuCard{
     flex:none; width:160px; padding:13px 10px 10px; border-radius:11px;
@@ -625,8 +640,21 @@
         <button id="startBtn" class="menuCard"></button>
         <button id="shopBtn" class="menuCard"></button>
       </div>
+      <button id="installBtn" class="hidden"></button>
       <span id="credTag">BY: SAISS &amp; CLAUDE</span>
       <span id="verTag"></span>
+    </div>
+
+    <div id="iosInstall" class="overlay solid vcenter hidden">
+      <button id="iosClose" class="gearBtn backTL" title="Back"></button>
+      <div class="big" style="font-size:18px; letter-spacing:5px">INSTALL</div>
+      <div id="iosSteps">
+        <div>Add VECTOR DEFENSE to your home screen for fullscreen, offline play:</div>
+        <div>1 &nbsp;Tap the <b>Share</b> button in your browser bar.</div>
+        <div>2 &nbsp;Choose <b>Add to Home Screen</b>.</div>
+        <div>3 &nbsp;Tap <b>Add</b>, then launch it from your home screen.</div>
+      </div>
+      <button id="iosOk" class="cta">GOT IT</button>
     </div>
 
     <div id="howOverlay" class="overlay solid vcenter hidden">
@@ -770,7 +798,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.1.3';
+const VERSION='1.1.4';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -799,7 +827,8 @@ const ICONS={
   horde:'<circle cx="4" cy="5" r="1.7"/><circle cx="9.5" cy="3.5" r="1.7"/><circle cx="12.5" cy="8" r="1.7"/><circle cx="6" cy="10" r="1.7"/><circle cx="11" cy="12.5" r="1.7"/>',
   gear:'<path d="M12.92 7.10L14.59 6.80L14.59 9.20L12.92 8.90L12.11 10.84L13.51 11.81L11.81 13.51L10.84 12.11L8.90 12.92L9.20 14.59L6.80 14.59L7.10 12.92L5.16 12.11L4.19 13.51L2.49 11.81L3.89 10.84L3.08 8.90L1.41 9.20L1.41 6.80L3.08 7.10L3.89 5.16L2.49 4.19L4.19 2.49L5.16 3.89L7.10 3.08L6.80 1.41L9.20 1.41L8.90 3.08L10.84 3.89L11.81 2.49L13.51 4.19L12.11 5.16Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" stroke-width="1.3"/>',
   lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
-  info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>'
+  info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>',
+  install:'<path d="M8 2v7M5 6l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 11.5v2H13v-2" fill="none" stroke="currentColor" stroke-width="1.5"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
@@ -4078,6 +4107,8 @@ function buildUI(){
   });
   /* svg icons on static buttons */
   $('codexBtn').innerHTML=ic('book',15);
+  $('installBtn').innerHTML=ic('install',13)+'INSTALL APP';
+  $('iosClose').innerHTML=ic('back',16);
   $('campBtn').innerHTML=ic('star',20)+'CAMPAIGN<span class="mSub" id="mSubCamp"></span>';
   $('startBtn').innerHTML=ic('play',20)+'QUICK PLAY<span class="mSub" id="mSubQp"></span>';
   $('shopBtn').innerHTML=ic('hex',20)+'SHOP<span class="mSub" id="mSubShop"></span>';
@@ -5241,6 +5272,33 @@ requestAnimationFrame(titleBgLoop);
 if('serviceWorker' in navigator && location.protocol==='https:'){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+
+/* ---- "Add to home screen" prompt -----------------------------------------
+   Chrome/Edge/Android fire beforeinstallprompt → we stash it and reveal the
+   INSTALL APP button, which fires the native dialog. iOS Safari has no such
+   event, so there we show manual Share → Add to Home Screen steps instead. */
+let deferredInstall=null;
+const isStandalone=()=>matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+const showInstall=on=>$('installBtn').classList.toggle('hidden', !on);
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredInstall=e;
+  if(!isStandalone()) showInstall(true);
+});
+window.addEventListener('appinstalled', ()=>{ deferredInstall=null; showInstall(false); });
+$('installBtn').onclick=async()=>{
+  if(deferredInstall){
+    deferredInstall.prompt();
+    const r=await deferredInstall.userChoice.catch(()=>({}));
+    deferredInstall=null;
+    if(r.outcome==='accepted') showInstall(false);
+  }else{
+    $('iosInstall').classList.remove('hidden');   /* iOS / browsers without the event */
+  }
+};
+$('iosClose').onclick=$('iosOk').onclick=()=>$('iosInstall').classList.add('hidden');
+/* iOS Safari never fires beforeinstallprompt — surface the manual button there */
+if(!isStandalone() && isIOS()) showInstall(true);
 </script>
 </body>
 </html>
