@@ -494,9 +494,13 @@
   .tog{flex:none; width:70px; padding:7px 0;}
   .tog.on{border-color:#2f7a40; color:#39ff6a; background:#123a1e;}
   .tog.off{border-color:#7a2f40; color:#ff4d6a; background:#2a0e18;}
-  /* codex */
-  #codexTabs{width:100%; max-width:660px; flex:none;}
-  #codexTabs button.sel{border-color:#fff; background:#16265a; color:#fff;}
+  /* codex + shop tabs */
+  #codexTabs,#shopTabs{width:100%; max-width:660px; flex:none;}
+  #codexTabs button.sel,#shopTabs button.sel{border-color:#fff; background:#16265a; color:#fff;}
+  #shopBody{
+    width:100%; max-width:660px; flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-content:flex-start; padding:6px 2px;
+  }
   #codexBody{
     width:100%; max-width:660px; flex:1 1 auto; min-height:0; overflow-y:auto;
     display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:left;
@@ -799,13 +803,18 @@
       </div>
     </div>
 
-    <div id="shopOverlay" class="overlay solid vcenter hidden">
+    <div id="shopOverlay" class="overlay solid hidden">
       <button id="shopBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:20px; letter-spacing:6px">CORE SHOP</div>
       <div id="shopWallet"></div>
       <div id="shopRefund"></div>
-      <div id="metaShop" class="shopGrid"></div>
-      <div class="sub" style="font-size:10px">Earn ⬡ cores by surviving waves — unlock grid themes, hero skins and kill effects. Equip them in your COLLECTION (Codex). Style only, no stat changes.</div>
+      <div class="btnrow" id="shopTabs">
+        <button data-shoptab="theme">GRID THEMES</button>
+        <button data-shoptab="skin">HERO SKINS</button>
+        <button data-shoptab="killfx">KILL EFFECTS</button>
+      </div>
+      <div id="shopBody"></div>
+      <div class="sub" style="font-size:10px">Earn ⬡ cores by surviving waves. Equip unlocks in your COLLECTION (Codex). Style only, no stat changes.</div>
     </div>
 
     <div id="codexOverlay" class="overlay solid hidden">
@@ -888,7 +897,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.8.1';
+const VERSION='1.9.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4526,17 +4535,17 @@ function equipCosmetic(kind,id,key){
 }
 /* SHOP = unlock store: lists only items you don't own; buying auto-equips and the
    item then lives in your Collection (Codex) for re-equipping. */
+let shopTab='theme';
 function buildShop(){
-  const box=$('metaShop');
-  if(!box) return;
+  const body=$('shopBody');
+  if(!body) return;
   $('shopWallet').innerHTML=ic('hex',18)+'<span class="wv">'+SAVE.cores+'</span><span class="wl">CORES</span>';
   $('shopRefund').textContent=SAVE.metaRefund?('OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED'):'';
-  box.innerHTML='';
-  let any=false, curRow=null;
-  const sec=t=>{ const d=document.createElement('div'); d.className='shopSec'; d.textContent=t; box.appendChild(d);
-    curRow=document.createElement('div'); curRow.className='cosRow'; box.appendChild(curRow); };
+  document.querySelectorAll('#shopTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.shoptab===shopTab));
+  body.innerHTML='';
+  let n=0;
   const card=(id,name,cost,nameCol,drawPrev,onbuy)=>{
-    any=true;
+    n++;
     const afford=SAVE.cores>=cost;
     const b=document.createElement('button');
     b.className='cosCard'+(afford?'':' locked')+(justBought===id?' bought':'');
@@ -4549,15 +4558,12 @@ function buildShop(){
       persist(); buildShop();
       justBought=null; SND.coinBig();
     };
-    curRow.appendChild(b);
+    body.appendChild(b);
   };
-  const themesLeft=THEMES.filter(t=>!ownCos(t.id));
-  if(themesLeft.length){ sec('GRID THEMES'); for(const t of themesLeft) card(t.id,t.n,t.cost,null,cv=>previewTheme(cv,t),()=>equipCosmetic('theme',t.id)); }
-  const skinKeys=Object.keys(SKINS).filter(k=>!ownCos(SKINS[k].id));
-  if(skinKeys.length){ sec('HERO SKINS'); for(const k of skinKeys){ const s=SKINS[k]; card(s.id,s.n,s.cost,s.color,cv=>previewSkin(cv,k,s.color),()=>{SAVE.cosmetics.skins[k]=s.id;applyCosmetics();buildUI();}); } }
-  const fxLeft=KILLFX.filter(f=>!ownCos(f.id));
-  if(fxLeft.length){ sec('KILL EFFECTS'); for(const f of fxLeft) card(f.id,f.n,f.cost,f.color,cv=>previewKillfx(cv,f),()=>{SAVE.cosmetics.killfx=f.id;}); }
-  if(!any){ const d=document.createElement('div'); d.className='sub'; d.style.cssText='grid-column:1/-1;text-align:center;padding:18px;color:var(--dim)'; d.innerHTML='ALL UNLOCKED — manage your looks in the <b>COLLECTION</b> (Codex)'; box.appendChild(d); }
+  if(shopTab==='theme') for(const t of THEMES.filter(t=>!ownCos(t.id))) card(t.id,t.n,t.cost,null,cv=>previewTheme(cv,t),()=>equipCosmetic('theme',t.id));
+  else if(shopTab==='skin') for(const k of Object.keys(SKINS).filter(k=>!ownCos(SKINS[k].id))){ const s=SKINS[k]; card(s.id,s.n,s.cost,s.color,cv=>previewSkin(cv,k,s.color),()=>{SAVE.cosmetics.skins[k]=s.id;applyCosmetics();buildUI();}); }
+  else if(shopTab==='killfx') for(const f of KILLFX.filter(f=>!ownCos(f.id))) card(f.id,f.n,f.cost,f.color,cv=>previewKillfx(cv,f),()=>{SAVE.cosmetics.killfx=f.id;});
+  if(!n){ const d=document.createElement('div'); d.className='sub'; d.style.cssText='width:100%;text-align:center;padding:24px;color:var(--dim)'; d.innerHTML='ALL UNLOCKED — equip these in your <b>COLLECTION</b> (Codex)'; body.appendChild(d); }
 }
 /* COLLECTION (Codex tab) = your owned cosmetics, equippable; locked items show as
    dimmed silhouettes with their price to tease the chase. Commander rank up top. */
@@ -5193,6 +5199,7 @@ $('aboutBack').onclick=()=>{ $('aboutOverlay').classList.add('hidden'); $('title
 $('howBtn').onclick=()=>{ ac(); $('howOverlay').classList.add('hidden'); SAVE.seenIntro=true; persist(); };
 $('shopBtn').onclick=()=>{
   ac();
+  shopTab='theme';
   $('titleOverlay').classList.add('hidden');
   $('shopOverlay').classList.remove('hidden');
   buildShop();
@@ -5218,6 +5225,7 @@ $('codexBack').onclick=()=>{
   $(codexReturn).classList.remove('hidden');
 };
 document.querySelectorAll('#codexTabs button').forEach(b=>b.onclick=()=>showCodexTab(b.dataset.tab));
+document.querySelectorAll('#shopTabs button').forEach(b=>b.onclick=()=>{ shopTab=b.dataset.shoptab; SND.place(); buildShop(); });
 $('pRestartBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   reset();
