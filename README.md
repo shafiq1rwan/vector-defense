@@ -1,6 +1,6 @@
 # ⬡ VECTOR DEFENSE
 
-A neon vector-style tower defense game in a **single HTML file** — no build step, no dependencies. **Now at v1.0.**
+A neon vector-style tower defense game in a **single HTML file** — no build step, no dependencies. **Past v1.0 and actively updated** — 9 heroes, 4 maps, 3 bosses, daily challenges and a cosmetic reward loop.
 
 **▶ Play it now: https://shafiq1rwan.github.io/vector-defense/** (works on phone — add it to your home screen for fullscreen offline play)
 
