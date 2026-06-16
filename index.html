@@ -861,7 +861,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.6.0';
+const VERSION='1.6.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1295,15 +1295,20 @@ function heroUnlocked(k){
 /* ---- hero line-up: a capped pre-match loadout (structures always deploy) ---- */
 const SQUAD_CAP=6;
 function isStructure(k){ const d=TOWERS[k]; return !!d.footprint || !!d.income; }   /* REACTOR + BASTION */
-function unlockedHeroes(){ return Object.keys(TOWERS).filter(k=>!isStructure(k)&&heroUnlocked(k)); }
-function normalizeSquad(){
-  const avail=unlockedHeroes();
+/* a hero is available to deploy in a mode: rank gates apply everywhere; campaign/daily
+   also require the campaign unlock; quick play frees the rest. Returns a strict boolean. */
+function heroAvailableIn(k, camp){ return !((camp||TOWERS[k].unlockLevel) && !heroUnlocked(k)); }
+function heroAvailable(k){ return heroAvailableIn(k, !!campNode); }
+function unlockedHeroes(camp){ return Object.keys(TOWERS).filter(k=>!isStructure(k)&&heroAvailableIn(k,camp)); }
+/* the heroes that actually deploy for a mode: the saved pick ∩ available, or everyone when there's no real choice */
+function effectiveSquad(camp){
+  const avail=unlockedHeroes(camp);
+  if(avail.length<=SQUAD_CAP) return avail;
   let sq=Array.isArray(SAVE.squad)?SAVE.squad.filter(k=>avail.includes(k)):[];
-  if(!sq.length) sq=avail.slice(0,SQUAD_CAP);     /* first use / empty → bring everyone up to the cap */
-  if(sq.length>SQUAD_CAP) sq=sq.slice(0,SQUAD_CAP);
-  SAVE.squad=sq; return sq;
+  if(!sq.length) sq=avail.slice(0,SQUAD_CAP);
+  return sq.slice(0,SQUAD_CAP);
 }
-function inSquad(k){ return isStructure(k) || (Array.isArray(SAVE.squad)&&SAVE.squad.includes(k)); }
+function inSquad(k){ return isStructure(k) || effectiveSquad(!!campNode).includes(k); }
 
 /* ============================== DIFFICULTY ============================== */
 const DIFFS=[
@@ -5165,13 +5170,14 @@ $('pRestartBtn').onclick=()=>{
   reset();
 };
 /* ---- Hero line-up: pick a capped squad before the match (all modes) ---- */
-let squadLaunch=null, squadReturn='titleOverlay', squadPick=[];
-function openSquad(launchFn, fromId){
-  squadLaunch=launchFn; squadReturn=fromId||'titleOverlay';
-  const avail=unlockedHeroes();
-  normalizeSquad();
-  if(avail.length<=SQUAD_CAP){ SAVE.squad=avail.slice(); persist(); launchFn(); return; }   /* nothing to choose — bring everyone */
-  squadPick=SAVE.squad.slice();
+let squadLaunch=null, squadReturn='titleOverlay', squadPick=[], squadCamp=false;
+function openSquad(launchFn, fromId, camp){
+  squadLaunch=launchFn; squadReturn=fromId||'titleOverlay'; squadCamp=!!camp;
+  const avail=unlockedHeroes(squadCamp);
+  if(avail.length<=SQUAD_CAP){ launchFn(); return; }   /* nothing to choose — bring everyone */
+  let sq=Array.isArray(SAVE.squad)?SAVE.squad.filter(k=>avail.includes(k)):[];
+  if(!sq.length) sq=avail.slice(0,SQUAD_CAP);
+  squadPick=sq.slice(0,SQUAD_CAP);
   $(squadReturn).classList.add('hidden');
   buildSquad();
   $('squadOverlay').classList.remove('hidden');
@@ -5180,7 +5186,7 @@ function buildSquad(){
   const grid=$('squadGrid');
   grid.innerHTML=Object.keys(TOWERS).filter(k=>!isStructure(k)).map(k=>{
     const d=TOWERS[k];
-    if(!heroUnlocked(k)){
+    if(!heroAvailableIn(k,squadCamp)){
       const node=CAMPAIGN.find(n=>n.unlock===k);
       const where=d.unlockLevel?`Reach Commander LV ${d.unlockLevel}`
         :node?`Clear ${String(node.id+1).padStart(2,'0')} ${node.name}`:'Unlock via campaign';
@@ -5277,7 +5283,7 @@ function launchDaily(){
   running=true; SND.wave();
 }
 $('dailyBtn').onclick=()=>{ ac(); openDaily(); };
-$('dailyPlay').onclick=()=>{ ac(); openSquad(launchDaily,'dailyOverlay'); };
+$('dailyPlay').onclick=()=>{ ac(); openSquad(launchDaily,'dailyOverlay',true); };
 $('dailyBack').onclick=()=>{ $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
 $('qpLaunch').onclick=()=>{
   ac();
@@ -5286,7 +5292,7 @@ $('qpLaunch').onclick=()=>{
     $('qpOverlay').classList.add('hidden');
     running=true;
     SND.wave();
-  },'qpOverlay');
+  },'qpOverlay',false);
 };
 $('restartBtn').onclick=()=>{
   ac();
@@ -5673,19 +5679,19 @@ function updateCardLocks(){
   for(const k in TOWERS){
     const card=$('card_'+k);
     if(!card) continue;
-    const locked=(!!campNode||TOWERS[k].unlockLevel) && !heroUnlocked(k);
+    const locked=!heroAvailable(k);   /* strict boolean — toggle(force) must not get undefined */
     card.classList.toggle('locked',locked);
     const b=card.querySelector('.lockB');
     if(b) b.classList.toggle('hidden',!locked);
   }
 }
-/* show only the chosen squad in the dock; structures always stay */
+/* show only the chosen squad in the dock; structures always stay (and keep their lock styling) */
 function applySquad(){
-  normalizeSquad();
+  const eff=effectiveSquad(!!campNode);
   for(const k in TOWERS){
     if(isStructure(k)) continue;
     const card=$('card_'+k);
-    if(card) card.style.display=inSquad(k)?'':'none';
+    if(card) card.style.display=eff.includes(k)?'':'none';
   }
 }
 $('campBtn').onclick=()=>{ac(); openCampaign();};
@@ -5696,7 +5702,7 @@ $('campBack').onclick=()=>{
 $('launchBtn').onclick=()=>{
   ac();
   if(!SAVE.camp.intro){ SAVE.camp.intro=true; persist(); }
-  openSquad(()=>launchMission(selNode),'campOverlay');
+  openSquad(()=>launchMission(selNode),'campOverlay',true);
 };
 
 /* ============================== MAIN LOOP ============================== */
