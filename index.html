@@ -396,8 +396,8 @@
   .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
   #upBtn.tut, #sellBtn.tut, .abtn.tut{animation:pul 1.1s infinite; border-color:#39ff6a;}
   #tutBanner{
-    position:absolute; top:52px; left:50%; transform:translateX(-50%); z-index:7;
-    max-width:74%; display:flex; align-items:center; gap:9px;
+    position:absolute; top:52px; left:50%; transform:translateX(calc(-50% - 63px)); z-index:7;
+    max-width:64%; display:flex; align-items:center; gap:9px;   /* -63px centers over the canvas (side col is 126px) */
     background:rgba(8,14,30,.96); border:1px solid #2f6fd0; border-radius:9px;
     padding:7px 11px; font-size:11px; letter-spacing:.3px; color:#cfe0ff; text-align:left;
     box-shadow:0 0 16px rgba(77,141,255,.3);
@@ -908,7 +908,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.10.0';
+const VERSION='1.10.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1694,25 +1694,26 @@ function reset(){
   refreshUI(); hidePop(); updateNextPreview();
 }
 /* ---- Interactive tutorial (Mission 1): gate the wave on learning the 4 core actions ---- */
-let tutStep=99;   /* 0 place · 1 upgrade · 2 sell · 3 ability · 4 ready · 99 inactive */
+let tutStep=99;   /* 0 place · 1 upgrade · 2 place spare · 3 sell spare · 4 ability · 5 ready · 99 inactive */
+const TUT_ACTIONS=['place','upgrade','place','sell','ability'];
 const TUT_STEPS=[
   'DRAG the glowing <b>SLY</b> card from the dock onto a tile beside the road to build a tower.',
-  'TAP your tower, then the green <b>↑</b> button to UPGRADE it.',
-  'TAP a tower, then <b>SELL</b> it to refund credits.',
-  'TAP an ability (<b>Q / W / E</b>, left side) to unleash it.',
-  'Training complete — <b>build your defense</b>, then press START WAVE!'
+  'TAP your tower, then the green <b>↑</b> button to UPGRADE it stronger.',
+  'Now drag down <b>one more</b> SLY so you have a spare to practice on.',
+  'TAP that spare tower, then <b>SELL</b> it to refund credits.',
+  'TAP an ability (<b>Q / W / E</b>, left side) to unleash it — then you are ready!'
 ];
 function tutDid(action){
-  if(tutStep>=4||tutStep===99) return;
-  if(action===['place','upgrade','sell','ability'][tutStep]){ tutStep++; SND.upgrade(); vib(18); updateTut(); }
+  if(tutStep>=TUT_ACTIONS.length||tutStep===99) return;
+  if(action===TUT_ACTIONS[tutStep]){ tutStep++; SND.upgrade(); vib(18); updateTut(); }
 }
 function updateTut(){
   const ban=$('tutBanner'), wb=$('waveBtn');
   if(tutStep===99){ ban.classList.add('hidden'); return; }
   ban.classList.remove('hidden');
-  const done=tutStep>=4;
-  ban.innerHTML=(done?'':'<span class="tStep">'+(tutStep+1)+'/4</span>')
-    +'<span class="tTxt">'+TUT_STEPS[tutStep]+'</span>'
+  const done=tutStep>=TUT_ACTIONS.length;
+  ban.innerHTML=(done?'':'<span class="tStep">'+(tutStep+1)+'/'+TUT_ACTIONS.length+'</span>')
+    +'<span class="tTxt">'+(done?'Training complete — <b>START WAVE</b> to defend the core!':TUT_STEPS[tutStep])+'</span>'
     +(done?'':'<button id="tutSkip">SKIP</button>');
   if(!done) $('tutSkip').onclick=()=>{ tutStep=99; updateTut(); refreshUI(); SND.deny(); };
   if(wb && !done){ wb.disabled=true; wb.classList.remove('pulse'); wb.textContent='FINISH TRAINING'; }
@@ -4251,10 +4252,10 @@ function refreshUI(){
     const card=$('card_'+k);
     if(card) card.classList.toggle('poor',money<TOWERS[k].cost || (!!TOWERS[k].solo && towers.some(t=>t.type===k)));
   }
-  /* tutorial: spotlight the card for the DRAG lesson */
+  /* tutorial: spotlight the card for the DRAG/place lessons (steps 0 and 2) */
   const c0=$('card_archer');
-  if(c0) c0.classList.toggle('tut', tutStep===0 && !placing);
-  if(tutStep===4){   /* training done — only let the wave start once a tower stands */
+  if(c0) c0.classList.toggle('tut', (tutStep===0||tutStep===2) && !placing);
+  if(tutStep>=TUT_ACTIONS.length && tutStep!==99){   /* training done — let the wave start once a tower stands */
     const wb=$('waveBtn'), ready=towers.length>0;
     wb.disabled=!ready; wb.classList.toggle('pulse',ready);
     wb.textContent=ready?'START WAVE 1':'BUILD A TOWER FIRST';
@@ -4272,7 +4273,7 @@ function refreshUI(){
     b.classList.toggle('cool',cd>0);
     b.classList.toggle('ready',cd<=0&&running&&!gameOver);
     b.classList.toggle('aim',aiming===k);
-    b.classList.toggle('tut',tutStep===3&&cd<=0);   /* spotlight abilities for the ability lesson */
+    b.classList.toggle('tut',tutStep===4&&cd<=0);   /* spotlight abilities for the ability lesson */
     b.querySelector('.cdt').textContent=cd>0?Math.ceil(cd)+'s':ABILITIES[k].name;
   }
 }
@@ -4317,7 +4318,7 @@ function showTowerInfo(t){
   if(pf) renderHeroPortrait(pf,t.type);
   /* tutorial: pulse the button the current lesson is teaching */
   if(tutStep===1 && t.level<MAX_LVL && $('upBtn')) $('upBtn').classList.add('tut');
-  if(tutStep===2 && $('sellBtn')) $('sellBtn').classList.add('tut');
+  if(tutStep===3 && $('sellBtn')) $('sellBtn').classList.add('tut');
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
   if(t.offline&&$('repBtn')) $('repBtn').onclick=()=>{
     if(money<repCost) return;
@@ -4909,7 +4910,7 @@ function startWave(){
 }
 function callWave(){
   if(!running||gameOver||waveActive) return;
-  if(tutStep<4){ SND.deny(); return; }   /* finish the interactive tutorial first */
+  if(tutStep<TUT_ACTIONS.length){ SND.deny(); return; }   /* finish the interactive tutorial first */
   interT=0;   /* early call just starts the wave now — no money pressure */
   startWave();
 }
