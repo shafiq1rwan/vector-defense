@@ -909,7 +909,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.11.2';
+const VERSION='1.11.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1727,7 +1727,11 @@ function updateTut(){
     if(wb){ wb.disabled=true; wb.classList.remove('pulse'); wb.textContent='FINISH TRAINING'; }
     return;
   }
-  if(tutStep===99){ ban.classList.add('hidden'); return; }
+  if(tutStep===99){   /* tutorial off/skipped — restore a normal startable wave button */
+    ban.classList.add('hidden');
+    if(wb && running && !waveActive && !gameOver){ wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE '+(wave+1); }
+    return;
+  }
   ban.classList.remove('hidden');
   const done=tutStep>=TUT_ACTIONS.length;
   ban.innerHTML=(done?'':'<span class="tStep">'+(tutStep+1)+'/'+TUT_ACTIONS.length+'</span>')
