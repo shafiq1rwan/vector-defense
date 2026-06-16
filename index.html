@@ -548,6 +548,23 @@
   .sqUnit.locked .lk{color:#3a4a7a; display:flex;}
   .sqEmpty{flex:none; width:66px; height:66px; border-radius:9px; border:1px dashed #243358;}
   .cta.disabled{opacity:.4; pointer-events:none;}
+  /* daily challenge — condition (left) + battlefield (right) */
+  #dailyCols{width:100%; max-width:600px; flex:none; display:flex; gap:12px; align-items:stretch;}
+  #dailyCond,#dailyMapCol{flex:1 1 0; min-width:0; background:#0a1126; border:1px solid var(--line);
+    border-radius:10px; padding:12px; text-align:left;}
+  #dailyCond{border-color:#caa23a; box-shadow:0 0 14px rgba(202,162,58,.12);}
+  .dLabel{font-size:8px; letter-spacing:2px; color:#6b7ba8; margin-bottom:5px;}
+  .dCondName{font-size:13px; font-weight:800; letter-spacing:.5px; color:var(--gold); margin-bottom:4px;}
+  .dCondDesc{font-size:10px; line-height:1.5; color:var(--dim); margin-bottom:9px;}
+  .dRoster{display:flex; flex-wrap:wrap; gap:7px;}
+  .dRoster .ru{position:relative; width:46px; height:46px; border-radius:8px; background:#0e1834;
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;}
+  .dRoster .ru canvas{width:40px; height:40px;}
+  .dRoster .ru .x{position:absolute; bottom:-3px; right:-3px; font-size:9px; font-weight:800;
+    color:var(--gold); background:#070d1f; border:1px solid var(--line); border-radius:5px; padding:0 3px;}
+  .dMapName{font-size:12px; font-weight:700; letter-spacing:.5px; margin:7px 0 3px;}
+  .dRow{font-size:10px; line-height:1.65; color:var(--dim);}
+  @media (max-width:560px){ #dailyCols{flex-direction:column; max-width:340px;} }
   input[type=range]{width:180px; accent-color:var(--neon);}
   .keysBox{
     display:grid; grid-template-columns:max-content 1fr max-content 1fr;
@@ -738,8 +755,11 @@
     <div id="dailyOverlay" class="overlay solid vcenter hidden">
       <button id="dailyBack" class="gearBtn backTL" title="Back to menu"></button>
       <div class="big" style="font-size:18px; letter-spacing:6px">DAILY CHALLENGE</div>
-      <div id="dailySub" class="sub" style="font-size:10px"></div>
-      <div id="dailyCard" class="mapOpt" style="width:172px; cursor:default"></div>
+      <div id="dailyDate" class="sub" style="font-size:10px"></div>
+      <div id="dailyCols">
+        <div id="dailyCond"></div>
+        <div id="dailyMapCol"></div>
+      </div>
       <button id="dailyPlay" class="cta">PLAY</button>
     </div>
 
@@ -867,7 +887,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.7.3';
+const VERSION='1.8.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1314,7 +1334,15 @@ function effectiveSquad(camp){
   if(!sq.length) sq=avail.slice(0,SQUAD_CAP);
   return sq.slice(0,SQUAD_CAP);
 }
-function inSquad(k){ return isStructure(k) || effectiveSquad(!!campNode).includes(k); }
+function inSquad(k){
+  if(campNode&&campNode.daily){               /* daily dictates the roster (grants heroes regardless of unlocks) */
+    const R=campNode.rule;
+    if(R&&R.roster) return !!R.roster[k];      /* SOLO / STRIKE — exact roster only */
+    if(R&&R.poolPick) return dailyPick.includes(k);   /* LIMITED POOL — picked from the pool */
+    return isStructure(k) || dailyPick.includes(k);   /* HANDICAP — full line-up + structures */
+  }
+  return isStructure(k) || effectiveSquad(!!campNode).includes(k);
+}
 
 /* ============================== DIFFICULTY ============================== */
 const DIFFS=[
@@ -1326,7 +1354,7 @@ const DIFFS=[
 const QP_DIFF=3;   /* Quick Play always runs EXPERT */
 let diffIndex=QP_DIFF;
 const DIFF=()=>DIFFS[diffIndex];
-const maxLives=()=>DIFF().lives;
+const maxLives=()=>(campNode&&campNode.rule&&campNode.rule.lives!=null)?campNode.rule.lives:DIFF().lives;
 const abilityCd=k=>Math.round(ABILITIES[k].cd*(typeof relicHas!=='undefined'&&relicHas('flux')?.75:1));
 
 /* ============================== HERO TOWERS ============================== */
@@ -1620,6 +1648,9 @@ function reset(){
   updateCardLocks();
   applySquad();
   money=DIFF().money; lives=maxLives(); wave=0;
+  const RULE=campNode&&campNode.rule;   /* daily handicaps */
+  if(RULE&&RULE.money!=null) money=RULE.money;
+  $('abils').style.display=(RULE&&RULE.noAbilities)?'none':'';
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
   waveActive=false; spawnQueue=[]; curWave=null; placing=null; selTower=null;
@@ -1955,13 +1986,21 @@ function damageTower(t,dmg){
 }
 /* scaling deployment cap — start small, grow as waves are cleared (caps at 16) */
 function towerCap(){ return Math.min(16, 8+Math.floor(wave/2)); }
+/* returns a denial reason (count/roster-wise), or '' if the type may be deployed */
+function deployBlocked(type){
+  if(towers.length>=towerCap()) return 'TOWER LIMIT REACHED';
+  if(TOWERS[type].solo && towers.some(t=>t.type===type)) return 'ONLY ONE BASTION';
+  const R=campNode&&campNode.rule;
+  if(R&&R.roster){                                   /* daily SOLO/STRIKE per-type caps */
+    const max=R.roster[type];
+    if(max==null) return 'NOT IN ROSTER';
+    if(max!==Infinity && towers.filter(t=>t.type===type).length>=max) return TOWERS[type].name+' LIMIT ×'+max;
+  }
+  return '';
+}
 function placeTower(type,c,r){
-  if(towers.length>=towerCap()){   /* safety net: covers every placement path */
-    SND.deny(); addText(W/2,H/2-40,'TOWER LIMIT REACHED','#ff4d6a',true); return;
-  }
-  if(TOWERS[type].solo && towers.some(t=>t.type===type)){   /* BASTION: one per match */
-    SND.deny(); addText(W/2,H/2-40,'ONLY ONE BASTION','#ff4d6a',true); return;
-  }
+  const blk=deployBlocked(type);   /* safety net: covers every placement path */
+  if(blk){ SND.deny(); addText(W/2,H/2-40,blk,'#ff4d6a',true); return; }
   const def=TOWERS[type];
   const fp=def.footprint||[1,1];
   const hpBase=def.footprint?260:120;
@@ -2085,6 +2124,7 @@ function fire(t,target){
 
 /* ============================== ABILITIES LOGIC ============================== */
 function useAbility(k){
+  if(campNode&&campNode.rule&&campNode.rule.noAbilities){SND.deny(); return;}   /* BLACKOUT daily */
   if(!running||gameOver||cds[k]>0){SND.deny(); return;}
   if(k==='strike'){ aiming=aiming==='strike'?null:'strike'; placing=null; dragMode=null; cancelCardSel(); return; }
   if(k==='nova'){
@@ -3677,9 +3717,8 @@ function draw(){
   if(placing && mouse.inside){
     const fp=TOWERS[placing].footprint||[1,1];
     const [c,r]=anchorFor(placing);
-    const atCap=towers.length>=towerCap();
-    const soloUsed=!!TOWERS[placing].solo&&towers.some(t=>t.type===placing);
-    const ok=canPlace(placing,c,r)&&money>=TOWERS[placing].cost&&!atCap&&!soloUsed;
+    const blk=deployBlocked(placing);
+    const ok=canPlace(placing,c,r)&&money>=TOWERS[placing].cost&&!blk;
     const x=(c+fp[0]/2)*CELL, y=(r+fp[1]/2)*CELL;
     const st=lvlStat(TOWERS[placing],1);
     if(st.range>0){
@@ -3698,7 +3737,7 @@ function draw(){
       ctx.fillStyle=ok?'#39ff6a':'#ff4d6a';
       ctx.font='bold 12px monospace'; ctx.textAlign='center';
       glow(ctx,ctx.fillStyle,8);
-      ctx.fillText(ok?'RELEASE TO BUILD':(atCap?'TOWER LIMIT REACHED':soloUsed?'BASTION ALREADY DEPLOYED':'BLOCKED — KEEP DRAGGING'),x,y-30);
+      ctx.fillText(ok?'RELEASE TO BUILD':(blk||'BLOCKED — KEEP DRAGGING'),x,y-30);
       noGlow(ctx);
     }
   }
@@ -4280,8 +4319,8 @@ function showTowerInfo(t){
   if(maxed&&!t.spec){ $('specA').onclick=()=>buySpec(0); $('specB').onclick=()=>buySpec(1); }
 }
 function selectCard(type){
-  if(!inSquad(type)){SND.deny(); return;}   /* benched heroes can't be deployed (guards hotkeys) */
-  if((campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank-gated heroes */
+  if(!inSquad(type)){SND.deny(); return;}   /* benched / out-of-roster heroes can't be deployed (guards hotkeys) */
+  if(!(campNode&&campNode.daily) && (campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank gates (daily grants all) */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
   if(TOWERS[type].solo && towers.some(t=>t.type===type)){SND.deny(); return;}   /* BASTION already deployed */
@@ -5045,7 +5084,7 @@ function startCardDrag(type,e){
   /* hold to inspect — works even when unaffordable/locked */
   clearTimeout(holdTimer);
   holdTimer=setTimeout(()=>{ if(cardDrag&&!cardDrag.moved){ showCardInfo(type); cardDrag.holding=true; ac(); } },380);
-  if((campNode||TOWERS[type].unlockLevel)&&!heroUnlocked(type)){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
+  if(!(campNode&&campNode.daily) && (campNode||TOWERS[type].unlockLevel)&&!heroUnlocked(type)){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
   if(money<TOWERS[type].cost){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
   cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false};
 }
@@ -5182,15 +5221,25 @@ $('pRestartBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   reset();
 };
-/* ---- Hero line-up: pick a capped squad before the match (all modes) ---- */
-let squadLaunch=null, squadReturn='titleOverlay', squadPick=[], squadCamp=false;
-function openSquad(launchFn, fromId, camp){
-  squadLaunch=launchFn; squadReturn=fromId||'titleOverlay'; squadCamp=!!camp;
-  const avail=unlockedHeroes(squadCamp);
-  if(avail.length<=SQUAD_CAP){ launchFn(); return; }   /* nothing to choose — bring everyone */
-  let sq=Array.isArray(SAVE.squad)?SAVE.squad.filter(k=>avail.includes(k)):[];
-  if(!sq.length) sq=avail.slice(0,SQUAD_CAP);
-  squadPick=sq.slice(0,SQUAD_CAP);
+/* ---- Hero line-up: pick a capped squad before the match (all modes) ----
+   opts: {camp, pool:[keys]|null, cap:N, target:'squad'|'daily', all:bool} */
+let squadLaunch=null, squadReturn='titleOverlay', squadPick=[], squadCamp=false,
+    squadPoolKeys=null, squadCapN=6, squadTarget='squad', squadAll=false;
+function openSquad(launchFn, fromId, opts){
+  opts=opts||{};
+  squadLaunch=launchFn; squadReturn=fromId||'titleOverlay';
+  squadCamp=!!opts.camp; squadCapN=opts.cap||SQUAD_CAP; squadTarget=opts.target||'squad'; squadAll=!!opts.all;
+  squadPoolKeys=opts.pool||null;
+  const avail=(squadPoolKeys||Object.keys(TOWERS).filter(k=>!isStructure(k)))
+    .filter(k=>squadAll||heroAvailableIn(k,squadCamp));
+  if(avail.length<=squadCapN){            /* nothing to choose — bring everyone */
+    if(squadTarget==='daily') dailyPick=avail.slice();
+    launchFn(); return;
+  }
+  const prev=squadTarget==='daily'?dailyPick:(Array.isArray(SAVE.squad)?SAVE.squad:[]);
+  let sq=prev.filter(k=>avail.includes(k));
+  if(!sq.length) sq=avail.slice(0,squadCapN);
+  squadPick=sq.slice(0,squadCapN);
   $(squadReturn).classList.add('hidden');
   buildSquad();
   $('squadOverlay').classList.remove('hidden');
@@ -5203,30 +5252,30 @@ function squadUnit(k,attr){
     +`<div class="nm" style="color:${d.color}">${d.name}</div></div>`;
 }
 function renderSquadZones(){
-  const heroes=Object.keys(TOWERS).filter(k=>!isStructure(k));
+  const heroes=squadPoolKeys?squadPoolKeys.slice():Object.keys(TOWERS).filter(k=>!isStructure(k));
   /* POOL (top): every hero not currently chosen — available ones are tappable, locked ones shown dimmed */
   const pool=$('squadPool');
   const poolKeys=heroes.filter(k=>!squadPick.includes(k));
   pool.innerHTML=poolKeys.map(k=>
-    heroAvailableIn(k,squadCamp)
+    (squadAll||heroAvailableIn(k,squadCamp))
       ? squadUnit(k,'data-add')
       : `<div class="sqUnit locked"><span class="lk">${ic('lock',16)}</span><div class="nm">???</div></div>`
   ).join('') || '<div class="sub" style="opacity:.6;max-width:none">All heroes deployed</div>';
-  pool.classList.toggle('full',squadPick.length>=SQUAD_CAP);
+  pool.classList.toggle('full',squadPick.length>=squadCapN);
   /* DOCK (bottom): chosen heroes followed by empty slots up to the cap */
   let html=squadPick.map(k=>squadUnit(k,'data-remove')).join('');
-  for(let i=squadPick.length;i<SQUAD_CAP;i++) html+='<div class="sqEmpty"></div>';
+  for(let i=squadPick.length;i<squadCapN;i++) html+='<div class="sqEmpty"></div>';
   $('squadChosen').innerHTML=html;
   /* render icons + wire taps */
   document.querySelectorAll('#squadOverlay canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
   pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onclick=()=>addSquad(el.dataset.add));
   $('squadChosen').querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onclick=()=>removeSquad(el.dataset.remove));
-  $('squadSub').textContent=squadPick.length+' / '+SQUAD_CAP+' HEROES · BASTION ALWAYS DEPLOYS (LIMIT 1)';
+  $('squadSub').textContent=squadPick.length+' / '+squadCapN+' HEROES'+(squadTarget==='daily'?' · DAILY ROSTER':' · BASTION ALWAYS DEPLOYS (LIMIT 1)');
   $('squadGo').classList.toggle('disabled',squadPick.length===0);
 }
 function addSquad(k){   /* pool → dock */
   if(squadPick.includes(k)) return;
-  if(squadPick.length>=SQUAD_CAP){ SND.deny(); return; }
+  if(squadPick.length>=squadCapN){ SND.deny(); return; }
   squadPick.push(k); ac(); SND.place(); renderSquadZones();
 }
 function removeSquad(k){   /* dock → pool */
@@ -5235,7 +5284,8 @@ function removeSquad(k){   /* dock → pool */
 }
 $('squadGo').onclick=()=>{
   if(!squadPick.length){ SND.deny(); return; }
-  SAVE.squad=squadPick.slice(); persist();
+  if(squadTarget==='daily') dailyPick=squadPick.slice();
+  else { SAVE.squad=squadPick.slice(); persist(); }
   $('squadOverlay').classList.add('hidden');
   if(squadLaunch) squadLaunch();
 };
@@ -5257,7 +5307,40 @@ $('qpBack').onclick=()=>{
   $('titleOverlay').classList.remove('hidden');
 };
 /* ---- Daily Challenge: one seeded run per calendar day, shared by everyone ---- */
-let dailyNode=null;
+let dailyNode=null, dailyPick=[], dailyTimer=null;
+const DAILY_ATTACKERS=['archer','frost','cannon','tesla','sniper','blight','warden'];   /* heroes that actually deal damage */
+function rosterText(roster){
+  return Object.keys(roster).map(k=>TOWERS[k].name+(roster[k]===Infinity?'':' ×'+roster[k])).join(' · ');
+}
+/* the daily's twist: a seeded deployment constraint that makes it play unlike Quick Play */
+function genDailyRule(rnd){
+  const pickN=(arr,n)=>{ const a=arr.slice(),o=[]; for(let i=0;i<n&&a.length;i++) o.push(a.splice(Math.floor(rnd()*a.length),1)[0]); return o; };
+  const t=Math.floor(rnd()*4);
+  if(t===0){                                   /* SOLO — one hero, unlimited */
+    const h=DAILY_ATTACKERS[Math.floor(rnd()*DAILY_ATTACKERS.length)];
+    return {type:'solo', name:'SOLO · '+TOWERS[h].name+' ONLY',
+      desc:'Hold the line with only '+TOWERS[h].name+'. No other towers, no structures.', roster:{[h]:Infinity}};
+  }
+  if(t===1){                                   /* STRIKE TEAM — fixed squad with per-type counts */
+    const picks=pickN(DAILY_ATTACKERS, 2+Math.floor(rnd()*2));
+    const roster={}; picks.forEach(h=>roster[h]=1+Math.floor(rnd()*3));
+    return {type:'strike', name:'STRIKE TEAM', desc:'Deploy only this fixed squad — nothing else.', roster};
+  }
+  if(t===2){                                   /* LIMITED POOL — pick N from a small pool */
+    const pool=pickN([...DAILY_ATTACKERS,'aura','medic','reactor'], 4);
+    while(pool.filter(k=>DAILY_ATTACKERS.includes(k)).length<2){
+      const x=DAILY_ATTACKERS[Math.floor(rnd()*DAILY_ATTACKERS.length)]; if(!pool.includes(x)) pool.push(x);
+    }
+    const n=Math.min(3,pool.length-1);
+    return {type:'pool', name:'LIMITED POOL', desc:'Field any '+n+' of the listed heroes — choose wisely.', poolPick:{pool,n}};
+  }
+  const hs=[                                    /* HANDICAP — full roster, harder rules */
+    {name:'BLACKOUT', desc:'All active abilities are offline. Towers only.', noAbilities:true},
+    {name:'AUSTERITY', desc:'A shoestring budget — start with far fewer credits.', money:55},
+    {name:'LAST STAND', desc:'The core is fragile — you get only 5 lives.', lives:5}
+  ];
+  return Object.assign({type:'handicap'}, hs[Math.floor(rnd()*hs.length)]);
+}
 function todayDaily(){
   const key=todayKey();
   if(dailyNode&&dailyNode.key===key) return dailyNode;
@@ -5265,19 +5348,13 @@ function todayDaily(){
   const pick=MAPS.map((m,i)=>i).filter(i=>!MAPS[i].hidden);
   const map=pick[Math.floor(rnd()*pick.length)];
   const mod=MODS[Math.floor(rnd()*MODS.length)].id;
-  dailyNode={daily:true, key, map, mod, waves:12, diff:QP_DIFF};
+  const rule=genDailyRule(rnd);
+  dailyNode={daily:true, key, map, mod, rule, waves:12, diff:QP_DIFF};
   return dailyNode;
 }
-function updateDailyBtn(){ const b=$('dailyBtn'); if(b) b.classList.toggle('unclaimed', !SAVE.daily.claimed); }
-function openDaily(){
-  const n=todayDaily(), m=MAPS[n.map], mod=MODS.find(x=>x.id===n.mod);
-  $('dailySub').textContent='Same challenge for everyone today · EXPERT · '+n.waves+' WAVES';
-  const card=$('dailyCard');
-  card.innerHTML=`<canvas width="148" height="84"></canvas><div class="mnm">${m.name}</div>
-    <div class="mtag">${ic(mod.icon,9)} ${mod.label} — ${mod.desc}</div>
-    <div class="mtag" style="color:var(--gold);margin-top:2px">BEST WAVE ${SAVE.daily.best||0} · ${SAVE.daily.claimed?'✓ REWARD CLAIMED':'REWARD: '+ic('hex',8)+'40 + 120 XP'}</div>`;
-  /* mini road preview (same style as the Quick Play map cards) */
-  const c=card.querySelector('canvas').getContext('2d');
+function drawMiniRoad(canvas,m){
+  const c=canvas.getContext('2d');
+  c.clearRect(0,0,canvas.width,canvas.height);
   const sx=p=>8+p[0]*.128, sy=p=>8+p[1]*.128, lanes=m.paths||[m.path];
   const isW=(li,j)=>(m.warps||[]).some(w=>w.lane===li&&w.seg===j);
   c.lineJoin='round'; c.lineCap='round';
@@ -5288,19 +5365,65 @@ function openDaily(){
     c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.6,0,TAU); c.fill();
     c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.6,0,TAU); c.fill();
   });
+}
+function updateDailyCountdown(){
+  const d=new Date(), nx=new Date(d); nx.setHours(24,0,0,0);
+  let s=Math.max(0,Math.floor((nx-d)/1000));
+  const p=v=>String(v).padStart(2,'0');
+  const el=$('dailyDate');
+  if(el) el.innerHTML='SAME FOR EVERYONE TODAY · NEW CHALLENGE IN <b style="color:#fff">'+p(s/3600|0)+':'+p(s%3600/60|0)+':'+p(s%60)+'</b>';
+}
+function updateDailyBtn(){ const b=$('dailyBtn'); if(b) b.classList.toggle('unclaimed', !SAVE.daily.claimed); }
+function openDaily(){
+  const n=todayDaily(), m=MAPS[n.map], mod=MODS.find(x=>x.id===n.mod), R=n.rule;
+  /* LEFT — today's condition (the twist) */
+  let rosterHtml='';
+  if(R.roster){
+    rosterHtml='<div class="dRoster">'+Object.keys(R.roster).map(k=>
+      `<div class="ru"><canvas width="40" height="40" data-hero="${k}"></canvas>`
+      +(R.roster[k]!==Infinity?`<span class="x">×${R.roster[k]}</span>`:'')+'</div>').join('')+'</div>';
+  } else if(R.poolPick){
+    rosterHtml='<div class="dRoster">'+R.poolPick.pool.map(k=>
+      `<div class="ru"><canvas width="40" height="40" data-hero="${k}"></canvas></div>`).join('')+'</div>'
+      +`<div class="dRow" style="color:var(--gold);margin-top:7px">${ic('star',9)} Choose any ${R.poolPick.n} on the next screen.</div>`;
+  } else {
+    const fx=R.money!=null?'Start with '+ic('hex',9)+' '+R.money+' credits':R.lives!=null?'Only '+R.lives+' lives to lose':'No active abilities';
+    rosterHtml=`<div class="dRow" style="color:var(--gold)">${ic('info',11)} ${fx}.</div><div class="dRow" style="margin-top:4px">All heroes allowed.</div>`;
+  }
+  $('dailyCond').innerHTML=`<div class="dLabel">TODAY'S CONDITION</div>
+    <div class="dCondName">${R.name}</div><div class="dCondDesc">${R.desc}</div>${rosterHtml}`;
+  /* RIGHT — battlefield + reward */
+  $('dailyMapCol').innerHTML=`<div class="dLabel">BATTLEFIELD</div>
+    <canvas id="dailyMapCv" width="148" height="84" style="display:block;width:100%;height:auto;border-radius:7px;background:#070d1f"></canvas>
+    <div class="dMapName">${m.name}</div>
+    <div class="dRow">${ic(mod.icon,9)} ${mod.label} — ${mod.desc}</div>
+    <div class="dRow">EXPERT · ${n.waves} WAVES</div>
+    <div class="dRow" style="color:var(--gold);margin-top:6px">${ic('hex',9)} ${SAVE.daily.claimed?'REWARD CLAIMED TODAY':'CLEAR FOR +40 +120 XP'}</div>
+    <div class="dRow">${ic('star',9)} TODAY'S BEST — WAVE ${SAVE.daily.best||0}</div>`;
+  document.querySelectorAll('#dailyCond canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,.95));
+  drawMiniRoad($('dailyMapCv'), m);
+  updateDailyCountdown();
+  clearInterval(dailyTimer); dailyTimer=setInterval(updateDailyCountdown,1000);
   $('titleOverlay').classList.add('hidden');
   $('dailyOverlay').classList.remove('hidden');
 }
 function launchDaily(){
   ac();
+  clearInterval(dailyTimer);
   const n=todayDaily();
-  campNode=n; diffIndex=n.diff; buildMap(n.map,false); reset();   /* reset() reads campNode.waves for finalWave */
+  campNode=n; diffIndex=n.diff; buildMap(n.map,false); reset();   /* reset() reads campNode.waves/rule */
   $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.add('hidden');
   running=true; SND.wave();
 }
 $('dailyBtn').onclick=()=>{ ac(); openDaily(); };
-$('dailyPlay').onclick=()=>{ ac(); openSquad(launchDaily,'dailyOverlay',true); };
-$('dailyBack').onclick=()=>{ $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
+$('dailyPlay').onclick=()=>{
+  ac();
+  const R=todayDaily().rule;
+  if(R.poolPick) openSquad(launchDaily,'dailyOverlay',{camp:true,all:true,pool:R.poolPick.pool,cap:R.poolPick.n,target:'daily'});
+  else if(!R.roster) openSquad(launchDaily,'dailyOverlay',{camp:true,all:true,target:'daily'});   /* handicap: full line-up */
+  else launchDaily();                                                                              /* SOLO/STRIKE: fixed roster */
+};
+$('dailyBack').onclick=()=>{ clearInterval(dailyTimer); $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
 $('qpLaunch').onclick=()=>{
   ac();
   openSquad(()=>{
@@ -5308,7 +5431,7 @@ $('qpLaunch').onclick=()=>{
     $('qpOverlay').classList.add('hidden');
     running=true;
     SND.wave();
-  },'qpOverlay',false);
+  },'qpOverlay',{camp:false});
 };
 $('restartBtn').onclick=()=>{
   ac();
@@ -5695,15 +5818,19 @@ function updateCardLocks(){
   for(const k in TOWERS){
     const card=$('card_'+k);
     if(!card) continue;
-    const locked=!heroAvailable(k);   /* strict boolean — toggle(force) must not get undefined */
+    const locked=(campNode&&campNode.daily)?false:!heroAvailable(k);   /* daily grants all; strict boolean for toggle() */
     card.classList.toggle('locked',locked);
     const b=card.querySelector('.lockB');
     if(b) b.classList.toggle('hidden',!locked);
   }
 }
-/* show only the chosen squad in the dock; structures always stay (and keep their lock styling) */
+/* show only the deployable set in the dock */
 function applySquad(){
-  const eff=effectiveSquad(!!campNode);
+  if(campNode&&campNode.daily){          /* daily: dock = the rule's roster (inSquad handles roster/pool/handicap) */
+    for(const k in TOWERS){ const card=$('card_'+k); if(card) card.style.display=inSquad(k)?'':'none'; }
+    return;
+  }
+  const eff=effectiveSquad(!!campNode);   /* normal: chosen squad heroes + structures always */
   for(const k in TOWERS){
     if(isStructure(k)) continue;
     const card=$('card_'+k);
@@ -5718,7 +5845,7 @@ $('campBack').onclick=()=>{
 $('launchBtn').onclick=()=>{
   ac();
   if(!SAVE.camp.intro){ SAVE.camp.intro=true; persist(); }
-  openSquad(()=>launchMission(selNode),'campOverlay',true);
+  openSquad(()=>launchMission(selNode),'campOverlay',{camp:true});
 };
 
 /* ============================== MAIN LOOP ============================== */
