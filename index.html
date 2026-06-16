@@ -788,7 +788,7 @@
       <div class="setCard" style="width:auto; max-width:480px">
         <div class="setHead">CONTROLS</div>
         <div class="keysBox">
-          <span class="k">1–7</span><span>select hero</span>
+          <span class="k">1–9</span><span>select hero</span>
           <span class="k">Q/W/E</span><span>abilities</span>
           <span class="k">SPACE</span><span>start wave</span>
           <span class="k">F</span><span>game speed</span>
@@ -816,7 +816,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.4.3';
+const VERSION='1.5.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1237,6 +1237,7 @@ const MILESTONES=[
 ];
 function heroUnlocked(k){
   if(BASE_HEROES.includes(k)) return true;
+  if(TOWERS[k].unlockLevel) return (SAVE.commander.level||1)>=TOWERS[k].unlockLevel;   /* rank-gated heroes */
   return CAMPAIGN.some(n=>n.unlock===k && (SAVE.camp.stars[n.id]||0)>0);
 }
 
@@ -1269,11 +1270,15 @@ const TOWERS={
     color:'#ffd34d', aura:true, desc:'No attack. Boosts damage & speed of towers in range.'},
   medic:{key:'7',name:'JUNO', title:'the Mender', cost:110, range:100, rate:0, dmg:0, dtype:'phys',
     color:'#7dffc8', heal:14, desc:'No attack. Repairs damaged towers in range and revives offline ones.'},
+  blight:{key:'8',name:'BLIGHT', title:'the Alchemist', cost:85, range:120, rate:.8, dmg:9, dtype:'poison',
+    color:'#9dff3a', pool:55, unlockLevel:4, desc:'Lobs acid that pools on the road and melts anything standing in it.'},
+  warden:{key:'9',name:'WARDEN', title:'the Bulwark', cost:115, range:95, rate:.7, dmg:14, dtype:'phys',
+    color:'#5ad6ff', push:70, unlockLevel:8, desc:'Slams enemies back down the lane with a force pulse.'},
   /* structures — relics of the old defence grid, reawakened */
-  reactor:{key:'8',name:'REACTOR', title:'credit generator', cost:80, range:0, rate:0, dmg:0, dtype:'phys',
+  reactor:{key:'0',name:'REACTOR', title:'credit generator', cost:80, range:0, rate:0, dmg:0, dtype:'phys',
     color:'#6bffb0', income:14,
     desc:'Reignited grid power. Pays credits automatically every 10 seconds.'},
-  bastion:{key:'9',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
+  bastion:{key:'-',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
     color:'#9a6bff', footprint:[2,2], splash:80,
     desc:'A fortress of the first war. Slow, devastating mortar shells.'}
 };
@@ -1292,6 +1297,10 @@ const SPECS={
           {id:'tempo', n:'TEMPO',     d:'+20% rate buff, +20% radius'}],
   medic:[ {id:'fieldkit',  n:'FIELD KIT',  d:'Wave clear: fully repairs every tower'},
           {id:'reanimator',n:'REANIMATOR', d:'Revived towers gain a 5s damage shield'}],
+  blight:[{id:'spread', n:'WIDE SPREAD',d:'Acid pools are 50% larger'},
+          {id:'caustic',n:'CAUSTIC',    d:'+60% pool damage'}],
+  warden:[{id:'gale',   n:'GALE FORCE', d:'+80% knockback, wider radius'},
+          {id:'anchor', n:'ANCHOR',     d:'Shoved foes also slowed 40% for 1.5s'}],
   reactor:[{id:'overcharge',n:'OVERCHARGE',d:'+50% income'},
            {id:'cells',  n:'AID CELLS', d:'+1 core life each wave clear'}],
   bastion:[{id:'hellfire',n:'HELLFIRE', d:'Shells leave burning ground'},
@@ -1445,7 +1454,7 @@ const ENEMIES={
     bossLike:true, golem:true, prime:true, label:'OVERMIND PRIME',
     desc:'the apex beast — hunts in three escalating phases', res:{phys:.8,ice:.8,expl:.8,energy:.8}}
 };
-const DT_NAMES={phys:'physical',ice:'frost',expl:'explosive',energy:'energy'};
+const DT_NAMES={phys:'physical',ice:'frost',expl:'explosive',energy:'energy',poison:'toxin'};
 function resTip(type){
   const d=ENEMIES[type], weak=[], res=[];
   for(const k in d.res)(d.res[k]>1?weak:res).push(DT_NAMES[k]);
@@ -1560,7 +1569,7 @@ function ac(){
   if(!AC){
     AC=new (window.AudioContext||window.webkitAudioContext)();
     master=AC.createGain(); master.gain.value=vol; master.connect(AC.destination);
-    musicGain=AC.createGain(); musicGain.gain.value=.62; musicGain.connect(master);
+    musicGain=AC.createGain(); musicGain.gain.value=.9; musicGain.connect(master);
   }
   if(AC.state==='suspended') AC.resume();
   return AC;
@@ -1646,16 +1655,16 @@ function musicTick(){
     const s=MUSIC.step, when=MUSIC.next;
     /* soft rounded bass pad on each bar quarter */
     if(s%4===0)
-      mnote(SEMI(BASS_SEQ[(s/4)%16]+(inten===3?-2:0)),when,.34,'sine',.06);
+      mnote(SEMI(BASS_SEQ[(s/4)%16]+(inten===3?-2:0)),when,.34,'sine',.11);
     /* gentle bell arpeggio — sparse when calm, fuller in combat, never a buzz */
     const arp=inten===3?ARP_BOSS:ARP;
     const play=inten===3 ? s%2===0 : inten===2 ? s%4===0 : s%8===0;
     if(play)
-      mnote(220*Math.pow(2,arp[s%arp.length]/12),when,.5,'triangle',inten===1?.016:.024);
+      mnote(220*Math.pow(2,arp[s%arp.length]/12),when,.5,'triangle',inten===1?.045:.07);
     /* hushed hat only in combat */
-    if(inten>=2 && s%8===4) mhat(when,.014);
+    if(inten>=2 && s%8===4) mhat(when,.03);
     /* low swelling drone under the boss instead of a sawtooth rasp */
-    if(inten===3 && s%16===0) mnote(SEMI(-5),when,2.4,'sine',.03);
+    if(inten===3 && s%16===0) mnote(SEMI(-5),when,2.4,'sine',.06);
     MUSIC.step=(MUSIC.step+1)%64;
     MUSIC.next+=sd;
   }
@@ -1971,6 +1980,27 @@ function fire(t,target){
     spray(target.x,target.y,c,8,160,.35);
     shake=Math.max(shake,2.5);
     SND.sniper();
+  }else if(t.type==='blight'){
+    /* lob a slow acid glob that bursts into a lingering pool on impact */
+    const pool=(t.def.pool||55)*(t.spec==='spread'?1.5:1);
+    const dps=dmg*(t.spec==='caustic'?1.6:1);
+    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:230,dmg:dmg*.4,kind:'acid',color:c,dtype,src:t,
+                acid:{r:pool,dps}});
+    SND.frost();
+  }else if(t.type==='warden'){
+    /* a force pulse that shoves everything in range back down the lane */
+    const push=(t.def.push||70)*(t.spec==='gale'?1.8:1);
+    const R=s.range*(t.spec==='gale'?1.15:1);
+    for(const e of enemies){
+      if(e.dead||e.phased) continue;
+      if(dist2(t,e)<=R*R){
+        e.dist=Math.max(0,e.dist-(e.def.bossLike?push*.25:push));
+        damageEnemy(e,dmg,'phys',{src:t});
+        if(t.spec==='anchor'){ e.slowT=Math.max(e.slowT,1.5); e.slowF=Math.min(e.slowF||1,.6); }
+      }
+    }
+    ring(t.x,t.y,R,c,.32); spray(t.x,t.y,c,10,150,.4); shake=Math.max(shake,2);
+    SND.cannon();
   }
 }
 
@@ -2076,7 +2106,7 @@ function update(dt){
     z.t-=dt;
     for(const e of enemies){
       if(e.dead) continue;
-      if(dist2(e,z)<=z.r*z.r) damageEnemy(e,z.dps*dt,'expl',{quiet:true,src:z.src});
+      if(dist2(e,z)<=z.r*z.r) damageEnemy(e,z.dps*dt,z.dtype||'expl',{quiet:true,src:z.src});
     }
   }
   zones=zones.filter(z=>z.t>0);
@@ -2365,6 +2395,10 @@ function update(dt){
           if(dd<=p.splash){ damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src}); if(p.heavy) e.flash=Math.max(e.flash,.12); }
         }
         if(p.napalm) zones.push({x:p.tx,y:p.ty,r:40,t:3,max:3,dps:p.dmg*.5,color:'#ff6a2a',src:p.src});
+      }else if(p.kind==='acid'){
+        zones.push({x:p.tx,y:p.ty,r:p.acid.r,t:4,max:4,dps:p.acid.dps,color:'#9dff3a',dtype:'poison',src:p.src});
+        spray(p.tx,p.ty,'#9dff3a',12,120,.45,2.4); ring(p.tx,p.ty,p.acid.r,'#9dff3a',.3);
+        if(p.tgt&&!p.tgt.dead) damageEnemy(p.tgt,p.dmg,'poison',{src:p.src});
       }else if(p.tgt && !p.tgt.dead){
         damageEnemy(p.tgt,p.dmg,p.dtype,{src:p.src});
         if(p.slow&&!p.tgt.dead){ p.tgt.slowT=p.slowDur; p.tgt.slowF=p.slow; spray(p.tx,p.ty,p.color,5,70,.3,1.8); }
@@ -2373,7 +2407,7 @@ function update(dt){
       }
     }else{
       p.x+=dx/d*step; p.y+=dy/d*step; p.ang=Math.atan2(dy,dx);
-      if(p.tgt && p.tgt.dead && p.kind!=='shell') p.hit=true;
+      if(p.tgt && p.tgt.dead && p.kind!=='shell' && p.kind!=='acid') p.hit=true;
     }
   }
   projs=projs.filter(p=>!p.hit);
@@ -2617,6 +2651,27 @@ function drawTowerBody(c,type,level,angle,t,firing){
     c.lineWidth=2.6;
     c.beginPath(); c.moveTo(0,bob-4.5); c.lineTo(0,bob+4.5); c.moveTo(-4.5,bob); c.lineTo(4.5,bob); c.stroke();
     c.lineWidth=2;
+  }else if(type==='blight'){
+    /* alchemist: a round flask of bubbling acid */
+    c.beginPath(); c.arc(0,bob+3,8,0,TAU); c.stroke();                       /* bowl */
+    c.beginPath();
+    c.moveTo(-3,bob-8); c.lineTo(-3,bob-2); c.lineTo(-6,bob+1);              /* neck walls */
+    c.moveTo(3,bob-8); c.lineTo(3,bob-2); c.lineTo(6,bob+1);
+    c.moveTo(-4,bob-8); c.lineTo(4,bob-8);                                    /* lip */
+    c.stroke();
+    c.fillStyle=col;                                                         /* bubbles */
+    c.beginPath(); c.arc(-2,bob+4,1.5,0,TAU); c.arc(2.6,bob+2,1.1,0,TAU); c.arc(.4,bob+6,1.2,0,TAU); c.fill();
+  }else if(type==='warden'){
+    /* bulwark: a shield emitting an outward force pulse */
+    c.beginPath();
+    c.moveTo(0,bob-9); c.lineTo(8,bob-5); c.lineTo(8,bob+2);
+    c.quadraticCurveTo(8,bob+9,0,bob+11);
+    c.quadraticCurveTo(-8,bob+9,-8,bob+2); c.lineTo(-8,bob-5); c.closePath(); c.stroke();
+    c.beginPath(); c.arc(0,bob,2.6,0,TAU); c.stroke();                        /* boss */
+    c.save(); c.lineWidth=1.3; c.globalAlpha*=.6;
+    const pp=(t*.8)%1;
+    c.beginPath(); c.arc(0,bob,6+pp*11,-0.9,0.9); c.stroke();                 /* pulse arc */
+    c.restore();
   }else if(type==='reactor'){
     /* credit generator at single-cell scale: a stacked coin token with a
        big credit glyph, rising "+" sparks, and a payout countdown ring */
@@ -3757,6 +3812,10 @@ function draw(){
       ctx.beginPath(); ctx.arc(0,0,4,0,TAU); ctx.stroke();
       ctx.globalAlpha=.4;
       ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(-4,0); ctx.stroke();
+    }else if(p.kind==='acid'){
+      ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(0,0,3.4+Math.sin(time*20)*.6,0,TAU); ctx.fill();
+      ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(-4,2,1.4,0,TAU); ctx.fill();
     }
     noGlow(ctx); ctx.restore();
   }
@@ -4141,7 +4200,7 @@ function showTowerInfo(t){
   if(maxed&&!t.spec){ $('specA').onclick=()=>buySpec(0); $('specB').onclick=()=>buySpec(1); }
 }
 function selectCard(type){
-  if(campNode && !heroUnlocked(type)){SND.deny(); return;}   /* locked until earned in the campaign */
+  if((campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank-gated heroes */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
   placing=type; selTower=null; aiming=null; dragMode=null; hidePop();
@@ -4488,7 +4547,8 @@ function codexHeroes(){
     /* heroes earned through the campaign stay hidden until unlocked */
     if(!heroUnlocked(k)){
       const node=CAMPAIGN.find(n=>n.unlock===k);
-      const where=node?`Clear <b style="color:#9db8ff">${String(node.id+1).padStart(2,'0')} ${node.name}</b> to recruit.`:'Unlock through the campaign.';
+      const where=d.unlockLevel?`Reach <b style="color:#9db8ff">Commander LV ${d.unlockLevel}</b> to recruit.`
+        :node?`Clear <b style="color:#9db8ff">${String(node.id+1).padStart(2,'0')} ${node.name}</b> to recruit.`:'Unlock through the campaign.';
       return `<div class="cdx locked"><div class="lockArt">${ic('lock',22)}</div><div>
         <b>??? </b><span style="font-size:9px">LOCKED</span><br>${where}</div></div>`;
     }
@@ -4527,7 +4587,7 @@ function codexBiome(){
 function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
     <b style="color:#9db8ff">PC — KEYBOARD &amp; MOUSE</b><br>
-    <b>1–7</b> select hero &middot; <b>8/9</b> structures &middot; <b>Q/W/E</b> abilities<br>
+    <b>1–9</b> select hero &middot; <b>0 / -</b> structures &middot; <b>Q/W/E</b> abilities<br>
     <b>click</b> a grid cell to build the selected tower &middot; <b>SHIFT+click</b> place several in a row<br>
     <b>hover/click</b> a card to inspect it &middot; <b>click</b> a placed tower to upgrade / repair / sell<br>
     <b>SPACE</b> start wave &middot; <b>F</b> game speed &middot; <b>P</b> pause &middot; <b>ESC</b> cancel<br>
@@ -4878,7 +4938,7 @@ function startCardDrag(type,e){
   /* hold to inspect — works even when unaffordable/locked */
   clearTimeout(holdTimer);
   holdTimer=setTimeout(()=>{ if(cardDrag&&!cardDrag.moved){ showCardInfo(type); cardDrag.holding=true; ac(); } },380);
-  if(campNode&&!heroUnlocked(type)){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
+  if((campNode||TOWERS[type].unlockLevel)&&!heroUnlocked(type)){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
   if(money<TOWERS[type].cost){ cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false,noDeploy:true}; return; }
   cardDrag={type,sx:e.clientX,sy:e.clientY,id:e.pointerId,moved:false};
 }
@@ -5420,7 +5480,7 @@ function updateCardLocks(){
   for(const k in TOWERS){
     const card=$('card_'+k);
     if(!card) continue;
-    const locked=!!campNode && !heroUnlocked(k);
+    const locked=(!!campNode||TOWERS[k].unlockLevel) && !heroUnlocked(k);
     card.classList.toggle('locked',locked);
     const b=card.querySelector('.lockB');
     if(b) b.classList.toggle('hidden',!locked);
