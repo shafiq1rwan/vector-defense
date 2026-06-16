@@ -549,22 +549,23 @@
   .sqEmpty{flex:none; width:66px; height:66px; border-radius:9px; border:1px dashed #243358;}
   .cta.disabled{opacity:.4; pointer-events:none;}
   /* daily challenge — condition (left) + battlefield (right) */
-  #dailyCols{width:100%; max-width:600px; flex:none; display:flex; gap:12px; align-items:stretch;}
+  #dailyCols{width:100%; max-width:560px; flex:none; display:flex; gap:10px; align-items:stretch;}
   #dailyCond,#dailyMapCol{flex:1 1 0; min-width:0; background:#0a1126; border:1px solid var(--line);
-    border-radius:10px; padding:12px; text-align:left;}
+    border-radius:10px; padding:8px 10px; text-align:left;}
   #dailyCond{border-color:#caa23a; box-shadow:0 0 14px rgba(202,162,58,.12);}
-  .dLabel{font-size:8px; letter-spacing:2px; color:#6b7ba8; margin-bottom:5px;}
-  .dCondName{font-size:13px; font-weight:800; letter-spacing:.5px; color:var(--gold); margin-bottom:4px;}
-  .dCondDesc{font-size:10px; line-height:1.5; color:var(--dim); margin-bottom:9px;}
-  .dRoster{display:flex; flex-wrap:wrap; gap:7px;}
-  .dRoster .ru{position:relative; width:46px; height:46px; border-radius:8px; background:#0e1834;
+  .dLabel{font-size:8px; letter-spacing:2px; color:#6b7ba8; margin-bottom:4px;}
+  .dCondName{font-size:12px; font-weight:800; letter-spacing:.5px; color:var(--gold); margin-bottom:3px;}
+  .dCondDesc{font-size:9.5px; line-height:1.4; color:var(--dim); margin-bottom:7px;}
+  .dRoster{display:flex; flex-wrap:wrap; gap:6px;}
+  .dRoster .ru{position:relative; width:40px; height:40px; border-radius:7px; background:#0e1834;
     border:1px solid var(--line); display:flex; align-items:center; justify-content:center;}
-  .dRoster .ru canvas{width:40px; height:40px;}
-  .dRoster .ru .x{position:absolute; bottom:-3px; right:-3px; font-size:9px; font-weight:800;
+  .dRoster .ru canvas{width:34px; height:34px;}
+  .dRoster .ru .x{position:absolute; bottom:-3px; right:-3px; font-size:8.5px; font-weight:800;
     color:var(--gold); background:#070d1f; border:1px solid var(--line); border-radius:5px; padding:0 3px;}
-  .dMapName{font-size:12px; font-weight:700; letter-spacing:.5px; margin:7px 0 3px;}
-  .dRow{font-size:10px; line-height:1.65; color:var(--dim);}
-  @media (max-width:560px){ #dailyCols{flex-direction:column; max-width:340px;} }
+  #dailyMapCv{width:100%; max-width:140px; height:auto; margin:0 auto;}
+  .dMapName{font-size:11.5px; font-weight:700; letter-spacing:.5px; margin:5px 0 2px;}
+  .dRow{font-size:9.5px; line-height:1.5; color:var(--dim);}
+  @media (max-width:560px){ #dailyCols{flex-direction:column; max-width:300px;} }
   input[type=range]{width:180px; accent-color:var(--neon);}
   .keysBox{
     display:grid; grid-template-columns:max-content 1fr max-content 1fr;
@@ -887,7 +888,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.8.0';
+const VERSION='1.8.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -5349,7 +5350,7 @@ function todayDaily(){
   const map=pick[Math.floor(rnd()*pick.length)];
   const mod=MODS[Math.floor(rnd()*MODS.length)].id;
   const rule=genDailyRule(rnd);
-  dailyNode={daily:true, key, map, mod, rule, waves:12, diff:QP_DIFF};
+  dailyNode={daily:true, key, map, mod, rule, waves:5, diff:2};   /* BRUTAL + a short 5-wave puzzle — the rule is the real challenge */
   return dailyNode;
 }
 function drawMiniRoad(canvas,m){
@@ -5397,7 +5398,7 @@ function openDaily(){
     <canvas id="dailyMapCv" width="148" height="84" style="display:block;width:100%;height:auto;border-radius:7px;background:#070d1f"></canvas>
     <div class="dMapName">${m.name}</div>
     <div class="dRow">${ic(mod.icon,9)} ${mod.label} — ${mod.desc}</div>
-    <div class="dRow">EXPERT · ${n.waves} WAVES</div>
+    <div class="dRow">${DIFFS[n.diff].label} · ${n.waves} WAVES</div>
     <div class="dRow" style="color:var(--gold);margin-top:6px">${ic('hex',9)} ${SAVE.daily.claimed?'REWARD CLAIMED TODAY':'CLEAR FOR +40 +120 XP'}</div>
     <div class="dRow">${ic('star',9)} TODAY'S BEST — WAVE ${SAVE.daily.best||0}</div>`;
   document.querySelectorAll('#dailyCond canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,.95));
