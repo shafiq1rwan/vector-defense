@@ -566,6 +566,7 @@
     background:#0e1834; border:1px solid var(--line);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
     cursor:pointer; user-select:none; padding:2px;
+    touch-action:none;   /* the unit owns the touch gesture (drag) instead of scrolling the list */
   }
   .sqUnit:hover{border-color:#4d8dff;}
   .sqUnit canvas{width:38px; height:38px;}
@@ -927,7 +928,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.13.2';
+const VERSION='1.13.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
