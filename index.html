@@ -909,7 +909,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.11.1';
+const VERSION='1.11.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1371,7 +1371,7 @@ function inSquad(k){
 const DIFFS=[
   {label:'CASUAL', hp:.75, reward:1.15, money:160, lives:25},
   {label:'NORMAL', hp:1.12, reward:.9,  money:115, lives:20},
-  {label:'BRUTAL', hp:1.5, reward:.8,   money:110, lives:15},   /* act-3 campaign only — enough to open with 2 SLY */
+  {label:'BRUTAL', hp:1.5, reward:.95,  money:150, lives:15},   /* act-3 campaign only — eased economy (more start money + kill income) */
   {label:'EXPERT', hp:1.9, reward:.78,  money:95,  lives:12}   /* Quick Play preset — no idling */
 ];
 const QP_DIFF=0;   /* Quick Play runs CASUAL — the squad cap + tower cap are the challenge */
