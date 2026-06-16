@@ -867,7 +867,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.7.2';
+const VERSION='1.7.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4168,7 +4168,7 @@ function refreshUI(){
   $('towersV').classList.toggle('full',towers.length>=cap);
   for(const k in TOWERS){
     const card=$('card_'+k);
-    if(card) card.classList.toggle('poor',money<TOWERS[k].cost || (TOWERS[k].solo && towers.some(t=>t.type===k)));
+    if(card) card.classList.toggle('poor',money<TOWERS[k].cost || (!!TOWERS[k].solo && towers.some(t=>t.type===k)));
   }
   /* tutorial: spotlight the first hero card until something is built */
   const c0=$('card_archer');
