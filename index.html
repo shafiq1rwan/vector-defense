@@ -122,21 +122,23 @@
   /* tower detail popup docked over the stage */
   #towerPop{
     position:absolute; left:calc(50% - 63px); bottom:98px; transform:translateX(-50%);
-    z-index:4; width:256px; background:rgba(10,15,31,.96);
+    z-index:4; width:212px; background:rgba(10,15,31,.96);
     border:1px solid var(--line); border-radius:10px;
-    padding:8px 9px; font-size:10.5px; line-height:1.5; color:var(--dim); text-align:left;
+    padding:7px 8px; font-size:9.5px; line-height:1.5; color:var(--dim); text-align:left;
   }
   #towerPop.hidden{display:none;}
   #towerPop b{color:var(--txt);}
-  #towerPop .ttl{font-size:12px; color:#fff; letter-spacing:1px; padding-right:20px;}
+  #towerPop .ttl{font-size:11px; color:#fff; letter-spacing:1px; padding-right:20px;}
   #towerPop .popFace{
-    float:left; width:36px; height:46px; margin:1px 8px 2px 0;
+    float:left; width:32px; height:40px; margin:1px 7px 2px 0;
     border:1px solid #233a6e; border-radius:6px; background:#070d1f;
   }
   #towerPop .popX{
     position:absolute; top:4px; right:4px;
     width:22px; height:22px; min-width:22px; padding:0; flex:none;
+    display:flex; align-items:center; justify-content:center;
   }
+  #towerPop .popX svg{margin:0;}
   .btnrow{display:flex; gap:5px;}
   button{
     flex:1; background:#0e1834; color:var(--txt); border:1px solid var(--line);
@@ -814,7 +816,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.4.2';
+const VERSION='1.4.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
