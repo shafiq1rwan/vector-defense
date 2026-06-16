@@ -518,33 +518,36 @@
   .cdx i{color:#9db8ff; font-style:normal;}
   .cdx .wk{color:#39ff6a;} .cdx .rs{color:#ff4d6a;}
   @media (max-width:520px){ #codexBody{grid-template-columns:1fr;} }
-  /* hero line-up (squad loadout) */
-  #squadGrid{
-    width:100%; max-width:660px; flex:1 1 auto; min-height:0; overflow-y:auto;
-    display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:left;
-    align-content:start; padding:2px;
+  /* hero line-up — pick from the pool (top), build your dock (bottom) */
+  #squadPool{
+    width:100%; max-width:720px; flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; justify-content:center;
+    padding:4px;
   }
-  .sqCard{
-    position:relative; display:flex; gap:9px; align-items:center;
-    background:#0a1126; border:1px solid var(--line); border-radius:8px;
-    padding:8px 26px 8px 8px; font-size:10px; line-height:1.5; color:var(--dim);
-    cursor:pointer; user-select:none;
+  #squadPool.full .sqUnit[data-add]{opacity:.4;}
+  #squadDock{
+    width:100%; max-width:720px; flex:none; display:flex; gap:8px; align-items:stretch;
+    background:#0a1126; border:1px solid var(--line); border-radius:10px; padding:8px;
   }
-  .sqCard canvas{flex:none;}
-  .sqCard .sqrole{color:#9db8ff;}
-  .sqCard.sel{border-color:#fff; background:#10204a;}
-  .sqCard .sqTick{position:absolute; top:7px; right:9px; color:#39ff6a; font-weight:800; opacity:0;}
-  .sqCard.sel .sqTick{opacity:1;}
-  .sqCard.locked{opacity:.65; cursor:default;}
-  .sqCard.locked b{color:#3a4a7a;}
-  .sqCard .lockArt{
-    flex:none; width:46px; height:46px; border-radius:8px;
-    display:flex; align-items:center; justify-content:center;
-    background:#070d1f; border:1px dashed #2a3d72; color:#3a4a7a;
+  #squadChosen{
+    flex:1 1 auto; min-width:0; display:flex; gap:8px; flex-wrap:nowrap;
+    overflow-x:auto; align-items:center;
   }
-  #squadGrid.capped .sqCard:not(.sel):not(.locked){opacity:.4;}
+  #squadDock .cta{flex:none; align-self:stretch; padding:0 24px; margin:0;}
+  .sqUnit{
+    position:relative; flex:none; width:66px; height:66px; border-radius:9px;
+    background:#0e1834; border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    cursor:pointer; user-select:none; padding:2px;
+  }
+  .sqUnit:hover{border-color:#4d8dff;}
+  .sqUnit canvas{width:38px; height:38px;}
+  .sqUnit .nm{font-size:8px; letter-spacing:.4px;}
+  .sqUnit.locked{opacity:.55; cursor:default; border-style:dashed;}
+  .sqUnit.locked .nm{color:#3a4a7a;}
+  .sqUnit.locked .lk{color:#3a4a7a; display:flex;}
+  .sqEmpty{flex:none; width:66px; height:66px; border-radius:9px; border:1px dashed #243358;}
   .cta.disabled{opacity:.4; pointer-events:none;}
-  @media (max-width:520px){ #squadGrid{grid-template-columns:1fr;} }
   input[type=range]{width:180px; accent-color:var(--neon);}
   .keysBox{
     display:grid; grid-template-columns:max-content 1fr max-content 1fr;
@@ -740,12 +743,15 @@
       <button id="dailyPlay" class="cta">PLAY</button>
     </div>
 
-    <div id="squadOverlay" class="overlay solid vcenter hidden">
+    <div id="squadOverlay" class="overlay solid hidden">
       <button id="squadBack" class="gearBtn backTL" title="Back"></button>
       <div class="big" style="font-size:18px; letter-spacing:6px">LINE-UP</div>
       <div id="squadSub" class="sub" style="font-size:10px"></div>
-      <div id="squadGrid"></div>
-      <button id="squadGo" class="cta">DEPLOY</button>
+      <div id="squadPool"></div>
+      <div id="squadDock">
+        <div id="squadChosen"></div>
+        <button id="squadGo" class="cta">DEPLOY</button>
+      </div>
     </div>
 
     <div id="campOverlay" class="overlay solid vcenter hidden">
@@ -861,7 +867,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.7.0';
+const VERSION='1.7.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -5187,40 +5193,43 @@ function openSquad(launchFn, fromId, camp){
   buildSquad();
   $('squadOverlay').classList.remove('hidden');
 }
-function buildSquad(){
-  const grid=$('squadGrid');
-  grid.innerHTML=Object.keys(TOWERS).filter(k=>!isStructure(k)).map(k=>{
-    const d=TOWERS[k];
-    if(!heroAvailableIn(k,squadCamp)){
-      const node=CAMPAIGN.find(n=>n.unlock===k);
-      const where=d.unlockLevel?`Reach Commander LV ${d.unlockLevel}`
-        :node?`Clear ${String(node.id+1).padStart(2,'0')} ${node.name}`:'Unlock via campaign';
-      return `<div class="sqCard locked"><div class="lockArt">${ic('lock',20)}</div>
-        <div><b>??? </b><span style="font-size:9px">LOCKED</span><br><span class="sqrole">${where}</span></div></div>`;
-    }
-    return `<div class="sqCard" data-pick="${k}">
-      <canvas width="46" height="46" data-hero="${k}"></canvas>
-      <div><b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">$${d.cost}</span><br>
-      <span class="sqrole">${d.title}</span></div>
-      <span class="sqTick">&#10003;</span></div>`;
-  }).join('');
-  grid.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.1));
-  grid.querySelectorAll('.sqCard[data-pick]').forEach(el=>el.onclick=()=>toggleSquadPick(el.dataset.pick));
-  refreshSquad();
+function buildSquad(){ renderSquadZones(); }
+/* unit card for a hero (icon + name); tappable via data-add (pool) / data-remove (dock) */
+function squadUnit(k,attr){
+  const d=TOWERS[k];
+  return `<div class="sqUnit" ${attr}="${k}"><canvas width="38" height="38" data-hero="${k}"></canvas>`
+    +`<div class="nm" style="color:${d.color}">${d.name}</div></div>`;
 }
-function toggleSquadPick(k){
-  const i=squadPick.indexOf(k);
-  if(i>=0){ squadPick.splice(i,1); SND.sell(); }
-  else if(squadPick.length>=SQUAD_CAP){ SND.deny(); return; }
-  else { squadPick.push(k); ac(); SND.place(); }
-  refreshSquad();
-}
-function refreshSquad(){
-  const grid=$('squadGrid');
-  grid.querySelectorAll('.sqCard[data-pick]').forEach(el=>el.classList.toggle('sel',squadPick.includes(el.dataset.pick)));
-  grid.classList.toggle('capped',squadPick.length>=SQUAD_CAP);
+function renderSquadZones(){
+  const heroes=Object.keys(TOWERS).filter(k=>!isStructure(k));
+  /* POOL (top): every hero not currently chosen — available ones are tappable, locked ones shown dimmed */
+  const pool=$('squadPool');
+  const poolKeys=heroes.filter(k=>!squadPick.includes(k));
+  pool.innerHTML=poolKeys.map(k=>
+    heroAvailableIn(k,squadCamp)
+      ? squadUnit(k,'data-add')
+      : `<div class="sqUnit locked"><span class="lk">${ic('lock',16)}</span><div class="nm">???</div></div>`
+  ).join('') || '<div class="sub" style="opacity:.6;max-width:none">All heroes deployed</div>';
+  pool.classList.toggle('full',squadPick.length>=SQUAD_CAP);
+  /* DOCK (bottom): chosen heroes followed by empty slots up to the cap */
+  let html=squadPick.map(k=>squadUnit(k,'data-remove')).join('');
+  for(let i=squadPick.length;i<SQUAD_CAP;i++) html+='<div class="sqEmpty"></div>';
+  $('squadChosen').innerHTML=html;
+  /* render icons + wire taps */
+  document.querySelectorAll('#squadOverlay canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
+  pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onclick=()=>addSquad(el.dataset.add));
+  $('squadChosen').querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onclick=()=>removeSquad(el.dataset.remove));
   $('squadSub').textContent=squadPick.length+' / '+SQUAD_CAP+' HEROES · BASTION ALWAYS DEPLOYS (LIMIT 1)';
   $('squadGo').classList.toggle('disabled',squadPick.length===0);
+}
+function addSquad(k){   /* pool → dock */
+  if(squadPick.includes(k)) return;
+  if(squadPick.length>=SQUAD_CAP){ SND.deny(); return; }
+  squadPick.push(k); ac(); SND.place(); renderSquadZones();
+}
+function removeSquad(k){   /* dock → pool */
+  const i=squadPick.indexOf(k); if(i<0) return;
+  squadPick.splice(i,1); SND.sell(); renderSquadZones();
 }
 $('squadGo').onclick=()=>{
   if(!squadPick.length){ SND.deny(); return; }
