@@ -814,7 +814,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.4.1';
+const VERSION='1.4.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1558,7 +1558,7 @@ function ac(){
   if(!AC){
     AC=new (window.AudioContext||window.webkitAudioContext)();
     master=AC.createGain(); master.gain.value=vol; master.connect(AC.destination);
-    musicGain=AC.createGain(); musicGain.gain.value=.5; musicGain.connect(master);
+    musicGain=AC.createGain(); musicGain.gain.value=.62; musicGain.connect(master);
   }
   if(AC.state==='suspended') AC.resume();
   return AC;
@@ -5478,6 +5478,17 @@ reset();
 if(!SAVE.seenIntro) $('howOverlay').classList.remove('hidden');
 requestAnimationFrame(frame);
 requestAnimationFrame(titleBgLoop);
+
+/* Audio unlock: browsers start the AudioContext suspended and only allow it to
+   run after a user gesture, and mobile re-suspends it after tab/screen switches.
+   Unlock on the first interaction and re-resume whenever we come back into view —
+   otherwise the procedural BGM (and SFX) silently never start. */
+(function(){
+  const unlock=()=>{ try{ ac(); }catch(e){} };
+  for(const ev of ['pointerdown','touchstart','keydown']) document.addEventListener(ev,unlock,{passive:true});
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden && AC && AC.state==='suspended') AC.resume().catch(()=>{}); });
+  window.addEventListener('focus',()=>{ if(AC && AC.state==='suspended') AC.resume().catch(()=>{}); });
+})();
 
 /* PWA: installable + offline (https only; no-op when opened from disk) */
 if('serviceWorker' in navigator && location.protocol==='https:'){
