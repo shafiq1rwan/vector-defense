@@ -231,12 +231,13 @@
   #startBtn{background:#0c2347; border-color:#2f6fd0; animation:pul 1.6s ease-in-out infinite;}
   /* core shop — a proper storefront */
   #shopWallet{
-    display:inline-flex; align-items:center; gap:9px;
-    background:#0a1126; border:1px solid #8a6d1f; border-radius:22px; padding:7px 18px;
+    position:absolute; top:10px; right:12px; z-index:6;
+    display:inline-flex; align-items:center; gap:5px;
+    background:#0a1126; border:1px solid #8a6d1f; border-radius:18px; padding:4px 11px;
   }
   #shopWallet svg{color:#ffd34d; display:block;}
-  #shopWallet .wv{color:#ffd34d; font-size:19px; font-weight:800; letter-spacing:1px;}
-  #shopWallet .wl{font-size:9px; letter-spacing:2px; color:var(--dim);}
+  #shopWallet .wv{color:#ffd34d; font-size:14px; font-weight:800; letter-spacing:.5px;}
+  #shopWallet .wl{font-size:8px; letter-spacing:1.5px; color:var(--dim);}
   #shopRefund{font-size:9px; color:#39ff6a; letter-spacing:.5px;}
   #shopRefund:empty{display:none;}
   .shopGrid{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:720px;}
@@ -897,7 +898,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.9.0';
+const VERSION='1.9.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4539,7 +4540,7 @@ let shopTab='theme';
 function buildShop(){
   const body=$('shopBody');
   if(!body) return;
-  $('shopWallet').innerHTML=ic('hex',18)+'<span class="wv">'+SAVE.cores+'</span><span class="wl">CORES</span>';
+  $('shopWallet').innerHTML=ic('hex',13)+'<span class="wv">'+SAVE.cores+'</span><span class="wl">CORES</span>';
   $('shopRefund').textContent=SAVE.metaRefund?('OLD UPGRADES RETIRED — +'+SAVE.metaRefund+' CORES REFUNDED'):'';
   document.querySelectorAll('#shopTabs button').forEach(b=>b.classList.toggle('sel',b.dataset.shoptab===shopTab));
   body.innerHTML='';
