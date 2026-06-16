@@ -908,7 +908,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.10.1';
+const VERSION='1.11.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1689,12 +1689,19 @@ function reset(){
   $('progFill').style.width='0%';
   const wb=$('waveBtn');
   wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE 1';
-  tutStep=(campNode&&campNode.id===0&&!campNode.daily)?0:99;   /* interactive tutorial only on Mission 1 */
+  const tut1=campNode&&campNode.id===0&&!campNode.daily;   /* interactive tutorial only on Mission 1 */
+  tutIntro=tut1?0:99; tutStep=tut1?0:99;
   updateTut();
   refreshUI(); hidePop(); updateNextPreview();
 }
 /* ---- Interactive tutorial (Mission 1): gate the wave on learning the 4 core actions ---- */
 let tutStep=99;   /* 0 place · 1 upgrade · 2 place spare · 3 sell spare · 4 ability · 5 ready · 99 inactive */
+let tutIntro=99;  /* coach-mark intro before the lessons: 0 overview · 1 spawn · 2 core · 99 done/inactive */
+const TUT_INTRO=[
+  {title:'PROTECT THE CORE', desc:'The last light of the grid. If its integrity hits zero, the grid falls. Stop every enemy before it reaches the core.', target:'core'},
+  {title:'THE SPAWN GATE', desc:'Every wave of enemies pours out of this gate and marches down the road toward your core.', target:'spawn'},
+  {title:'HOLD THE ROAD', desc:'Build towers along the path to destroy them before they arrive. Let us learn how.', target:'core'}
+];
 const TUT_ACTIONS=['place','upgrade','place','sell','ability'];
 const TUT_STEPS=[
   'DRAG the glowing <b>SLY</b> card from the dock onto a tile beside the road to build a tower.',
@@ -1707,8 +1714,18 @@ function tutDid(action){
   if(tutStep>=TUT_ACTIONS.length||tutStep===99) return;
   if(action===TUT_ACTIONS[tutStep]){ tutStep++; SND.upgrade(); vib(18); updateTut(); }
 }
+function advanceIntro(){
+  if(tutIntro>=TUT_INTRO.length) return;
+  tutIntro++; SND.place(); vib(12);
+  if(tutIntro>=TUT_INTRO.length){ tutIntro=99; updateTut(); }   /* intro done → lessons banner (tutStep already 0) */
+}
 function updateTut(){
   const ban=$('tutBanner'), wb=$('waveBtn');
+  if(tutIntro<TUT_INTRO.length){   /* coach overlay owns the screen; lessons banner hidden, wave locked */
+    ban.classList.add('hidden');
+    if(wb){ wb.disabled=true; wb.classList.remove('pulse'); wb.textContent='FINISH TRAINING'; }
+    return;
+  }
   if(tutStep===99){ ban.classList.add('hidden'); return; }
   ban.classList.remove('hidden');
   const done=tutStep>=TUT_ACTIONS.length;
@@ -3617,6 +3634,49 @@ function drawFireflies(){
   ctx.globalAlpha=1;
 }
 
+/* ---- coach-mark intro overlay (Mission 1): dim the board, spotlight a target, explain ---- */
+function tutCoachBox(){
+  const w=Math.min(560,W-60), h=104, x=(W-w)/2, y=H-h-26;
+  const bw=86, bh=26, bx=x+w-bw-16, by=y+h-bh-14;
+  return {x,y,w,h,btn:{x:bx,y:by,w:bw,h:bh}};
+}
+function wrapText(c,txt,maxW){
+  const words=txt.split(' '), lines=[]; let line='';
+  for(const wd of words){ const t=line?line+' '+wd:wd; if(c.measureText(t).width>maxW&&line){ lines.push(line); line=wd; } else line=t; }
+  if(line) lines.push(line); return lines;
+}
+function drawTutIntro(){
+  if(tutIntro>=TUT_INTRO.length) return;
+  const step=TUT_INTRO[tutIntro], tgt=step.target==='spawn'?PORTAL:CORE, R=50+Math.sin(time*3)*4;
+  /* dim the whole board with a circular hole over the target */
+  ctx.fillStyle='rgba(3,6,14,.76)';
+  ctx.beginPath(); ctx.rect(0,0,W,H);
+  if(tgt) ctx.arc(tgt.x,tgt.y,R,0,TAU,true);
+  ctx.fill('evenodd');
+  if(tgt){
+    glow(ctx,'#4d8dff',12); ctx.strokeStyle='#7db2ff'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(tgt.x,tgt.y,R,0,TAU); ctx.stroke(); noGlow(ctx);
+    ctx.font='bold 13px monospace'; ctx.textAlign='center'; ctx.fillStyle='#cfe0ff';
+    const lx=Math.max(70,Math.min(W-70,tgt.x)), ly=Math.max(20,tgt.y-R-10);   /* keep the label on-screen */
+    glow(ctx,'#4d8dff',8); ctx.fillText(step.title,lx,ly); noGlow(ctx);
+  }
+  /* coach panel pinned at bottom-centre so it never covers the mid-board target */
+  const b=tutCoachBox();
+  ctx.fillStyle='rgba(10,17,38,.98)'; ctx.strokeStyle='#2f6fd0'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(b.x,b.y,b.w,b.h,12); ctx.fill(); ctx.stroke();
+  ctx.textAlign='left';
+  ctx.fillStyle='#ffd34d'; ctx.font='bold 15px monospace'; ctx.fillText(step.title,b.x+18,b.y+28);
+  ctx.fillStyle='#cfe0ff'; ctx.font='12px monospace';
+  wrapText(ctx,step.desc,b.w-36).slice(0,3).forEach((ln,i)=>ctx.fillText(ln,b.x+18,b.y+50+i*16));
+  for(let i=0;i<TUT_INTRO.length;i++){ ctx.fillStyle=i===tutIntro?'#4d8dff':'#2a3f7a';
+    ctx.beginPath(); ctx.arc(b.x+20+i*12,b.y+b.h-14,3.5,0,TAU); ctx.fill(); }
+  const bt=b.btn, last=tutIntro===TUT_INTRO.length-1;
+  ctx.fillStyle='#0c2347'; ctx.strokeStyle='#2f6fd0'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(bt.x,bt.y,bt.w,bt.h,8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#cfe0ff'; ctx.font='bold 11px monospace'; ctx.textAlign='center';
+  glow(ctx,'#4d8dff',6); ctx.fillText((last?'BEGIN':'NEXT')+' ▶',bt.x+bt.w/2,bt.y+bt.h/2+4); noGlow(ctx); ctx.textAlign='left';
+}
+
 /* ============================== DRAW: SCENE ============================== */
 function draw(){
   const TH=THEME();
@@ -4237,6 +4297,7 @@ function draw(){
       noGlow(ctx); ctx.globalAlpha=1;
     }
   }
+  drawTutIntro();
   ctx.restore();
 }
 
@@ -4371,6 +4432,7 @@ function showTowerInfo(t){
   if(maxed&&!t.spec){ $('specA').onclick=()=>buySpec(0); $('specB').onclick=()=>buySpec(1); }
 }
 function selectCard(type){
+  if(tutIntro<TUT_INTRO.length){SND.deny(); return;}   /* finish the coach intro first */
   if(!inSquad(type)){SND.deny(); return;}   /* benched / out-of-roster heroes can't be deployed (guards hotkeys) */
   if(!(campNode&&campNode.daily) && (campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank gates (daily grants all) */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
@@ -5065,6 +5127,7 @@ cvs.addEventListener('pointerleave',()=>{ if(!dragMode) mouse.inside=false; });
 cvs.addEventListener('pointerdown',e=>{
   if(!running||gameOver) return;
   ac();
+  if(tutIntro<TUT_INTRO.length){ advanceIntro(); return; }   /* coach intro: any tap advances */
   if(e.button===2) return;
   const isTouch=e.pointerType!=='mouse';
   /* touch: press starts a drag — ghost floats above the finger, release commits */
@@ -5132,6 +5195,7 @@ function showCardInfo(type){
 }
 function startCardDrag(type,e){
   if(!running||gameOver||drafting||paused) return;
+  if(tutIntro<TUT_INTRO.length) return;   /* finish the coach intro first */
   if(!inSquad(type)) return;   /* benched heroes aren't in the dock */
   /* hold to inspect — works even when unaffordable/locked */
   clearTimeout(holdTimer);
