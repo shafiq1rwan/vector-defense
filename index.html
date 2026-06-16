@@ -194,15 +194,10 @@
     bottom:max(8px, env(safe-area-inset-bottom));
     font-size:9px; letter-spacing:1px; color:var(--dim);
   }
-  #credTag{
-    position:absolute; left:max(10px, env(safe-area-inset-left));
-    bottom:max(8px, env(safe-area-inset-bottom));
-    font-size:9px; letter-spacing:1px; color:var(--dim);
-  }
   /* animated title backdrop — sits behind every other title element */
   #titleOverlay>*{position:relative; z-index:1;}
   #titleOverlay>#titleBg{position:absolute; inset:0; width:100%; height:100%; z-index:0;}
-  #titleOverlay .gearBtn, #titleOverlay #verTag, #titleOverlay #credTag{position:absolute;}
+  #titleOverlay .gearBtn, #titleOverlay #verTag{position:absolute;}
   #installBtn{
     flex:none; margin-top:2px; padding:9px 18px; border-radius:9px;
     background:#0c1a3a; border:1px solid var(--neon); color:#cfe1ff;
@@ -715,7 +710,6 @@
         <button id="shopBtn" class="menuCard"></button>
       </div>
       <button id="installBtn" class="hidden"></button>
-      <span id="credTag">BY: SAISS &amp; CLAUDE</span>
       <span id="verTag"></span>
     </div>
 
@@ -898,7 +892,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.9.4';
+const VERSION='1.9.5';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
