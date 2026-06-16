@@ -404,16 +404,15 @@
   #bestLine{font-size:10px; letter-spacing:2px; color:var(--gold);}
   #rankCard{
     position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); z-index:6;
-    display:flex; align-items:center; gap:9px; padding:8px 13px 8px 9px;
-    background:#0a1126; border:1px solid #2a3f7a; border-radius:11px; overflow:hidden;
+    display:flex; align-items:center; gap:7px; height:36px; padding:0 12px 0 5px;
+    background:#0e1834; border:1px solid var(--line); border-radius:7px;
   }
-  #rankCard::before{content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--rc,#4d8dff); opacity:.7;}
-  #rankCard canvas{width:34px; height:34px; flex:none;}
+  #rankCard canvas{width:28px; height:28px; flex:none;}
   #rankCard .rkInfo{display:flex; flex-direction:column; gap:3px; text-align:left;}
-  #rankCard .rkTop{display:flex; align-items:baseline; gap:7px;}
-  #rankCard #rankTxt{font-size:13px; font-weight:800; letter-spacing:1.5px; color:var(--rc,#cfe1ff); line-height:1;}
-  #rankCard #rankLv{font-size:8px; letter-spacing:1.5px; color:var(--dim); font-weight:700;}
-  #rankCard #rankXp{width:96px; height:3px; background:#0a1830; border-radius:3px; overflow:hidden;}
+  #rankCard .rkTop{font-size:9.5px; letter-spacing:1px; font-weight:700; line-height:1; white-space:nowrap;}
+  #rankCard #rankTxt{color:var(--rc,#cfe1ff); letter-spacing:1.5px;}
+  #rankCard #rankLv{color:var(--dim); font-weight:600; margin-left:5px;}
+  #rankCard #rankXp{width:118px; height:3px; background:#0a1830; border-radius:3px; overflow:hidden;}
   #rankCard #rankXp i{display:block; height:100%; width:0; background:var(--rc,#9db8ff); border-radius:3px;}
   .roster{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
   .roster div{font-size:9px; color:var(--dim); letter-spacing:.5px;}
@@ -651,7 +650,7 @@
         </div>
         <canvas id="logoR" width="56" height="56"></canvas>
       </div>
-      <div id="rankCard"><canvas id="rankBadgeC" width="34" height="34"></canvas><div class="rkInfo"><div class="rkTop"><b id="rankTxt"></b><span id="rankLv"></span></div><div id="rankXp"><i></i></div></div></div>
+      <div id="rankCard"><canvas id="rankBadgeC" width="28" height="28"></canvas><div class="rkInfo"><div class="rkTop"><b id="rankTxt"></b><span id="rankLv"></span></div><div id="rankXp"><i></i></div></div></div>
       <div id="bestLine"></div>
       <div class="menuRow">
         <button id="campBtn" class="menuCard"></button>
@@ -815,7 +814,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.4.0';
+const VERSION='1.4.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4647,7 +4646,7 @@ function updateBestLine(){
   $('rankCard').style.setProperty('--rc',rk.col);
   drawRankBadge($('rankBadgeC'),lvl);
   $('rankTxt').textContent=rk.n;
-  $('rankLv').textContent='LV '+lvl;
+  $('rankLv').textContent=cur+' / '+need+' XP';
   $('rankXp').firstElementChild.style.width=Math.round(cur/need*100)+'%';
 }
 /* no enemy intel anymore — the player reads the field; only a boss klaxon remains */
