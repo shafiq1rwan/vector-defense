@@ -394,7 +394,21 @@
   .endLate{opacity:0; animation:lateIn .4s ease-out 1s forwards;}
   @keyframes lateIn{to{opacity:1;}}
   .card.tut{animation:pul 1.1s infinite; border-color:#7db2ff;}
-  #upBtn.tut{animation:pul 1.1s infinite; border-color:#39ff6a;}
+  #upBtn.tut, #sellBtn.tut, .abtn.tut{animation:pul 1.1s infinite; border-color:#39ff6a;}
+  #tutBanner{
+    position:absolute; top:52px; left:50%; transform:translateX(-50%); z-index:7;
+    max-width:74%; display:flex; align-items:center; gap:9px;
+    background:rgba(8,14,30,.96); border:1px solid #2f6fd0; border-radius:9px;
+    padding:7px 11px; font-size:11px; letter-spacing:.3px; color:#cfe0ff; text-align:left;
+    box-shadow:0 0 16px rgba(77,141,255,.3);
+  }
+  #tutBanner.hidden{display:none;}
+  #tutBanner .tStep{flex:none; font-weight:800; color:#39ff6a; background:#0c2347;
+    border:1px solid #2f6fd0; border-radius:6px; padding:2px 7px; font-size:10px;}
+  #tutBanner .tTxt{line-height:1.3;}
+  #tutBanner .tTxt b{color:#ffd34d;}
+  #tutBanner #tutSkip{flex:none; margin-left:4px; font-size:9px; letter-spacing:1px; color:var(--dim);
+    background:#0a1126; border:1px solid var(--line); border-radius:6px; padding:4px 9px; cursor:pointer;}
   .card.locked{opacity:.3; filter:saturate(.25);}
   .card .lockB{position:absolute; top:2px; right:3px; color:#9db8ff;}
   .card .lockB.hidden{display:none;}
@@ -665,6 +679,7 @@
     <div id="towerPop" class="hidden"></div>
     <div id="cardInfo" class="hidden"></div>
     <div id="relicPop" class="hidden"></div>
+    <div id="tutBanner" class="hidden"></div>
 
     <div id="sideCol">
       <div id="sideScroll">
@@ -893,7 +908,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.9.7';
+const VERSION='1.10.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1674,7 +1689,34 @@ function reset(){
   $('progFill').style.width='0%';
   const wb=$('waveBtn');
   wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE 1';
+  tutStep=(campNode&&campNode.id===0&&!campNode.daily)?0:99;   /* interactive tutorial only on Mission 1 */
+  updateTut();
   refreshUI(); hidePop(); updateNextPreview();
+}
+/* ---- Interactive tutorial (Mission 1): gate the wave on learning the 4 core actions ---- */
+let tutStep=99;   /* 0 place · 1 upgrade · 2 sell · 3 ability · 4 ready · 99 inactive */
+const TUT_STEPS=[
+  'DRAG the glowing <b>SLY</b> card from the dock onto a tile beside the road to build a tower.',
+  'TAP your tower, then the green <b>↑</b> button to UPGRADE it.',
+  'TAP a tower, then <b>SELL</b> it to refund credits.',
+  'TAP an ability (<b>Q / W / E</b>, left side) to unleash it.',
+  'Training complete — <b>build your defense</b>, then press START WAVE!'
+];
+function tutDid(action){
+  if(tutStep>=4||tutStep===99) return;
+  if(action===['place','upgrade','sell','ability'][tutStep]){ tutStep++; SND.upgrade(); vib(18); updateTut(); }
+}
+function updateTut(){
+  const ban=$('tutBanner'), wb=$('waveBtn');
+  if(tutStep===99){ ban.classList.add('hidden'); return; }
+  ban.classList.remove('hidden');
+  const done=tutStep>=4;
+  ban.innerHTML=(done?'':'<span class="tStep">'+(tutStep+1)+'/4</span>')
+    +'<span class="tTxt">'+TUT_STEPS[tutStep]+'</span>'
+    +(done?'':'<button id="tutSkip">SKIP</button>');
+  if(!done) $('tutSkip').onclick=()=>{ tutStep=99; updateTut(); refreshUI(); SND.deny(); };
+  if(wb && !done){ wb.disabled=true; wb.classList.remove('pulse'); wb.textContent='FINISH TRAINING'; }
+  /* when done, refreshUI manages the button (needs at least one tower built) */
 }
 
 /* ============================== AUDIO ============================== */
@@ -2023,6 +2065,7 @@ function placeTower(type,c,r){
   SND.place(); vib(12); bumpStat('towersV');
   spray(t.x,t.y,def.color,14,90,.45);
   ring(t.x,t.y,26,def.color,.35);
+  tutDid('place');
 }
 function acquire(t){
   let best=null,bv=-Infinity;
@@ -2148,9 +2191,11 @@ function useAbility(k){
     addText(W/2,H/2-40,'— OVERDRIVE —','#c46bff',true);
     SND.ability();
   }
+  tutDid('ability');
 }
 function castStrike(x,y){
   cds.strike=abilityCd('strike'); aiming=null;
+  tutDid('ability');
   shake=Math.max(shake,9); leakFlash=0;
   ring(x,y,90,'#ffa53a',.4); ring(x,y,46,'#ffe14d',.3);
   spray(x,y,'#ffa53a',40,260,.7,3.4);
@@ -4171,23 +4216,13 @@ function draw(){
     ctx.globalAlpha=1;
   }
 
-  /* hints (richer step-by-step on the tutorial mission) */
+  /* generic hints (the interactive tutorial uses its own banner instead) */
   {
-    const tut=campNode&&campNode.id===0;
     let msg=null;
-    if(running&&!gameOver){
-      if(wave===0){
-        if(tut) msg=towers.length===0
-          ? (placing?'RELEASE OVER A CELL BESIDE THE ROAD TO BUILD':'STEP 1 — DRAG THE GLOWING HERO CARD FROM BELOW ONTO THE GRID')
-          : 'STEP 2 — KILLS PAY CREDITS. ADD TOWERS, THEN HIT START WAVE';
-        else msg=towers.length===0
-          ? (placing?'RELEASE OVER A CELL TO BUILD':'DRAG A HERO CARD FROM THE DOCK ONTO THE GRID')
-          : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
-      }else if(tut&&wave===1&&!waveActive){
-        msg=towers.some(tw=>tw.level>1)
-          ? 'STEP 4 — DEPLOY A REACTOR FOR PASSIVE INCOME, THEN CALL THE NEXT WAVE'
-          : 'STEP 3 — TAP YOUR TOWER, THEN HIT THE GREEN ARROW BUTTON TO UPGRADE IT';
-      }
+    if(running&&!gameOver&&tutStep===99&&wave===0){
+      msg=towers.length===0
+        ? (placing?'RELEASE OVER A CELL TO BUILD':'DRAG A HERO CARD FROM THE DOCK ONTO THE GRID')
+        : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';
     }
     if(msg){
       ctx.font='bold 16px monospace'; ctx.textAlign='center';
@@ -4216,9 +4251,14 @@ function refreshUI(){
     const card=$('card_'+k);
     if(card) card.classList.toggle('poor',money<TOWERS[k].cost || (!!TOWERS[k].solo && towers.some(t=>t.type===k)));
   }
-  /* tutorial: spotlight the first hero card until something is built */
+  /* tutorial: spotlight the card for the DRAG lesson */
   const c0=$('card_archer');
-  if(c0) c0.classList.toggle('tut', !!(campNode&&campNode.id===0&&running&&wave===0&&towers.length===0&&!placing));
+  if(c0) c0.classList.toggle('tut', tutStep===0 && !placing);
+  if(tutStep===4){   /* training done — only let the wave start once a tower stands */
+    const wb=$('waveBtn'), ready=towers.length>0;
+    wb.disabled=!ready; wb.classList.toggle('pulse',ready);
+    wb.textContent=ready?'START WAVE 1':'BUILD A TOWER FIRST';
+  }
   if(selTower){
     const b=$('upBtn');
     if(b && selTower.level<MAX_LVL) b.disabled = money<upCost(selTower.def,selTower.level);
@@ -4232,6 +4272,7 @@ function refreshUI(){
     b.classList.toggle('cool',cd>0);
     b.classList.toggle('ready',cd<=0&&running&&!gameOver);
     b.classList.toggle('aim',aiming===k);
+    b.classList.toggle('tut',tutStep===3&&cd<=0);   /* spotlight abilities for the ability lesson */
     b.querySelector('.cdt').textContent=cd>0?Math.ceil(cd)+'s':ABILITIES[k].name;
   }
 }
@@ -4274,8 +4315,9 @@ function showTowerInfo(t){
   pop.classList.remove('hidden');
   const pf=pop.querySelector('.popFace');
   if(pf) renderHeroPortrait(pf,t.type);
-  /* tutorial: pulse the upgrade button so step 3 lands */
-  if(campNode&&campNode.id===0&&t.level===1&&wave>=1) $('upBtn').classList.add('tut');
+  /* tutorial: pulse the button the current lesson is teaching */
+  if(tutStep===1 && t.level<MAX_LVL && $('upBtn')) $('upBtn').classList.add('tut');
+  if(tutStep===2 && $('sellBtn')) $('sellBtn').classList.add('tut');
   $('popX').onclick=()=>{ selTower=null; hidePop(); };
   if(t.offline&&$('repBtn')) $('repBtn').onclick=()=>{
     if(money<repCost) return;
@@ -4299,6 +4341,7 @@ function showTowerInfo(t){
     t.spawnT=.25;
     vib(20);
     SND.upgrade();
+    tutDid('upgrade');
     showTowerInfo(t); refreshUI();
   };
   $('sellBtn').onclick=()=>{
@@ -4313,6 +4356,7 @@ function showTowerInfo(t){
     towers=towers.filter(x=>x!==t);
     spray(t.x,t.y,'#ffd34d',12,100,.4);
     SND.sell(); selTower=null; hidePop(); refreshUI(); bumpStat('towersV');
+    tutDid('sell');
   };
   const buySpec=i=>{
     const cc=specCost(d);
@@ -4852,6 +4896,7 @@ function updateNextPreview(){
 /* ============================== FLOW ============================== */
 function startWave(){
   if(waveActive||gameOver||!running) return;
+  if(tutStep!==99){ tutStep=99; updateTut(); }   /* the wave begins — training is over */
   wave++;
   curWave=makeWave(wave);
   spawnQueue=curWave.spawns.slice();
@@ -4864,6 +4909,7 @@ function startWave(){
 }
 function callWave(){
   if(!running||gameOver||waveActive) return;
+  if(tutStep<4){ SND.deny(); return; }   /* finish the interactive tutorial first */
   interT=0;   /* early call just starts the wave now — no money pressure */
   startWave();
 }
