@@ -69,7 +69,8 @@
   .stat .v{font-size:17px; font-weight:800;}
   .stat .l{font-size:8px; letter-spacing:1.5px; color:var(--dim);}
   #livesV{color:var(--bad);} #moneyV{color:var(--gold);} #waveV{color:var(--neon);}
-  .stat.sLives{--c:#ff4d6a;} .stat.sMoney{--c:#ffd34d;} .stat.sWave{--c:#4d8dff;}
+  .stat.sLives{--c:#ff4d6a;} .stat.sMoney{--c:#ffd34d;} .stat.sWave{--c:#4d8dff;} .stat.sTowers{--c:#9a6bff;}
+  #towersV{color:#b48bff;} #towersV.full{color:#ff4d6a;}
   .bump{animation:bump .25s ease;}
   @keyframes bump{40%{transform:scale(1.25);}}
   .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
@@ -403,14 +404,17 @@
   #bestLine{font-size:10px; letter-spacing:2px; color:var(--gold);}
   #rankCard{
     position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); z-index:6;
-    display:flex; align-items:center; gap:8px; padding:7px 11px 7px 8px;
-    background:#0a1126; border:1px solid var(--line); border-radius:10px;
+    display:flex; align-items:center; gap:9px; padding:8px 13px 8px 9px;
+    background:#0a1126; border:1px solid #2a3f7a; border-radius:11px; overflow:hidden;
   }
+  #rankCard::before{content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--rc,#4d8dff); opacity:.7;}
   #rankCard canvas{width:34px; height:34px; flex:none;}
-  #rankCard .rkInfo{display:flex; flex-direction:column; gap:4px; text-align:left;}
-  #rankCard #rankTxt{font-size:10px; letter-spacing:1px; color:#cfe1ff; font-weight:700;}
-  #rankCard #rankXp{width:78px; height:4px; background:#0a1830; border-radius:3px; overflow:hidden;}
-  #rankCard #rankXp i{display:block; height:100%; width:0; background:#9db8ff; border-radius:3px;}
+  #rankCard .rkInfo{display:flex; flex-direction:column; gap:3px; text-align:left;}
+  #rankCard .rkTop{display:flex; align-items:baseline; gap:7px;}
+  #rankCard #rankTxt{font-size:13px; font-weight:800; letter-spacing:1.5px; color:var(--rc,#cfe1ff); line-height:1;}
+  #rankCard #rankLv{font-size:8px; letter-spacing:1.5px; color:var(--dim); font-weight:700;}
+  #rankCard #rankXp{width:96px; height:3px; background:#0a1830; border-radius:3px; overflow:hidden;}
+  #rankCard #rankXp i{display:block; height:100%; width:0; background:var(--rc,#9db8ff); border-radius:3px;}
   .roster{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
   .roster div{font-size:9px; color:var(--dim); letter-spacing:.5px;}
   .roster canvas{display:block; margin:0 auto 2px;}
@@ -426,13 +430,6 @@
   .mapOpt:hover{border-color:#7db2ff;}
   .mapOpt.sel{border-color:var(--neon); background:#142250; box-shadow:0 0 12px rgba(77,141,255,.4); transform:translateY(-2px);}
   .mapOpt.sel .mnm{color:#fff;}
-  .diffOpt{
-    flex:none; padding:7px 14px; font-size:11px; border-radius:10px;
-    display:flex; flex-direction:column; gap:2px; align-items:center;
-  }
-  .diffOpt b{color:var(--dc,#4d8dff); letter-spacing:1.5px;}
-  .diffOpt .dd{font-size:7.5px; color:var(--dim); letter-spacing:.5px; font-weight:400;}
-  .diffOpt.sel{border-color:var(--dc,#fff); background:#16265a; box-shadow:0 0 10px rgba(77,141,255,.3);}
   /* quick play — compact column that always shows LAUNCH without scrolling */
   #qpOverlay{gap:7px;}
   #qpOverlay .big{font-size:17px;}
@@ -625,6 +622,7 @@
           <div class="stat sMoney"><div class="v" id="moneyV">130</div><div class="l">CREDITS</div></div>
           <div class="stat sWave"><div class="v" id="waveV">0/20</div><div class="l">WAVE</div>
             <div id="progWrap"><div id="progFill"></div></div></div>
+          <div class="stat sTowers"><div class="v" id="towersV">0/8</div><div class="l">TOWERS</div></div>
         </div>
         <div id="abils"></div>
         <div id="relicHdr" class="hidden">RELICS</div>
@@ -653,7 +651,7 @@
         </div>
         <canvas id="logoR" width="56" height="56"></canvas>
       </div>
-      <div id="rankCard"><canvas id="rankBadgeC" width="34" height="34"></canvas><div class="rkInfo"><b id="rankTxt"></b><div id="rankXp"><i></i></div></div></div>
+      <div id="rankCard"><canvas id="rankBadgeC" width="34" height="34"></canvas><div class="rkInfo"><div class="rkTop"><b id="rankTxt"></b><span id="rankLv"></span></div><div id="rankXp"><i></i></div></div></div>
       <div id="bestLine"></div>
       <div class="menuRow">
         <button id="campBtn" class="menuCard"></button>
@@ -701,8 +699,6 @@
       <div id="qpSub" class="sub" style="font-size:10px"></div>
       <div class="shopSec">BATTLEFIELD</div>
       <div id="mapSel" class="selRow"></div>
-      <div class="shopSec">THREAT LEVEL</div>
-      <div id="diffSel" class="selRow"></div>
       <button id="qpLaunch" class="cta">LAUNCH</button>
     </div>
 
@@ -819,7 +815,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.3.1';
+const VERSION='1.4.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1247,9 +1243,11 @@ function heroUnlocked(k){
 const DIFFS=[
   {label:'CASUAL', hp:.75, reward:1.15, money:160, lives:25},
   {label:'NORMAL', hp:1.12, reward:.9,  money:115, lives:20},
-  {label:'BRUTAL', hp:1.5, reward:.8,   money:95,  lives:15}
+  {label:'BRUTAL', hp:1.5, reward:.8,   money:95,  lives:15},
+  {label:'EXPERT', hp:1.9, reward:.78,  money:95,  lives:12}   /* Quick Play preset — no idling */
 ];
-let diffIndex=SAVE.diff!=null?SAVE.diff:1;
+const QP_DIFF=3;   /* Quick Play always runs EXPERT */
+let diffIndex=QP_DIFF;
 const DIFF=()=>DIFFS[diffIndex];
 const maxLives=()=>DIFF().lives;
 const abilityCd=k=>Math.round(ABILITIES[k].cd*(typeof relicHas!=='undefined'&&relicHas('flux')?.75:1));
@@ -1869,7 +1867,12 @@ function damageTower(t,dmg){
     if(selTower===t) showTowerInfo(t);
   }
 }
+/* scaling deployment cap — start small, grow as waves are cleared (caps at 16) */
+function towerCap(){ return Math.min(16, 8+Math.floor(wave/2)); }
 function placeTower(type,c,r){
+  if(towers.length>=towerCap()){   /* safety net: covers every placement path */
+    SND.deny(); addText(W/2,H/2-40,'TOWER LIMIT REACHED','#ff4d6a',true); return;
+  }
   const def=TOWERS[type];
   const fp=def.footprint||[1,1];
   const hpBase=def.footprint?260:120;
@@ -1882,7 +1885,7 @@ function placeTower(type,c,r){
   towers.push(t);
   t.keys.forEach(k=>occ.set(k,t));
   money-=def.cost; usedTypes.add(type);
-  SND.place(); vib(12);
+  SND.place(); vib(12); bumpStat('towersV');
   spray(t.x,t.y,def.color,14,90,.45);
   ring(t.x,t.y,26,def.color,.35);
 }
@@ -3539,7 +3542,8 @@ function draw(){
   if(placing && mouse.inside){
     const fp=TOWERS[placing].footprint||[1,1];
     const [c,r]=anchorFor(placing);
-    const ok=canPlace(placing,c,r)&&money>=TOWERS[placing].cost;
+    const atCap=towers.length>=towerCap();
+    const ok=canPlace(placing,c,r)&&money>=TOWERS[placing].cost&&!atCap;
     const x=(c+fp[0]/2)*CELL, y=(r+fp[1]/2)*CELL;
     const st=lvlStat(TOWERS[placing],1);
     if(st.range>0){
@@ -3558,7 +3562,7 @@ function draw(){
       ctx.fillStyle=ok?'#39ff6a':'#ff4d6a';
       ctx.font='bold 12px monospace'; ctx.textAlign='center';
       glow(ctx,ctx.fillStyle,8);
-      ctx.fillText(ok?'RELEASE TO BUILD':'BLOCKED — KEEP DRAGGING',x,y-30);
+      ctx.fillText(ok?'RELEASE TO BUILD':(atCap?'TOWER LIMIT REACHED':'BLOCKED — KEEP DRAGGING'),x,y-30);
       noGlow(ctx);
     }
   }
@@ -4019,6 +4023,9 @@ function refreshUI(){
   $('moneyV').textContent=Math.floor(shownMoney);
   $('livesV').textContent=lives;
   $('waveV').textContent=endless?wave+'/∞':wave+'/'+finalWave;
+  const cap=towerCap();
+  $('towersV').textContent=towers.length+'/'+cap;
+  $('towersV').classList.toggle('full',towers.length>=cap);
   for(const k in TOWERS){
     const card=$('card_'+k);
     if(card) card.classList.toggle('poor',money<TOWERS[k].cost);
@@ -4119,7 +4126,7 @@ function showTowerInfo(t){
     t.keys.forEach(k=>occ.delete(k));
     towers=towers.filter(x=>x!==t);
     spray(t.x,t.y,'#ffd34d',12,100,.4);
-    SND.sell(); selTower=null; hidePop(); refreshUI();
+    SND.sell(); selTower=null; hidePop(); refreshUI(); bumpStat('towersV');
   };
   const buySpec=i=>{
     const cc=specCost(d);
@@ -4236,22 +4243,6 @@ function buildUI(){
       SND.place();
     };
     ms.appendChild(el);
-  });
-  /* difficulty selector — cards with the actual numbers */
-  const ds=$('diffSel'); ds.innerHTML='';
-  DIFFS.forEach((d,i)=>{
-    const b=document.createElement('button');
-    b.className='diffOpt'+(i===diffIndex?' sel':'');
-    b.id='diff_'+i;
-    b.style.setProperty('--dc',['#39ff6a','#4d8dff','#ff4d6a'][i]);
-    b.innerHTML=`<b>${d.label}</b><span class="dd">${Math.round(d.hp*100)}% HP · ${Math.round(d.reward*100)}% BOUNTY · ${d.lives} CORE</span>`;
-    b.onclick=()=>{
-      diffIndex=i; SAVE.diff=i; persist(); reset();
-      document.querySelectorAll('.diffOpt').forEach(x=>x.classList.remove('sel'));
-      b.classList.add('sel');
-      SND.place();
-    };
-    ds.appendChild(b);
   });
   /* svg icons on static buttons */
   $('codexBtn').innerHTML=ic('book',15);
@@ -4588,7 +4579,7 @@ function doResetSave(){
   autoLite=false; autoThrottle=false; loStreak=0; computePerf();
   applyCosmetics();
   vol=.8; if(master) master.gain.value=vol;
-  diffIndex=1; resetArmed=false;
+  diffIndex=QP_DIFF; resetArmed=false;
   buildMap(0); buildUI(); reset(); refreshSettings();
   SND.sell();
 }
@@ -4653,10 +4644,11 @@ function updateBestLine(){
     : 'NO RECORDS YET — GOOD LUCK, COMMANDER';
   const lvl=SAVE.commander.level||1, rk=rankFor(lvl);
   const cur=(SAVE.commander.xp||0)-xpBaseForLevel(lvl), need=xpStep(lvl);
+  $('rankCard').style.setProperty('--rc',rk.col);
   drawRankBadge($('rankBadgeC'),lvl);
-  $('rankTxt').innerHTML='LV '+lvl+' · <span style="color:'+rk.col+'">'+rk.n+'</span>';
+  $('rankTxt').textContent=rk.n;
+  $('rankLv').textContent='LV '+lvl;
   $('rankXp').firstElementChild.style.width=Math.round(cur/need*100)+'%';
-  $('rankXp').firstElementChild.style.background=rk.col;
 }
 /* no enemy intel anymore — the player reads the field; only a boss klaxon remains */
 function updateNextPreview(){
@@ -4691,6 +4683,7 @@ function earnedMedals(){
   if(money>=500) m.push(['TYCOON','#ffd34d']);
   if(kills>=150) m.push(['EXTERMINATOR','#ff4d6a']);
   if(diffIndex===2) m.push(['BRUTALIST','#ff3af0']);
+  if(diffIndex>=3) m.push(['EXPERT','#ff3af0']);
   return m;
 }
 function showMedals(){
@@ -4707,14 +4700,14 @@ function recordEnd(won){
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
   if(won) SAVE.wins=(SAVE.wins||0)+1;
-  const earned=Math.max(1,Math.round((wave+(won?10:0))*[.6,1,1.5][diffIndex]*(totalStars()>=36?1.25:1)));
+  const earned=Math.max(1,Math.round((wave+(won?10:0))*[.6,1,1.5,1.95][diffIndex]*(totalStars()>=36?1.25:1)));
   SAVE.cores+=earned;
   SAVE.life.kills+=kills;
   SAVE.life.bossKills+=runBossKills;
   SAVE.life.waves+=wave;
   /* Commander XP — vanity progression; a rank-up nudges a few bonus cores */
   const prevLvl=SAVE.commander.level||levelFromXp(SAVE.commander.xp||0);
-  lastXpGain=Math.max(1,Math.round((wave*5+(won?40:0))*[.6,1,1.5][diffIndex]));
+  lastXpGain=Math.max(1,Math.round((wave*5+(won?40:0))*[.6,1,1.5,1.95][diffIndex]));
   SAVE.commander.xp=(SAVE.commander.xp||0)+lastXpGain;
   const newLvl=levelFromXp(SAVE.commander.xp);
   lastRankUp=null;
@@ -5022,10 +5015,10 @@ $('pRestartBtn').onclick=()=>{
   reset();
 };
 function openQuickPlay(){
-  exitCampaign();   /* restore quick play map/difficulty if a mission left its own loaded */
+  exitCampaign();   /* restore quick play map if a mission left its own loaded */
+  diffIndex=QP_DIFF; reset();   /* Quick Play is always EXPERT */
   MAPS.forEach((m,i)=>{ const el=$('map_'+i); if(el) el.classList.toggle('sel',i===mapIndex); });
-  DIFFS.forEach((d,i)=>{ const el=$('diff_'+i); if(el) el.classList.toggle('sel',i===diffIndex); });
-  $('qpSub').textContent=FINAL_WAVE+' WAVES, THEN ENDLESS — BEST WAVE '+(SAVE.bestWave||0)+' · WINS '+(SAVE.wins||0);
+  $('qpSub').textContent='EXPERT — no mercy · '+FINAL_WAVE+' WAVES THEN ENDLESS · BEST WAVE '+(SAVE.bestWave||0)+' · WINS '+(SAVE.wins||0);
   $('titleOverlay').classList.add('hidden');
   $('qpOverlay').classList.remove('hidden');
 }
@@ -5036,7 +5029,7 @@ $('qpBack').onclick=()=>{
 };
 $('qpLaunch').onclick=()=>{
   ac();
-  reset();
+  diffIndex=QP_DIFF; reset();
   $('qpOverlay').classList.add('hidden');
   running=true;
   SND.wave();
@@ -5069,7 +5062,7 @@ $('continueBtn').onclick=goEndless;
 /* ============================== CAMPAIGN UI ============================== */
 function exitCampaign(){
   campNode=null;
-  diffIndex=SAVE.diff!=null?SAVE.diff:1;
+  diffIndex=QP_DIFF;
   finalWave=FINAL_WAVE;
   /* restore the player's quick play map if a mission left another one loaded */
   const mq=(SAVE.map!=null && MAPS[SAVE.map] && !MAPS[SAVE.map].hidden)?SAVE.map:0;
