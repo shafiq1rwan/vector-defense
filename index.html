@@ -541,6 +541,7 @@
     padding:4px;
   }
   #squadPool.full .sqUnit[data-add]{opacity:.4;}
+  .sqUnit.dragging{border-color:#fff; box-shadow:0 0 12px rgba(77,141,255,.6); transform:scale(1.08); z-index:3;}
   #squadDock{
     width:100%; max-width:720px; flex:none; display:flex; gap:8px; align-items:stretch;
     background:#0a1126; border:1px solid var(--line); border-radius:10px; padding:8px;
@@ -909,7 +910,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.11.3';
+const VERSION='1.12.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -5385,16 +5386,21 @@ function renderSquadZones(){
       : `<div class="sqUnit locked"><span class="lk">${ic('lock',16)}</span><div class="nm">???</div></div>`
   ).join('') || '<div class="sub" style="opacity:.6;max-width:none">All heroes deployed</div>';
   pool.classList.toggle('full',squadPick.length>=squadCapN);
-  /* DOCK (bottom): chosen heroes followed by empty slots up to the cap */
+  pool.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
+  pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onclick=()=>addSquad(el.dataset.add));
+  renderSquadDock();
+  $('squadSub').textContent=squadPick.length+' / '+squadCapN+' HEROES'+(squadTarget==='daily'?' · DAILY ROSTER':' · DRAG TO REORDER · TAP TO REMOVE');
+  $('squadGo').classList.toggle('disabled',squadPick.length===0);
+}
+/* DOCK (bottom): chosen heroes (drag to reorder, tap to remove) + empty slots up to the cap */
+function renderSquadDock(){
+  const dock=$('squadChosen');
   let html=squadPick.map(k=>squadUnit(k,'data-remove')).join('');
   for(let i=squadPick.length;i<squadCapN;i++) html+='<div class="sqEmpty"></div>';
-  $('squadChosen').innerHTML=html;
-  /* render icons + wire taps */
-  document.querySelectorAll('#squadOverlay canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
-  pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onclick=()=>addSquad(el.dataset.add));
-  $('squadChosen').querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onclick=()=>removeSquad(el.dataset.remove));
-  $('squadSub').textContent=squadPick.length+' / '+squadCapN+' HEROES'+(squadTarget==='daily'?' · DAILY ROSTER':' · BASTION ALWAYS DEPLOYS (LIMIT 1)');
-  $('squadGo').classList.toggle('disabled',squadPick.length===0);
+  dock.innerHTML=html;
+  dock.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
+  dock.querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onpointerdown=e=>squadReorderDown(e,el.dataset.remove));
+  if(sqDrag&&sqDrag.moved){ const d=dock.querySelector('.sqUnit[data-remove="'+sqDrag.key+'"]'); if(d) d.classList.add('dragging'); }
 }
 function addSquad(k){   /* pool → dock */
   if(squadPick.includes(k)) return;
@@ -5405,6 +5411,30 @@ function removeSquad(k){   /* dock → pool */
   const i=squadPick.indexOf(k); if(i<0) return;
   squadPick.splice(i,1); SND.sell(); renderSquadZones();
 }
+/* drag a chosen hero sideways to reorder; a tap (no drag) removes it */
+let sqDrag=null;
+function squadReorderDown(e,key){
+  sqDrag={key,sx:e.clientX,sy:e.clientY,pid:e.pointerId,moved:false};
+  try{$('squadChosen').setPointerCapture(e.pointerId);}catch(_){}
+}
+window.addEventListener('pointermove',e=>{
+  if(!sqDrag||e.pointerId!==sqDrag.pid) return;
+  if(!sqDrag.moved && Math.hypot(e.clientX-sqDrag.sx,e.clientY-sqDrag.sy)<8) return;
+  sqDrag.moved=true;
+  const units=[...$('squadChosen').querySelectorAll('.sqUnit[data-remove]')];
+  let target=0;
+  for(const u of units){ const r=u.getBoundingClientRect(); if(e.clientX>r.left+r.width/2) target++; }
+  target=Math.max(0,Math.min(squadPick.length-1,target));
+  const cur=squadPick.indexOf(sqDrag.key);
+  if(cur>=0 && target!==cur){ squadPick.splice(cur,1); squadPick.splice(target,0,sqDrag.key); renderSquadDock(); }
+});
+window.addEventListener('pointerup',e=>{
+  if(!sqDrag||e.pointerId!==sqDrag.pid) return;
+  const moved=sqDrag.moved, key=sqDrag.key; sqDrag=null;
+  if(!moved) removeSquad(key);            /* a clean tap removes */
+  else { SND.place(); renderSquadZones(); }   /* finished reordering */
+});
+window.addEventListener('pointercancel',()=>{ if(sqDrag){ sqDrag=null; renderSquadZones(); } });
 $('squadGo').onclick=()=>{
   if(!squadPick.length){ SND.deny(); return; }
   if(squadTarget==='daily') dailyPick=squadPick.slice();
@@ -5964,6 +5994,7 @@ function applySquad(){
     const card=$('card_'+k);
     if(card) card.style.display=eff.includes(k)?'':'none';
   }
+  eff.forEach(k=>{ const c=$('card_'+k); if(c) $('cards').appendChild(c); });   /* dock follows the chosen squad order */
 }
 $('campBtn').onclick=()=>{ac(); openCampaign();};
 $('campBack').onclick=()=>{
