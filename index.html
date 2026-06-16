@@ -867,7 +867,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.7.1';
+const VERSION='1.7.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -4415,6 +4415,8 @@ function buildUI(){
   $('dailyBtn').innerHTML=ic('cal',15);
   $('dailyBack').innerHTML=ic('back',16);
   $('dailyPlay').innerHTML=ic('play')+'PLAY';
+  $('squadBack').innerHTML=ic('back',16);
+  $('squadGo').innerHTML=ic('play')+'DEPLOY';
   updateDailyBtn();
   $('aboutBack').innerHTML=ic('back',16);
   $('verTag').textContent='v'+VERSION;
