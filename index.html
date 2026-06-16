@@ -518,6 +518,33 @@
   .cdx i{color:#9db8ff; font-style:normal;}
   .cdx .wk{color:#39ff6a;} .cdx .rs{color:#ff4d6a;}
   @media (max-width:520px){ #codexBody{grid-template-columns:1fr;} }
+  /* hero line-up (squad loadout) */
+  #squadGrid{
+    width:100%; max-width:660px; flex:1 1 auto; min-height:0; overflow-y:auto;
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:left;
+    align-content:start; padding:2px;
+  }
+  .sqCard{
+    position:relative; display:flex; gap:9px; align-items:center;
+    background:#0a1126; border:1px solid var(--line); border-radius:8px;
+    padding:8px 26px 8px 8px; font-size:10px; line-height:1.5; color:var(--dim);
+    cursor:pointer; user-select:none;
+  }
+  .sqCard canvas{flex:none;}
+  .sqCard .sqrole{color:#9db8ff;}
+  .sqCard.sel{border-color:#fff; background:#10204a;}
+  .sqCard .sqTick{position:absolute; top:7px; right:9px; color:#39ff6a; font-weight:800; opacity:0;}
+  .sqCard.sel .sqTick{opacity:1;}
+  .sqCard.locked{opacity:.65; cursor:default;}
+  .sqCard.locked b{color:#3a4a7a;}
+  .sqCard .lockArt{
+    flex:none; width:46px; height:46px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    background:#070d1f; border:1px dashed #2a3d72; color:#3a4a7a;
+  }
+  #squadGrid.capped .sqCard:not(.sel):not(.locked){opacity:.4;}
+  .cta.disabled{opacity:.4; pointer-events:none;}
+  @media (max-width:520px){ #squadGrid{grid-template-columns:1fr;} }
   input[type=range]{width:180px; accent-color:var(--neon);}
   .keysBox{
     display:grid; grid-template-columns:max-content 1fr max-content 1fr;
@@ -713,6 +740,14 @@
       <button id="dailyPlay" class="cta">PLAY</button>
     </div>
 
+    <div id="squadOverlay" class="overlay solid vcenter hidden">
+      <button id="squadBack" class="gearBtn backTL" title="Back"></button>
+      <div class="big" style="font-size:18px; letter-spacing:6px">LINE-UP</div>
+      <div id="squadSub" class="sub" style="font-size:10px"></div>
+      <div id="squadGrid"></div>
+      <button id="squadGo" class="cta">DEPLOY</button>
+    </div>
+
     <div id="campOverlay" class="overlay solid vcenter hidden">
       <button id="campBack" class="gearBtn backTL" title="Back to menu"></button>
       <div class="big" style="font-size:18px; letter-spacing:6px">CAMPAIGN</div>
@@ -826,7 +861,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.5.1';
+const VERSION='1.6.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -878,6 +913,7 @@ if(!SAVE.cosmetics.killfx) SAVE.cosmetics.killfx='shards';
 SAVE.commander=Object.assign({xp:0,level:1},SAVE.commander||{});
 SAVE.daily=Object.assign({date:0,best:0,claimed:false},SAVE.daily||{});
 if(SAVE.daily.date!==todayKey()){ SAVE.daily.date=todayKey(); SAVE.daily.best=0; SAVE.daily.claimed=false; }
+SAVE.squad=Array.isArray(SAVE.squad)?SAVE.squad:null;   /* pre-match hero loadout; null = auto-fill on first use */
 SAVE.seenIntro=!!SAVE.seenIntro;
 SAVE.perf=(SAVE.perf==='on'||SAVE.perf==='off')?SAVE.perf:'auto';   /* perf mode: 'auto' | 'on' | 'off' */
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
@@ -1256,6 +1292,18 @@ function heroUnlocked(k){
   if(TOWERS[k].unlockLevel) return (SAVE.commander.level||1)>=TOWERS[k].unlockLevel;   /* rank-gated heroes */
   return CAMPAIGN.some(n=>n.unlock===k && (SAVE.camp.stars[n.id]||0)>0);
 }
+/* ---- hero line-up: a capped pre-match loadout (structures always deploy) ---- */
+const SQUAD_CAP=6;
+function isStructure(k){ const d=TOWERS[k]; return !!d.footprint || !!d.income; }   /* REACTOR + BASTION */
+function unlockedHeroes(){ return Object.keys(TOWERS).filter(k=>!isStructure(k)&&heroUnlocked(k)); }
+function normalizeSquad(){
+  const avail=unlockedHeroes();
+  let sq=Array.isArray(SAVE.squad)?SAVE.squad.filter(k=>avail.includes(k)):[];
+  if(!sq.length) sq=avail.slice(0,SQUAD_CAP);     /* first use / empty → bring everyone up to the cap */
+  if(sq.length>SQUAD_CAP) sq=sq.slice(0,SQUAD_CAP);
+  SAVE.squad=sq; return sq;
+}
+function inSquad(k){ return isStructure(k) || (Array.isArray(SAVE.squad)&&SAVE.squad.includes(k)); }
 
 /* ============================== DIFFICULTY ============================== */
 const DIFFS=[
@@ -1559,6 +1607,7 @@ const mouse={x:-99,y:-99,inside:false};
 function reset(){
   finalWave=campNode?campNode.waves:FINAL_WAVE;
   updateCardLocks();
+  applySquad();
   money=DIFF().money; lives=maxLives(); wave=0;
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
@@ -4216,6 +4265,7 @@ function showTowerInfo(t){
   if(maxed&&!t.spec){ $('specA').onclick=()=>buySpec(0); $('specB').onclick=()=>buySpec(1); }
 }
 function selectCard(type){
+  if(!inSquad(type)){SND.deny(); return;}   /* benched heroes can't be deployed (guards hotkeys) */
   if((campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank-gated heroes */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
@@ -4656,7 +4706,7 @@ function doResetSave(){
   try{ localStorage.removeItem('vectordef'); }catch(e){}
   SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,perf:'auto',
         camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},commander:{xp:0,level:1},daily:{date:todayKey(),best:0,claimed:false},
-        cosmetics:{owned:{},theme:'default',skins:{},killfx:'shards'}};
+        squad:null,cosmetics:{owned:{},theme:'default',skins:{},killfx:'shards'}};
   autoLite=false; autoThrottle=false; loStreak=0; computePerf();
   applyCosmetics();
   vol=.8; if(master) master.gain.value=vol;
@@ -4973,6 +5023,7 @@ function showCardInfo(type){
 }
 function startCardDrag(type,e){
   if(!running||gameOver||drafting||paused) return;
+  if(!inSquad(type)) return;   /* benched heroes aren't in the dock */
   /* hold to inspect — works even when unaffordable/locked */
   clearTimeout(holdTimer);
   holdTimer=setTimeout(()=>{ if(cardDrag&&!cardDrag.moved){ showCardInfo(type); cardDrag.holding=true; ac(); } },380);
@@ -5113,6 +5164,63 @@ $('pRestartBtn').onclick=()=>{
   paused=false; $('pauseOverlay').classList.add('hidden'); $('pauseBtn').innerHTML=ic('pause');
   reset();
 };
+/* ---- Hero line-up: pick a capped squad before the match (all modes) ---- */
+let squadLaunch=null, squadReturn='titleOverlay', squadPick=[];
+function openSquad(launchFn, fromId){
+  squadLaunch=launchFn; squadReturn=fromId||'titleOverlay';
+  const avail=unlockedHeroes();
+  normalizeSquad();
+  if(avail.length<=SQUAD_CAP){ SAVE.squad=avail.slice(); persist(); launchFn(); return; }   /* nothing to choose — bring everyone */
+  squadPick=SAVE.squad.slice();
+  $(squadReturn).classList.add('hidden');
+  buildSquad();
+  $('squadOverlay').classList.remove('hidden');
+}
+function buildSquad(){
+  const grid=$('squadGrid');
+  grid.innerHTML=Object.keys(TOWERS).filter(k=>!isStructure(k)).map(k=>{
+    const d=TOWERS[k];
+    if(!heroUnlocked(k)){
+      const node=CAMPAIGN.find(n=>n.unlock===k);
+      const where=d.unlockLevel?`Reach Commander LV ${d.unlockLevel}`
+        :node?`Clear ${String(node.id+1).padStart(2,'0')} ${node.name}`:'Unlock via campaign';
+      return `<div class="sqCard locked"><div class="lockArt">${ic('lock',20)}</div>
+        <div><b>??? </b><span style="font-size:9px">LOCKED</span><br><span class="sqrole">${where}</span></div></div>`;
+    }
+    return `<div class="sqCard" data-pick="${k}">
+      <canvas width="46" height="46" data-hero="${k}"></canvas>
+      <div><b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">$${d.cost}</span><br>
+      <span class="sqrole">${d.title}</span></div>
+      <span class="sqTick">&#10003;</span></div>`;
+  }).join('');
+  grid.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.1));
+  grid.querySelectorAll('.sqCard[data-pick]').forEach(el=>el.onclick=()=>toggleSquadPick(el.dataset.pick));
+  refreshSquad();
+}
+function toggleSquadPick(k){
+  const i=squadPick.indexOf(k);
+  if(i>=0){ squadPick.splice(i,1); SND.sell(); }
+  else if(squadPick.length>=SQUAD_CAP){ SND.deny(); return; }
+  else { squadPick.push(k); ac(); SND.place(); }
+  refreshSquad();
+}
+function refreshSquad(){
+  const grid=$('squadGrid');
+  grid.querySelectorAll('.sqCard[data-pick]').forEach(el=>el.classList.toggle('sel',squadPick.includes(el.dataset.pick)));
+  grid.classList.toggle('capped',squadPick.length>=SQUAD_CAP);
+  $('squadSub').textContent=squadPick.length+' / '+SQUAD_CAP+' HEROES · STRUCTURES ALWAYS DEPLOY';
+  $('squadGo').classList.toggle('disabled',squadPick.length===0);
+}
+$('squadGo').onclick=()=>{
+  if(!squadPick.length){ SND.deny(); return; }
+  SAVE.squad=squadPick.slice(); persist();
+  $('squadOverlay').classList.add('hidden');
+  if(squadLaunch) squadLaunch();
+};
+$('squadBack').onclick=()=>{
+  $('squadOverlay').classList.add('hidden');
+  $(squadReturn).classList.remove('hidden');
+};
 function openQuickPlay(){
   exitCampaign();   /* restore quick play map if a mission left its own loaded */
   diffIndex=QP_DIFF; reset();   /* Quick Play is always EXPERT */
@@ -5169,14 +5277,16 @@ function launchDaily(){
   running=true; SND.wave();
 }
 $('dailyBtn').onclick=()=>{ ac(); openDaily(); };
-$('dailyPlay').onclick=launchDaily;
+$('dailyPlay').onclick=()=>{ ac(); openSquad(launchDaily,'dailyOverlay'); };
 $('dailyBack').onclick=()=>{ $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
 $('qpLaunch').onclick=()=>{
   ac();
-  diffIndex=QP_DIFF; reset();
-  $('qpOverlay').classList.add('hidden');
-  running=true;
-  SND.wave();
+  openSquad(()=>{
+    diffIndex=QP_DIFF; reset();
+    $('qpOverlay').classList.add('hidden');
+    running=true;
+    SND.wave();
+  },'qpOverlay');
 };
 $('restartBtn').onclick=()=>{
   ac();
@@ -5569,6 +5679,15 @@ function updateCardLocks(){
     if(b) b.classList.toggle('hidden',!locked);
   }
 }
+/* show only the chosen squad in the dock; structures always stay */
+function applySquad(){
+  normalizeSquad();
+  for(const k in TOWERS){
+    if(isStructure(k)) continue;
+    const card=$('card_'+k);
+    if(card) card.style.display=inSquad(k)?'':'none';
+  }
+}
 $('campBtn').onclick=()=>{ac(); openCampaign();};
 $('campBack').onclick=()=>{
   $('campOverlay').classList.add('hidden');
@@ -5577,7 +5696,7 @@ $('campBack').onclick=()=>{
 $('launchBtn').onclick=()=>{
   ac();
   if(!SAVE.camp.intro){ SAVE.camp.intro=true; persist(); }
-  launchMission(selNode);
+  openSquad(()=>launchMission(selNode),'campOverlay');
 };
 
 /* ============================== MAIN LOOP ============================== */
