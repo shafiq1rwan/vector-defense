@@ -898,7 +898,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.9.1';
+const VERSION='1.9.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -1352,7 +1352,8 @@ function inSquad(k){
     if(R&&R.poolPick) return dailyPick.includes(k);   /* LIMITED POOL — picked from the pool */
     return isStructure(k) || dailyPick.includes(k);   /* HANDICAP — full line-up + structures */
   }
-  return isStructure(k) || effectiveSquad(!!campNode).includes(k);
+  if(campNode) return isStructure(k) || heroAvailable(k);   /* campaign: your full unlocked arsenal, no cap */
+  return isStructure(k) || effectiveSquad(false).includes(k);   /* quick play: the chosen squad */
 }
 
 /* ============================== DIFFICULTY ============================== */
@@ -5326,15 +5327,16 @@ function rosterText(roster){
 function genDailyRule(rnd){
   const pickN=(arr,n)=>{ const a=arr.slice(),o=[]; for(let i=0;i<n&&a.length;i++) o.push(a.splice(Math.floor(rnd()*a.length),1)[0]); return o; };
   const t=Math.floor(rnd()*4);
-  if(t===0){                                   /* SOLO — one hero, unlimited */
+  /* difficulty scales to how harsh the rule is — the tightest constraints face the gentlest enemies */
+  if(t===0){                                   /* SOLO — one hero, unlimited (toughest constraint → CASUAL enemies) */
     const h=DAILY_ATTACKERS[Math.floor(rnd()*DAILY_ATTACKERS.length)];
-    return {type:'solo', name:'SOLO · '+TOWERS[h].name+' ONLY',
+    return {type:'solo', name:'SOLO · '+TOWERS[h].name+' ONLY', diff:0,
       desc:'Hold the line with only '+TOWERS[h].name+'. No other towers, no structures.', roster:{[h]:Infinity}};
   }
   if(t===1){                                   /* STRIKE TEAM — fixed squad with per-type counts */
     const picks=pickN(DAILY_ATTACKERS, 2+Math.floor(rnd()*2));
     const roster={}; picks.forEach(h=>roster[h]=1+Math.floor(rnd()*3));
-    return {type:'strike', name:'STRIKE TEAM', desc:'Deploy only this fixed squad — nothing else.', roster};
+    return {type:'strike', name:'STRIKE TEAM', diff:1, desc:'Deploy only this fixed squad — nothing else.', roster};
   }
   if(t===2){                                   /* LIMITED POOL — pick N from a small pool */
     const pool=pickN([...DAILY_ATTACKERS,'aura','medic','reactor'], 4);
@@ -5342,14 +5344,14 @@ function genDailyRule(rnd){
       const x=DAILY_ATTACKERS[Math.floor(rnd()*DAILY_ATTACKERS.length)]; if(!pool.includes(x)) pool.push(x);
     }
     const n=Math.min(3,pool.length-1);
-    return {type:'pool', name:'LIMITED POOL', desc:'Field any '+n+' of the listed heroes — choose wisely.', poolPick:{pool,n}};
+    return {type:'pool', name:'LIMITED POOL', diff:2, desc:'Field any '+n+' of the listed heroes — choose wisely.', poolPick:{pool,n}};
   }
   const hs=[                                    /* HANDICAP — full roster, harder rules */
     {name:'BLACKOUT', desc:'All active abilities are offline. Towers only.', noAbilities:true},
     {name:'AUSTERITY', desc:'A shoestring budget — start with far fewer credits.', money:55},
     {name:'LAST STAND', desc:'The core is fragile — you get only 5 lives.', lives:5}
   ];
-  return Object.assign({type:'handicap'}, hs[Math.floor(rnd()*hs.length)]);
+  return Object.assign({type:'handicap', diff:2}, hs[Math.floor(rnd()*hs.length)]);
 }
 function todayDaily(){
   const key=todayKey();
@@ -5359,7 +5361,7 @@ function todayDaily(){
   const map=pick[Math.floor(rnd()*pick.length)];
   const mod=MODS[Math.floor(rnd()*MODS.length)].id;
   const rule=genDailyRule(rnd);
-  dailyNode={daily:true, key, map, mod, rule, waves:5, diff:2};   /* BRUTAL + a short 5-wave puzzle — the rule is the real challenge */
+  dailyNode={daily:true, key, map, mod, rule, waves:5, diff:rule.diff!=null?rule.diff:2};   /* difficulty scales to the rule; short 5-wave puzzle */
   return dailyNode;
 }
 function drawMiniRoad(canvas,m){
@@ -5840,7 +5842,11 @@ function applySquad(){
     for(const k in TOWERS){ const card=$('card_'+k); if(card) card.style.display=inSquad(k)?'':'none'; }
     return;
   }
-  const eff=effectiveSquad(!!campNode);   /* normal: chosen squad heroes + structures always */
+  if(campNode){                           /* campaign: full arsenal — show every hero, locked ones dim via updateCardLocks */
+    for(const k in TOWERS){ if(isStructure(k)) continue; const card=$('card_'+k); if(card) card.style.display=''; }
+    return;
+  }
+  const eff=effectiveSquad(false);        /* quick play: only the chosen squad heroes (+ structures always) */
   for(const k in TOWERS){
     if(isStructure(k)) continue;
     const card=$('card_'+k);
@@ -5855,7 +5861,7 @@ $('campBack').onclick=()=>{
 $('launchBtn').onclick=()=>{
   ac();
   if(!SAVE.camp.intro){ SAVE.camp.intro=true; persist(); }
-  openSquad(()=>launchMission(selNode),'campOverlay',{camp:true});
+  launchMission(selNode);   /* campaign uses your full arsenal — no line-up */
 };
 
 /* ============================== MAIN LOOP ============================== */
