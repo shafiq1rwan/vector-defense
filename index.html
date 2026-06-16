@@ -476,6 +476,7 @@
     flex:none; width:40px; height:36px; padding:0;
   }
   .gearBtn svg{margin:0; vertical-align:middle;}
+  #dailyBtn.unclaimed::after{content:''; position:absolute; top:3px; right:3px; width:7px; height:7px; border-radius:50%; background:#ff4d6a; box-shadow:0 0 6px #ff4d6a;}
   .setCard{
     width:300px; max-width:92%; background:#0a1126;
     border:1px solid var(--line); border-radius:10px;
@@ -643,6 +644,7 @@
       <button id="settingsBtn" class="gearBtn" title="Settings"></button>
       <button id="codexBtn" class="gearBtn" style="right:58px" title="Codex"></button>
       <button id="aboutBtn" class="gearBtn" style="right:106px" title="About"></button>
+      <button id="dailyBtn" class="gearBtn" style="right:154px" title="Daily Challenge"></button>
       <div id="logo">
         <canvas id="logoL" width="56" height="56"></canvas>
         <div>
@@ -701,6 +703,14 @@
       <div class="shopSec">BATTLEFIELD</div>
       <div id="mapSel" class="selRow"></div>
       <button id="qpLaunch" class="cta">LAUNCH</button>
+    </div>
+
+    <div id="dailyOverlay" class="overlay solid vcenter hidden">
+      <button id="dailyBack" class="gearBtn backTL" title="Back to menu"></button>
+      <div class="big" style="font-size:18px; letter-spacing:6px">DAILY CHALLENGE</div>
+      <div id="dailySub" class="sub" style="font-size:10px"></div>
+      <div id="dailyCard" class="mapOpt" style="width:172px; cursor:default"></div>
+      <button id="dailyPlay" class="cta">PLAY</button>
     </div>
 
     <div id="campOverlay" class="overlay solid vcenter hidden">
@@ -816,7 +826,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.5.0';
+const VERSION='1.5.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -846,11 +856,15 @@ const ICONS={
   gear:'<path d="M12.92 7.10L14.59 6.80L14.59 9.20L12.92 8.90L12.11 10.84L13.51 11.81L11.81 13.51L10.84 12.11L8.90 12.92L9.20 14.59L6.80 14.59L7.10 12.92L5.16 12.11L4.19 13.51L2.49 11.81L3.89 10.84L3.08 8.90L1.41 9.20L1.41 6.80L3.08 7.10L3.89 5.16L2.49 4.19L4.19 2.49L5.16 3.89L7.10 3.08L6.80 1.41L9.20 1.41L8.90 3.08L10.84 3.89L11.81 2.49L13.51 4.19L12.11 5.16Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.3" fill="none" stroke="currentColor" stroke-width="1.3"/>',
   lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
   info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>',
-  install:'<path d="M8 2v7M5 6l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 11.5v2H13v-2" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+  install:'<path d="M8 2v7M5 6l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 11.5v2H13v-2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  cal:'<rect x="2.5" y="3.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="9.4" r="1" fill="currentColor"/><circle cx="9.6" cy="9.4" r="1" fill="currentColor"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
 /* ============================== SAVE ============================== */
+/* daily-challenge seed: one shared challenge per calendar day */
+function todayKey(){ const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(); }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function loadSave(){ try{return JSON.parse(localStorage.getItem('vectordef')||'{}');}catch(e){return {};} }
 let SAVE=loadSave();
 SAVE.meta=Object.assign({cap:0,rec:0,bul:0,sal:0,bou:0},SAVE.meta||{});
@@ -862,6 +876,8 @@ SAVE.life=Object.assign({kills:0,bossKills:0,waves:0},SAVE.life||{});
 SAVE.cosmetics=Object.assign({owned:{},theme:'default',skins:{},killfx:'shards'},SAVE.cosmetics||{});
 if(!SAVE.cosmetics.killfx) SAVE.cosmetics.killfx='shards';
 SAVE.commander=Object.assign({xp:0,level:1},SAVE.commander||{});
+SAVE.daily=Object.assign({date:0,best:0,claimed:false},SAVE.daily||{});
+if(SAVE.daily.date!==todayKey()){ SAVE.daily.date=todayKey(); SAVE.daily.best=0; SAVE.daily.claimed=false; }
 SAVE.seenIntro=!!SAVE.seenIntro;
 SAVE.perf=(SAVE.perf==='on'||SAVE.perf==='off')?SAVE.perf:'auto';   /* perf mode: 'auto' | 'on' | 'off' */
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
@@ -4330,6 +4346,10 @@ function buildUI(){
   $('pSettingsBtn').innerHTML=ic('gear',15);
   $('shopBack').innerHTML=ic('back',16);
   $('aboutBtn').innerHTML=ic('info',15);
+  $('dailyBtn').innerHTML=ic('cal',15);
+  $('dailyBack').innerHTML=ic('back',16);
+  $('dailyPlay').innerHTML=ic('play')+'PLAY';
+  updateDailyBtn();
   $('aboutBack').innerHTML=ic('back',16);
   $('verTag').textContent='v'+VERSION;
   /* how-to-play steps */
@@ -4635,7 +4655,7 @@ function doResetSave(){
   if(!resetArmed){ resetArmed=true; refreshSettings(); return; }
   try{ localStorage.removeItem('vectordef'); }catch(e){}
   SAVE={meta:{cap:0,rec:0,bul:0,sal:0,bou:0},cores:0,music:true,sfx:true,shake:true,haptics:true,perf:'auto',
-        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},commander:{xp:0,level:1},
+        camp:{stars:{},intro:false},life:{kills:0,bossKills:0,waves:0},commander:{xp:0,level:1},daily:{date:todayKey(),best:0,claimed:false},
         cosmetics:{owned:{},theme:'default',skins:{},killfx:'shards'}};
   autoLite=false; autoThrottle=false; loStreak=0; computePerf();
   applyCosmetics();
@@ -4756,7 +4776,7 @@ function showMedals(){
     box.appendChild(el);
   }
 }
-let lastXpGain=0, lastRankUp=null;
+let lastXpGain=0, lastRankUp=null, lastDailyClaim=false;
 function recordEnd(won){
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
@@ -4766,9 +4786,18 @@ function recordEnd(won){
   SAVE.life.kills+=kills;
   SAVE.life.bossKills+=runBossKills;
   SAVE.life.waves+=wave;
+  /* Daily Challenge: track best, pay the reward once per day on a clear */
+  lastDailyClaim=false;
+  let dailyBonus=0, dailyXp=0;
+  if(campNode&&campNode.daily){
+    SAVE.daily.best=Math.max(SAVE.daily.best||0,wave);
+    if(won && !SAVE.daily.claimed){ SAVE.daily.claimed=true; dailyBonus=40; dailyXp=120; lastDailyClaim=true; }
+    updateDailyBtn();
+  }
+  SAVE.cores+=dailyBonus;
   /* Commander XP — vanity progression; a rank-up nudges a few bonus cores */
   const prevLvl=SAVE.commander.level||levelFromXp(SAVE.commander.xp||0);
-  lastXpGain=Math.max(1,Math.round((wave*5+(won?40:0))*[.6,1,1.5,1.95][diffIndex]));
+  lastXpGain=Math.max(1,Math.round((wave*5+(won?40:0))*[.6,1,1.5,1.95][diffIndex]))+dailyXp;
   SAVE.commander.xp=(SAVE.commander.xp||0)+lastXpGain;
   const newLvl=levelFromXp(SAVE.commander.xp);
   lastRankUp=null;
@@ -4784,6 +4813,7 @@ function recordEnd(won){
 function rankLine(){
   let s=`<br>${ic('star',10)}Commander XP <b style="color:#cfe1ff">+${lastXpGain}</b> · LV ${SAVE.commander.level}`;
   if(lastRankUp) s+=` <b style="color:${rankFor(lastRankUp.to).col}">— RANK UP! ${lastRankUp.rank}</b> (+${lastRankUp.bonus} ${ic('hex',9)})`;
+  if(lastDailyClaim) s+=`<br><b style="color:#9dff3a">DAILY BONUS CLAIMED — +40 ${ic('hex',9)} +120 XP</b>`;
   return s;
 }
 function loseGame(){
@@ -4801,15 +4831,23 @@ let celebUntil=0, celebText='';
 function winGame(){
   gameOver=true;
   celebUntil=time+1.5;
-  celebText=campNode?'MISSION COMPLETE':'CORE SECURED';
+  celebText=campNode?(campNode.daily?'DAILY CLEARED':'MISSION COMPLETE'):'CORE SECURED';
   hidePop();
   SND.coinBig(); SND.ability(); vib([20,30,60]);
 }
 function finishWin(){
   const earned=recordEnd(true);
-  $('endTitle').textContent=campNode?'MISSION COMPLETE':'CORE SECURED';
+  $('endTitle').textContent=(campNode&&campNode.daily)?'DAILY CLEARED':campNode?'MISSION COMPLETE':'CORE SECURED';
   $('endTitle').style.textShadow='0 0 18px #39ff6a';
   const cb=$('continueBtn');
+  if(campNode&&campNode.daily){
+    $('endSub').innerHTML=`Daily Challenge cleared — all <b>${finalWave} waves</b> on ${MAPS[mapIndex].name}!<br>Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned}</b>${rankLine()}<br><span style="color:var(--dim);font-size:10px">Come back tomorrow for a fresh challenge.</span>`;
+    cb.style.display='none';
+    showMedals();
+    $('endOverlay').classList.remove('hidden');
+    SND.coinBig();
+    return;
+  }
   if(campNode){
     const leaks=maxLives()-lives;
     const stars=leaks<=1?3:leaks<=5?2:1;   /* one leak still earns full stars */
@@ -5088,6 +5126,51 @@ $('qpBack').onclick=()=>{
   $('qpOverlay').classList.add('hidden');
   $('titleOverlay').classList.remove('hidden');
 };
+/* ---- Daily Challenge: one seeded run per calendar day, shared by everyone ---- */
+let dailyNode=null;
+function todayDaily(){
+  const key=todayKey();
+  if(dailyNode&&dailyNode.key===key) return dailyNode;
+  const rnd=mulberry32(key);
+  const pick=MAPS.map((m,i)=>i).filter(i=>!MAPS[i].hidden);
+  const map=pick[Math.floor(rnd()*pick.length)];
+  const mod=MODS[Math.floor(rnd()*MODS.length)].id;
+  dailyNode={daily:true, key, map, mod, waves:12, diff:QP_DIFF};
+  return dailyNode;
+}
+function updateDailyBtn(){ const b=$('dailyBtn'); if(b) b.classList.toggle('unclaimed', !SAVE.daily.claimed); }
+function openDaily(){
+  const n=todayDaily(), m=MAPS[n.map], mod=MODS.find(x=>x.id===n.mod);
+  $('dailySub').textContent='Same challenge for everyone today · EXPERT · '+n.waves+' WAVES';
+  const card=$('dailyCard');
+  card.innerHTML=`<canvas width="148" height="84"></canvas><div class="mnm">${m.name}</div>
+    <div class="mtag">${ic(mod.icon,9)} ${mod.label} — ${mod.desc}</div>
+    <div class="mtag" style="color:var(--gold);margin-top:2px">BEST WAVE ${SAVE.daily.best||0} · ${SAVE.daily.claimed?'✓ REWARD CLAIMED':'REWARD: '+ic('hex',8)+'40 + 120 XP'}</div>`;
+  /* mini road preview (same style as the Quick Play map cards) */
+  const c=card.querySelector('canvas').getContext('2d');
+  const sx=p=>8+p[0]*.128, sy=p=>8+p[1]*.128, lanes=m.paths||[m.path];
+  const isW=(li,j)=>(m.warps||[]).some(w=>w.lane===li&&w.seg===j);
+  c.lineJoin='round'; c.lineCap='round';
+  lanes.forEach((pd,li)=>{
+    for(const w of [['#1c2c60',10],['#5a9aff',3]]){ c.strokeStyle=w[0]; c.lineWidth=w[1];
+      for(let j=0;j<pd.length-1;j++){ if(isW(li,j))continue; c.beginPath(); c.moveTo(sx(pd[j]),sy(pd[j])); c.lineTo(sx(pd[j+1]),sy(pd[j+1])); c.stroke(); } }
+    const a=pd[0], z=pd[pd.length-1];
+    c.fillStyle='#39ff6a'; c.beginPath(); c.arc(sx(a),sy(a),3.6,0,TAU); c.fill();
+    c.fillStyle='#fff'; c.beginPath(); c.arc(sx(z),sy(z),3.6,0,TAU); c.fill();
+  });
+  $('titleOverlay').classList.add('hidden');
+  $('dailyOverlay').classList.remove('hidden');
+}
+function launchDaily(){
+  ac();
+  const n=todayDaily();
+  campNode=n; diffIndex=n.diff; buildMap(n.map,false); reset();   /* reset() reads campNode.waves for finalWave */
+  $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.add('hidden');
+  running=true; SND.wave();
+}
+$('dailyBtn').onclick=()=>{ ac(); openDaily(); };
+$('dailyPlay').onclick=launchDaily;
+$('dailyBack').onclick=()=>{ $('dailyOverlay').classList.add('hidden'); $('titleOverlay').classList.remove('hidden'); };
 $('qpLaunch').onclick=()=>{
   ac();
   diffIndex=QP_DIFF; reset();
