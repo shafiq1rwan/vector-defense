@@ -541,13 +541,23 @@
     padding:4px;
   }
   #squadPool.full .sqUnit[data-add]{opacity:.4;}
-  .sqUnit.dragging{border-color:#fff; box-shadow:0 0 12px rgba(77,141,255,.6); transform:scale(1.08); z-index:3;}
+  .sqUnit.dragging{opacity:.3;}   /* the left-behind placeholder while its ghost floats */
+  .sqGhost{
+    position:fixed; z-index:60; pointer-events:none; transform:translate(-50%,-50%) scale(1.12);
+    width:66px; height:66px; border-radius:9px; background:#12224d; border:1px solid #fff; padding:2px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; opacity:.96;
+    box-shadow:0 6px 18px rgba(0,0,0,.55), 0 0 14px rgba(77,141,255,.7);
+  }
+  .sqGhost canvas{width:38px; height:38px;}
+  .sqGhost .nm{font-size:8px; letter-spacing:.4px;}
+  #sqInsert{position:absolute; top:50%; transform:translateY(-50%); width:3px; height:60px; border-radius:2px;
+    background:#7db2ff; box-shadow:0 0 8px #4d8dff; display:none; pointer-events:none;}
   #squadDock{
     width:100%; max-width:720px; flex:none; display:flex; gap:8px; align-items:stretch;
     background:#0a1126; border:1px solid var(--line); border-radius:10px; padding:8px;
   }
   #squadChosen{
-    flex:1 1 auto; min-width:0; display:flex; gap:8px; flex-wrap:nowrap;
+    position:relative; flex:1 1 auto; min-width:0; display:flex; gap:8px; flex-wrap:nowrap;
     overflow-x:auto; align-items:center;
   }
   #squadDock .cta{flex:none; align-self:stretch; padding:0 24px; margin:0;}
@@ -910,7 +920,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.12.0';
+const VERSION='1.13.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const TAU=Math.PI*2;
@@ -5369,15 +5379,15 @@ function openSquad(launchFn, fromId, opts){
   $('squadOverlay').classList.remove('hidden');
 }
 function buildSquad(){ renderSquadZones(); }
-/* unit card for a hero (icon + name); tappable via data-add (pool) / data-remove (dock) */
+/* unit card for a hero (icon + name); data-key for hit-testing, data-add/remove marks the origin list */
 function squadUnit(k,attr){
   const d=TOWERS[k];
-  return `<div class="sqUnit" ${attr}="${k}"><canvas width="38" height="38" data-hero="${k}"></canvas>`
+  return `<div class="sqUnit" data-key="${k}" ${attr}="${k}"><canvas width="38" height="38" data-hero="${k}"></canvas>`
     +`<div class="nm" style="color:${d.color}">${d.name}</div></div>`;
 }
 function renderSquadZones(){
   const heroes=squadPoolKeys?squadPoolKeys.slice():Object.keys(TOWERS).filter(k=>!isStructure(k));
-  /* POOL (top): every hero not currently chosen — available ones are tappable, locked ones shown dimmed */
+  /* POOL (top): every hero not currently chosen — available ones are draggable, locked ones shown dimmed */
   const pool=$('squadPool');
   const poolKeys=heroes.filter(k=>!squadPick.includes(k));
   pool.innerHTML=poolKeys.map(k=>
@@ -5387,54 +5397,83 @@ function renderSquadZones(){
   ).join('') || '<div class="sub" style="opacity:.6;max-width:none">All heroes deployed</div>';
   pool.classList.toggle('full',squadPick.length>=squadCapN);
   pool.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
-  pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onclick=()=>addSquad(el.dataset.add));
+  pool.querySelectorAll('.sqUnit[data-add]').forEach(el=>el.onpointerdown=e=>sqGrab(e,el.dataset.key,'pool'));
   renderSquadDock();
-  $('squadSub').textContent=squadPick.length+' / '+squadCapN+' HEROES'+(squadTarget==='daily'?' · DAILY ROSTER':' · DRAG TO REORDER · TAP TO REMOVE');
+  $('squadSub').textContent=squadPick.length+' / '+squadCapN+' HEROES'+(squadTarget==='daily'?' · DAILY ROSTER':' · DRAG A HERO BETWEEN AREAS · TAP TO ADD/REMOVE');
   $('squadGo').classList.toggle('disabled',squadPick.length===0);
 }
-/* DOCK (bottom): chosen heroes (drag to reorder, tap to remove) + empty slots up to the cap */
+/* DOCK (bottom): chosen heroes + empty slots up to the cap */
 function renderSquadDock(){
   const dock=$('squadChosen');
   let html=squadPick.map(k=>squadUnit(k,'data-remove')).join('');
   for(let i=squadPick.length;i<squadCapN;i++) html+='<div class="sqEmpty"></div>';
+  html+='<div id="sqInsert"></div>';
   dock.innerHTML=html;
   dock.querySelectorAll('canvas[data-hero]').forEach(cv=>renderIcon(cv,cv.dataset.hero,1.0));
-  dock.querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onpointerdown=e=>squadReorderDown(e,el.dataset.remove));
-  if(sqDrag&&sqDrag.moved){ const d=dock.querySelector('.sqUnit[data-remove="'+sqDrag.key+'"]'); if(d) d.classList.add('dragging'); }
+  dock.querySelectorAll('.sqUnit[data-remove]').forEach(el=>el.onpointerdown=e=>sqGrab(e,el.dataset.key,'dock'));
 }
-function addSquad(k){   /* pool → dock */
+function addSquad(k){   /* pool → dock (tap shortcut) */
   if(squadPick.includes(k)) return;
   if(squadPick.length>=squadCapN){ SND.deny(); return; }
   squadPick.push(k); ac(); SND.place(); renderSquadZones();
 }
-function removeSquad(k){   /* dock → pool */
+function removeSquad(k){   /* dock → pool (tap shortcut) */
   const i=squadPick.indexOf(k); if(i<0) return;
   squadPick.splice(i,1); SND.sell(); renderSquadZones();
 }
-/* drag a chosen hero sideways to reorder; a tap (no drag) removes it */
+/* ---- free drag-and-drop: float a hero under the finger; drop into the dock (add/reorder) or pool (remove) ---- */
 let sqDrag=null;
-function squadReorderDown(e,key){
-  sqDrag={key,sx:e.clientX,sy:e.clientY,pid:e.pointerId,moved:false};
-  try{$('squadChosen').setPointerCapture(e.pointerId);}catch(_){}
+function sqGrab(e,key,origin){
+  sqDrag={key,origin,sx:e.clientX,sy:e.clientY,pid:e.pointerId,moved:false,ghost:null};
+  try{$('squadOverlay').setPointerCapture(e.pointerId);}catch(_){}
 }
+function makeSquadGhost(key){
+  const d=TOWERS[key], g=document.createElement('div');
+  g.className='sqGhost';
+  g.innerHTML='<canvas width="38" height="38"></canvas><div class="nm" style="color:'+d.color+'">'+d.name+'</div>';
+  document.body.appendChild(g); renderIcon(g.querySelector('canvas'),key,1.0);
+  return g;
+}
+function overEl(id,x,y){ const r=$(id).getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }
+function sqDropIndex(key,x){   /* insert position among the NON-dragged dock units (fixes left+right) */
+  const els=[...$('squadChosen').querySelectorAll('.sqUnit[data-key]')].filter(el=>el.dataset.key!==key);
+  let i=0; for(const el of els){ const r=el.getBoundingClientRect(); if(x>r.left+r.width/2) i++; } return i;
+}
+function showSqInsert(x){
+  const bar=$('sqInsert'); if(!bar) return;
+  const els=[...$('squadChosen').querySelectorAll('.sqUnit[data-key]')].filter(el=>el.dataset.key!==sqDrag.key);
+  const idx=sqDropIndex(sqDrag.key,x), ref=els[idx];
+  bar.style.left=(ref?ref.offsetLeft-5:(els.length?els[els.length-1].offsetLeft+els[els.length-1].offsetWidth+2:2))+'px';
+  bar.style.display='block';
+}
+function hideSqInsert(){ const b=$('sqInsert'); if(b) b.style.display='none'; }
 window.addEventListener('pointermove',e=>{
   if(!sqDrag||e.pointerId!==sqDrag.pid) return;
-  if(!sqDrag.moved && Math.hypot(e.clientX-sqDrag.sx,e.clientY-sqDrag.sy)<8) return;
-  sqDrag.moved=true;
-  const units=[...$('squadChosen').querySelectorAll('.sqUnit[data-remove]')];
-  let target=0;
-  for(const u of units){ const r=u.getBoundingClientRect(); if(e.clientX>r.left+r.width/2) target++; }
-  target=Math.max(0,Math.min(squadPick.length-1,target));
-  const cur=squadPick.indexOf(sqDrag.key);
-  if(cur>=0 && target!==cur){ squadPick.splice(cur,1); squadPick.splice(target,0,sqDrag.key); renderSquadDock(); }
+  if(!sqDrag.moved){
+    if(Math.hypot(e.clientX-sqDrag.sx,e.clientY-sqDrag.sy)<8) return;
+    sqDrag.moved=true; ac();
+    sqDrag.ghost=makeSquadGhost(sqDrag.key);
+    const src=$('squadOverlay').querySelector('.sqUnit[data-key="'+sqDrag.key+'"]'); if(src) src.classList.add('dragging');
+  }
+  sqDrag.ghost.style.left=e.clientX+'px'; sqDrag.ghost.style.top=(e.clientY-30)+'px';
+  if(overEl('squadDock',e.clientX,e.clientY)) showSqInsert(e.clientX); else hideSqInsert();
 });
 window.addEventListener('pointerup',e=>{
   if(!sqDrag||e.pointerId!==sqDrag.pid) return;
-  const moved=sqDrag.moved, key=sqDrag.key; sqDrag=null;
-  if(!moved) removeSquad(key);            /* a clean tap removes */
-  else { SND.place(); renderSquadZones(); }   /* finished reordering */
+  const d=sqDrag; sqDrag=null;
+  if(d.ghost) d.ghost.remove(); hideSqInsert();
+  if(!d.moved){ if(d.origin==='pool') addSquad(d.key); else removeSquad(d.key); return; }   /* clean tap */
+  if(overEl('squadDock',e.clientX,e.clientY)){
+    const idx=sqDropIndex(d.key,e.clientX);
+    if(d.origin==='pool'){
+      if(squadPick.length<squadCapN){ squadPick.splice(idx,0,d.key); ac(); SND.place(); } else SND.deny();
+    }else{ const cur=squadPick.indexOf(d.key); if(cur>=0){ squadPick.splice(cur,1); squadPick.splice(idx,0,d.key); } SND.place(); }
+  }else if(overEl('squadPool',e.clientX,e.clientY)){
+    if(d.origin==='dock'){ const cur=squadPick.indexOf(d.key); if(cur>=0) squadPick.splice(cur,1); SND.sell(); }
+  }   /* dropped elsewhere → snap back, no change */
+  renderSquadZones();
 });
-window.addEventListener('pointercancel',()=>{ if(sqDrag){ sqDrag=null; renderSquadZones(); } });
+window.addEventListener('pointercancel',()=>{ if(sqDrag){ if(sqDrag.ghost) sqDrag.ghost.remove(); hideSqInsert(); sqDrag=null; renderSquadZones(); } });
 $('squadGo').onclick=()=>{
   if(!squadPick.length){ SND.deny(); return; }
   if(squadTarget==='daily') dailyPick=squadPick.slice();
