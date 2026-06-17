@@ -6028,11 +6028,20 @@ function updateCardLocks(){
 /* show only the deployable set in the dock */
 function applySquad(){
   if(campNode&&campNode.daily){          /* daily: dock = the rule's roster (inSquad handles roster/pool/handicap) */
-    for(const k in TOWERS){ const card=$('card_'+k); if(card) card.style.display=inSquad(k)?'':'none'; }
+    for(const k in TOWERS){                /* iterate in canonical hotkey order so cards read 1,2,3… */
+      const card=$('card_'+k); if(!card) continue;
+      const show=inSquad(k); card.style.display=show?'':'none';
+      if(show && !isStructure(k)) $('cards').appendChild(card);   /* re-append → restore hotkey order */
+    }
     return;
   }
   if(campNode){                           /* campaign: your unlocked arsenal — locked heroes stay off the dock */
-    for(const k in TOWERS){ if(isStructure(k)) continue; const card=$('card_'+k); if(card) card.style.display=heroAvailable(k)?'':'none'; }
+    for(const k in TOWERS){
+      if(isStructure(k)) continue;
+      const card=$('card_'+k); if(!card) continue;
+      if(heroAvailable(k)){ card.style.display=''; $('cards').appendChild(card); }   /* re-append → restore hotkey order */
+      else card.style.display='none';
+    }
     return;
   }
   const eff=effectiveSquad(false);        /* quick play: only the chosen squad heroes (+ structures always) */
