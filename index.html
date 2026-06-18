@@ -77,7 +77,7 @@
   .secLbl{font-size:8px; letter-spacing:3px; color:var(--dim); margin-bottom:-3px;}
   #progFill{height:100%; width:0%; background:#5a96f0; transition:width .25s;}
   @keyframes pul2{50%{opacity:.4;}}
-  #cards,#structs{display:flex; gap:5px; flex:1 1 auto; min-width:0;}
+  #cards{display:flex; gap:5px; flex:1 1 auto; min-width:0;}
   .card{
     flex:1 1 0; min-width:0;
     background:#0a1126; border:1px solid var(--line); border-radius:8px;
@@ -713,7 +713,6 @@
     </div>
     <div id="dock">
       <div id="cards"></div>
-      <div id="structs"></div>
     </div>
 
     <div id="titleOverlay" class="overlay solid vcenter">
@@ -931,7 +930,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.15.0';
+const VERSION='1.16.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -1339,8 +1338,8 @@ const CAMPAIGN=[
     brief:"Hold the line, Commander, and LUMA herself will stand with you."},
   {id:7, act:2, name:'UNDYING MARCH',   map:1, diff:1, waves:5,  mod:'regen', unlock:null, bossType:'revenant',
     brief:"These ones knit themselves back together — and something worse walks point: the REVENANT, a relay-ghost that blinks through our fire. Strike it in the breath between phases."},
-  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:7,  mod:null,    unlock:'bastion',
-    brief:"The void spiral — even light walks carefully here. Beneath it sleeps a BASTION of the first war. Survive, and we wake it for you."},
+  {id:8, act:3, name:'VOID SPIRAL',     map:2, diff:2, waves:7,  mod:null,    unlock:'warden',
+    brief:"The void spiral — even light walks carefully here. A lone bulwark still holds the inner ring. Reach it, and WARDEN takes the wall beside you, shoving the glyphs back down the lane."},
   {id:9, act:3, name:'GOLD RUSH',       map:0, diff:2, waves:7,  mod:'wealth',unlock:null,
     brief:"Their war chest marches with the column. Take it from them, bolt by bolt."},
   {id:10,act:3, name:'BREAKING POINT',  map:1, diff:2, waves:7,  mod:'horde', unlock:null,
@@ -1365,14 +1364,13 @@ function heroUnlocked(k){
   if(TOWERS[k].unlockLevel) return (SAVE.commander.level||1)>=TOWERS[k].unlockLevel;   /* rank-gated heroes */
   return CAMPAIGN.some(n=>n.unlock===k && (SAVE.camp.stars[n.id]||0)>0);
 }
-/* ---- hero line-up: a capped pre-match loadout (structures always deploy) ---- */
+/* ---- hero line-up: a capped pre-match loadout ---- */
 const SQUAD_CAP=6;
-function isStructure(k){ return !!TOWERS[k].footprint; }   /* only BASTION now — REACTOR is a hero */
 /* a hero is available to deploy in a mode: rank gates apply everywhere; campaign/daily
    also require the campaign unlock; quick play frees the rest. Returns a strict boolean. */
 function heroAvailableIn(k, camp){ return !((camp||TOWERS[k].unlockLevel) && !heroUnlocked(k)); }
 function heroAvailable(k){ return heroAvailableIn(k, !!campNode); }
-function unlockedHeroes(camp){ return Object.keys(TOWERS).filter(k=>!isStructure(k)&&heroAvailableIn(k,camp)); }
+function unlockedHeroes(camp){ return Object.keys(TOWERS).filter(k=>heroAvailableIn(k,camp)); }
 /* the heroes that actually deploy for a mode: the saved pick ∩ available, or everyone when there's no real choice */
 function effectiveSquad(camp){
   const avail=unlockedHeroes(camp);
@@ -1386,10 +1384,10 @@ function inSquad(k){
     const R=campNode.rule;
     if(R&&R.roster) return !!R.roster[k];      /* SOLO / STRIKE — exact roster only */
     if(R&&R.poolPick) return dailyPick.includes(k);   /* LIMITED POOL — picked from the pool */
-    return isStructure(k) || dailyPick.includes(k);   /* HANDICAP — full line-up + structures */
+    return dailyPick.includes(k);   /* HANDICAP — full line-up */
   }
-  if(campNode) return isStructure(k) || heroAvailable(k);   /* campaign: your full unlocked arsenal, no cap */
-  return isStructure(k) || effectiveSquad(false).includes(k);   /* quick play: the chosen squad */
+  if(campNode) return heroAvailable(k);   /* campaign: your full unlocked arsenal, no cap */
+  return effectiveSquad(false).includes(k);   /* quick play: the chosen squad */
 }
 
 /* ============================== DIFFICULTY ============================== */
@@ -1424,14 +1422,11 @@ const TOWERS={
   blight:{key:'8',name:'BLIGHT', title:'the Alchemist', cost:85, range:120, rate:.8, dmg:9, dtype:'poison',
     color:'#9dff3a', pool:55, unlockLevel:4, desc:'Lobs acid that pools on the road and melts anything standing in it.'},
   warden:{key:'9',name:'WARDEN', title:'the Bulwark', cost:115, range:95, rate:.7, dmg:14, dtype:'phys',
-    color:'#5ad6ff', push:70, unlockLevel:8, desc:'Slams enemies back down the lane with a force pulse.'},
-  /* structures — relics of the old defence grid, reawakened */
+    color:'#5ad6ff', push:70, desc:'Slams enemies back down the lane with a force pulse.'},
+  /* economy hero — reignited grid power */
   reactor:{key:'0',name:'REACTOR', title:'credit generator', cost:80, range:0, rate:0, dmg:0, dtype:'phys',
     color:'#6bffb0', income:14,
-    desc:'Reignited grid power. Pays credits automatically every 10 seconds.'},
-  bastion:{key:'-',name:'BASTION', title:'ancient siege engine', cost:400, range:260, rate:.33, dmg:90, dtype:'expl',
-    color:'#9a6bff', footprint:[2,2], splash:80, solo:true,
-    desc:'A fortress of the first war. Slow, devastating mortar shells. Only one can stand at a time.'}
+    desc:'Reignited grid power. Pays credits automatically every 10 seconds.'}
 };
 const SPECS={
   archer:[{id:'multi', n:'MULTISHOT', d:'Also fires at 2 extra targets'},
@@ -1453,9 +1448,7 @@ const SPECS={
   warden:[{id:'gale',   n:'GALE FORCE', d:'+80% knockback, wider radius'},
           {id:'anchor', n:'ANCHOR',     d:'Shoved foes also slowed 40% for 1.5s'}],
   reactor:[{id:'overcharge',n:'OVERCHARGE',d:'+50% income'},
-           {id:'cells',  n:'AID CELLS', d:'+1 core life each wave clear'}],
-  bastion:[{id:'hellfire',n:'HELLFIRE', d:'Shells leave burning ground'},
-           {id:'longnine',n:'LONG NINE',d:'+40% range, +25% damage'}]
+           {id:'cells',  n:'AID CELLS', d:'+1 core life each wave clear'}]
 };
 const specCost=def=>Math.round(def.cost*1.5);
 const lvlStat=(t,lv)=>({
@@ -2092,7 +2085,6 @@ function towerCap(){ return Math.min(16, 8+Math.floor(wave/2)); }
 /* returns a denial reason (count/roster-wise), or '' if the type may be deployed */
 function deployBlocked(type){
   if(towers.length>=towerCap()) return 'TOWER LIMIT REACHED';
-  if(TOWERS[type].solo && towers.some(t=>t.type===type)) return 'ONLY ONE BASTION';
   const R=campNode&&campNode.rule;
   if(R&&R.roster){                                   /* daily SOLO/STRIKE per-type caps */
     const max=R.roster[type];
@@ -2158,11 +2150,10 @@ function fire(t,target){
     projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:310,dmg,kind:'shard',color:c,dtype,src:t,
                 slow:deep?.25:t.def.slow, slowDur:deep?2.4:t.def.slowDur, brittle:t.spec==='shatter'});
     SND.frost();
-  }else if(t.type==='cannon'||t.type==='bastion'){
-    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:t.type==='bastion'?200:250,dmg,kind:'shell',color:c,dtype,src:t,
-                splash:s.splash, napalm:t.spec==='napalm'||t.spec==='hellfire', heavy:t.type==='bastion'});
+  }else if(t.type==='cannon'){
+    projs.push({x:t.x,y:t.y,tx:target.x,ty:target.y,tgt:target,speed:250,dmg,kind:'shell',color:c,dtype,src:t,
+                splash:s.splash, napalm:t.spec==='napalm'});
     SND.cannon();
-    if(t.type==='bastion'){ shake=Math.max(shake,4); spray(t.x,t.y,c,8,140,.35,2.6); }   /* heavier recoil kick */
   }else if(t.type==='tesla'){
     const falloff=t.spec==='super'?.9:.75;
     const hitlist=[target]; let cur=target, d2=dmg;
@@ -2612,22 +2603,13 @@ function update(dt){
     if(d<=step+4){
       p.hit=true;
       if(p.kind==='shell'){
-        if(p.heavy){
-          /* BASTION: weighty area detonation that clearly shows its AOE footprint */
-          SND.boom(); shake=Math.max(shake,7); hitStop=Math.max(hitStop,.05); vib(25);
-          blast(p.tx,p.ty,p.splash,p.color);
-          shatter(p.tx,p.ty,p.splash*.4,'hex',p.color,0,1.7);   /* hurled debris chunks */
-          spray(p.tx,p.ty,p.color,30,280,.6,3.6);
-          spray(p.tx,p.ty,'#d7c4ff',14,150,.7,2);               /* dust kick */
-        }else{
-          SND.boom(); shake=Math.max(shake,3.5);
-          spray(p.tx,p.ty,p.color,22,200,.5,3);
-          ring(p.tx,p.ty,p.splash,p.color,.22);
-        }
+        SND.boom(); shake=Math.max(shake,3.5);
+        spray(p.tx,p.ty,p.color,22,200,.5,3);
+        ring(p.tx,p.ty,p.splash,p.color,.22);
         for(const e of enemies){
           if(e.dead) continue;
           const dd=Math.hypot(e.x-p.tx,e.y-p.ty);
-          if(dd<=p.splash){ damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src}); if(p.heavy) e.flash=Math.max(e.flash,.12); }
+          if(dd<=p.splash){ damageEnemy(e, p.dmg*(1-.45*dd/p.splash), p.dtype, {src:p.src}); }
         }
         if(p.napalm) zones.push({x:p.tx,y:p.ty,r:40,t:3,max:3,dps:p.dmg*.5,color:'#ff6a2a',src:p.src});
       }else if(p.kind==='acid'){
@@ -2950,39 +2932,6 @@ function drawTowerBody(c,type,level,angle,t,firing){
         c.globalAlpha=1;
       }
     }
-  }else if(type==='bastion'){
-    /* ancient siege fortress: walls, corner blocks, rotating mortar */
-    c.strokeRect(-32,-32,64,64);
-    c.strokeRect(-32,-32,12,12); c.strokeRect(20,-32,12,12);
-    c.strokeRect(-32,20,12,12);  c.strokeRect(20,20,12,12);
-    /* crenellations along the walls */
-    c.lineWidth=1.3;
-    c.beginPath();
-    for(const wx of [-10,0,10]){
-      c.moveTo(wx-2,-32); c.lineTo(wx-2,-28); c.moveTo(wx+2,-32); c.lineTo(wx+2,-28);
-      c.moveTo(wx-2,32);  c.lineTo(wx-2,28);  c.moveTo(wx+2,32);  c.lineTo(wx+2,28);
-    }
-    c.stroke(); c.lineWidth=2;
-    /* sensor vane on the NE block */
-    c.save(); c.translate(26,-26); c.rotate(t*1.8);
-    c.beginPath(); c.moveTo(-4,0); c.lineTo(4,0); c.stroke();
-    c.beginPath(); c.arc(0,0,1.3,0,TAU); c.stroke();
-    c.restore();
-    /* armored turret ring */
-    poly(c,0,0,20,8,t*.15); c.stroke();
-    poly(c,0,0,13,8,-t*.1); c.stroke();
-    c.save(); c.rotate(angle);
-    const rec=firing?-4:0;
-    /* heavy twin-plated barrel with a loaded round */
-    c.strokeRect(4+rec,-9,30,18);
-    c.beginPath(); c.moveTo(4+rec,0); c.lineTo(34+rec,0); c.stroke();   /* barrel seam */
-    c.beginPath(); c.moveTo(34+rec,-11); c.lineTo(34+rec,11); c.stroke();
-    if(!firing){ c.fillStyle=col; glow(c,col,6); c.beginPath(); c.arc(12,0,2.4,0,TAU); c.fill(); noGlow(c); }
-    if(firing) muzzleFlash(c,38+rec,col);
-    c.restore();
-    glow(c,col,12);
-    c.beginPath(); c.arc(0,0,5+Math.sin(t*4)*1.2,0,TAU); c.stroke();
-    noGlow(c);
   }
   noGlow(c);
   c.fillStyle=col;
@@ -4401,7 +4350,7 @@ function refreshUI(){
   $('towersV').classList.toggle('full',towers.length>=cap);
   for(const k in TOWERS){
     const card=$('card_'+k);
-    if(card) card.classList.toggle('poor',money<TOWERS[k].cost || (!!TOWERS[k].solo && towers.some(t=>t.type===k)));
+    if(card) card.classList.toggle('poor',money<TOWERS[k].cost);
   }
   /* tutorial: spotlight the card for the DRAG/place lessons (steps 0 and 2) */
   const c0=$('card_archer');
@@ -4527,7 +4476,6 @@ function selectCard(type){
   if(!(campNode&&campNode.daily) && (campNode||TOWERS[type].unlockLevel) && !heroUnlocked(type)){SND.deny(); return;}   /* campaign locks + rank gates (daily grants all) */
   if(placing===type){ cancelPlacing(); return; }   /* tap the active card again to cancel (touch) */
   if(money<TOWERS[type].cost){SND.deny(); return;}
-  if(TOWERS[type].solo && towers.some(t=>t.type===type)){SND.deny(); return;}   /* BASTION already deployed */
   placing=type; selTower=null; aiming=null; dragMode=null; hidePop();
   document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));
   $('card_'+type).classList.add('sel');
@@ -4559,8 +4507,8 @@ function renderEnemyIcon(canvas,type,scale=1){
   c.restore();
 }
 function buildUI(){
-  /* hero + structure cards */
-  $('cards').innerHTML=''; $('structs').innerHTML='';
+  /* hero cards */
+  $('cards').innerHTML='';
   for(const k in TOWERS){
     const d=TOWERS[k];
     const card=document.createElement('div');
@@ -4569,8 +4517,8 @@ function buildUI(){
       <div class="nm" style="color:${d.color}">${d.name}</div><div class="cost">$${d.cost}</div>`;
     card.onclick=()=>{ if(suppressClick){suppressClick=false; return;} selectCard(k); };
     card.onpointerdown=e=>startCardDrag(k,e);
-    (d.footprint?$('structs'):$('cards')).appendChild(card);
-    renderIcon(card.querySelector('canvas'),k,d.footprint?.6:1.2);
+    $('cards').appendChild(card);
+    renderIcon(card.querySelector('canvas'),k,1.2);
   }
   /* ability buttons */
   const ab=$('abils'); ab.innerHTML='';
@@ -4916,7 +4864,7 @@ function codexBiome(){
 function codexControls(){
   return `<div class="cdx" style="grid-column:1/-1"><div>
     <b style="color:#9db8ff">PC — KEYBOARD &amp; MOUSE</b><br>
-    <b>1–9</b> select hero &middot; <b>0 / -</b> structures &middot; <b>Q/W/E</b> abilities<br>
+    <b>1–9</b> select hero &middot; <b>0</b> reactor &middot; <b>Q/W/E</b> abilities<br>
     <b>click</b> a grid cell to build the selected tower &middot; <b>SHIFT+click</b> place several in a row<br>
     <b>hover/click</b> a card to inspect it &middot; <b>click</b> a placed tower to upgrade / repair / sell<br>
     <b>SPACE</b> start wave &middot; <b>F</b> game speed &middot; <b>P</b> pause &middot; <b>ESC</b> cancel<br>
@@ -5517,7 +5465,7 @@ function openSquad(launchFn, fromId, opts){
   squadLaunch=launchFn; squadReturn=fromId||'titleOverlay';
   squadCamp=!!opts.camp; squadCapN=opts.cap||SQUAD_CAP; squadTarget=opts.target||'squad'; squadAll=!!opts.all;
   squadPoolKeys=opts.pool||null;
-  const avail=(squadPoolKeys||Object.keys(TOWERS).filter(k=>!isStructure(k)))
+  const avail=(squadPoolKeys||Object.keys(TOWERS))
     .filter(k=>squadAll||heroAvailableIn(k,squadCamp));
   if(avail.length<=squadCapN){            /* nothing to choose — bring everyone */
     if(squadTarget==='daily') dailyPick=avail.slice();
@@ -5539,7 +5487,7 @@ function squadUnit(k,attr){
     +`<div class="nm" style="color:${d.color}">${d.name}</div></div>`;
 }
 function renderSquadZones(){
-  const heroes=squadPoolKeys?squadPoolKeys.slice():Object.keys(TOWERS).filter(k=>!isStructure(k));
+  const heroes=squadPoolKeys?squadPoolKeys.slice():Object.keys(TOWERS);
   /* POOL (top): every hero not currently chosen — available ones are draggable, locked ones shown dimmed */
   const pool=$('squadPool');
   const poolKeys=heroes.filter(k=>!squadPick.includes(k));
@@ -5665,7 +5613,7 @@ function genDailyRule(rnd){
   if(t===0){                                   /* SOLO — one hero, unlimited */
     const h=DAILY_ATTACKERS[Math.floor(rnd()*DAILY_ATTACKERS.length)];
     return {type:'solo', name:'SOLO · '+TOWERS[h].name+' ONLY',
-      desc:'Hold the line with only '+TOWERS[h].name+'. No other towers, no structures.', roster:{[h]:Infinity}};
+      desc:'Hold the line with only '+TOWERS[h].name+'. No other heroes.', roster:{[h]:Infinity}};
   }
   if(t===1){                                   /* STRIKE TEAM — fixed squad with per-type counts */
     const picks=pickN(DAILY_ATTACKERS, 2+Math.floor(rnd()*2));
@@ -6177,22 +6125,20 @@ function applySquad(){
     for(const k in TOWERS){                /* iterate in canonical hotkey order so cards read 1,2,3… */
       const card=$('card_'+k); if(!card) continue;
       const show=inSquad(k); card.style.display=show?'':'none';
-      if(show && !isStructure(k)) $('cards').appendChild(card);   /* re-append → restore hotkey order */
+      if(show) $('cards').appendChild(card);   /* re-append → restore hotkey order */
     }
     return;
   }
   if(campNode){                           /* campaign: your unlocked arsenal — locked heroes stay off the dock */
     for(const k in TOWERS){
-      if(isStructure(k)) continue;
       const card=$('card_'+k); if(!card) continue;
       if(heroAvailable(k)){ card.style.display=''; $('cards').appendChild(card); }   /* re-append → restore hotkey order */
       else card.style.display='none';
     }
     return;
   }
-  const eff=effectiveSquad(false);        /* quick play: only the chosen squad heroes (+ structures always) */
+  const eff=effectiveSquad(false);        /* quick play: only the chosen squad heroes */
   for(const k in TOWERS){
-    if(isStructure(k)) continue;
     const card=$('card_'+k);
     if(card) card.style.display=eff.includes(k)?'':'none';
   }

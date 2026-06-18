@@ -57,9 +57,11 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   (hero cards). `$=id=>getElementById`.
 
 ## Key systems (where to look)
-- **Heroes / placement**: `TOWERS`; `placeTower` guarded by `deployBlocked` (tower cap `towerCap()` 8→16,
-  bastion `solo:true` one-per-match, daily roster caps). REACTOR is a HERO (`isStructure` = footprint
-  only); BASTION is the only structure.
+- **Heroes / placement**: `TOWERS` = 9 attack/support heroes + REACTOR (economy). `placeTower` guarded by
+  `deployBlocked` (tower cap `towerCap()` 8→16, daily roster caps). All `TOWERS` are single-cell now —
+  BASTION + the whole `structure` category (footprint/solo/`isStructure`/`#structs`) were removed in
+  v1.16.0 (it was a redundant BRUNO+REX hybrid). Generic `def.footprint?…` ternaries remain inert in a few
+  draw/UI sites (default to the 1×1 branch); a future structure could reuse them.
 - **FLYER / anti-air** (v1.15.0): `ENEMIES.flyer` (`air:true, antiAirOnly:true, shape:'wing'`) crosses the
   map in a STRAIGHT line gate→core (ignores the road & rift warps) — the movement fork is in `update()` at
   the per-frame position set (keeps `e.dist+=sp*dt` + the leak check; only forks x/y to a portal→core lerp).
@@ -102,7 +104,10 @@ Upload `press/vector-defense-itch.zip` (regen: zip index.html + manifest + sw.js
 root**), tick "play in browser". Cover `press/cover.png` (630×500). Embed: 1280×720, fullscreen on,
 mobile-friendly on, orientation Default (the game self-rotates portrait→landscape).
 
-## Current focus / backlog (as of v1.15.0 — open/optional, not committed work)
+## Current focus / backlog (as of v1.16.0 — open/optional, not committed work)
+- **v1.16.0 shipped**: removed BASTION + the whole structure category (felt OP/redundant). Mission 8
+  (VOID SPIRAL) now unlocks WARDEN instead, and WARDEN lost its commander-level-8 gate. Roster is now 9
+  heroes + REACTOR.
 - **v1.15.0 shipped**: FLYER enemy (anti-air) + shareable result card. The `press/vector-defense-itch.zip`
   on disk is stale (pre-1.15) — regenerate before the next itch re-upload.
 - **itch.io launch**: press assets are ready (`press/` screenshots + `cover.png`; `vector-defense-itch.zip`
@@ -113,8 +118,7 @@ mobile-friendly on, orientation Default (the game self-rotates portrait→landsc
   if a re-upload ever shows an old version.
 - **Balance (playtest-driven, all one-number tweaks)**: Quick Play + daily run CASUAL on purpose (the squad
   cap + tower cap are the challenge). Campaign act-3 = BRUTAL with eased economy (money 150, reward .95).
-  Watch: `SQUAD_CAP=6` may feel tight now that REACTOR competes for a slot (consider 7); SOLO daily on CASUAL;
-  bastion one-per-match feel.
+  Watch: `SQUAD_CAP=6` may feel tight now that REACTOR competes for a slot (consider 7); SOLO daily on CASUAL.
 - **Known minor**: the line-up floating drag ghost is a DOM `.sqGhost` element, so on portrait phones (where
   `#wrap` is CSS-rotated 90°) it renders upright instead of rotated — drops still land correctly. Could swap
   to a canvas-drawn ghost (like the in-game placement ghost) if it bothers the user.
