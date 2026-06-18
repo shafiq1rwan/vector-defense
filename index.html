@@ -928,7 +928,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.14.0';
+const VERSION='1.14.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -1319,7 +1319,7 @@ function anchorFor(type){
 const INTRO="LUMA: The grid has been dark for a hundred cycles. Tonight the spawn gates reopened, and the glyphs walk again. You are all we have, Commander.";
 const EPILOGUE="The gates collapse behind it. One by one, the old relays hum back to life. LUMA: \"It's over, Commander. You brought the dawn back online.\"";
 const CAMPAIGN=[
-  {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:3,  mod:null,    unlock:null,
+  {id:0, act:1, name:'FIRST CONTACT',   map:3, diff:0, waves:3,  mod:null,    unlock:null, money:200,
     brief:"A straight stretch of the old supply road — perfect ground to learn the trade. Deploy a hero beside the lane, let the kills pay you, and call the waves when you're ready."},
   {id:1, act:1, name:'THE LONG ROAD',   map:1, diff:0, waves:3,  mod:null,    unlock:null,
     brief:"They found the gauntlet. Long lanes, long sightlines — make every shot count."},
@@ -1697,6 +1697,7 @@ function reset(){
   money=DIFF().money; lives=maxLives(); wave=0;
   const RULE=campNode&&campNode.rule;   /* daily handicaps */
   if(RULE&&RULE.money!=null) money=RULE.money;
+  if(campNode&&campNode.money!=null) money=campNode.money;   /* per-mission start override (e.g. tutorial) */
   $('abils').style.display=(RULE&&RULE.noAbilities)?'none':'';
   towers=[]; enemies=[]; projs=[]; beams=[]; parts=[]; texts=[]; zones=[];
   occ=new Map();
