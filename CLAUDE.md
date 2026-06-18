@@ -42,7 +42,10 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
 - **Loop**: `frame(now)` (rAF, dt-capped, adaptive perf governor `perfLite/perfThrottle`) → `update(dt)`
   + `draw()`. `reset()` initializes a match.
 - **Render**: `draw()` (large), `drawTowerBody` (per-type), `drawEnemy`/`drawEnemyShape`; helpers
-  `glow/noGlow/poly/spray/ring/shatter`. Static scenery baked to `bgCanvas` via `rebuildBg()`.
+  `glow/noGlow/poly/spray/ring/shatter`. Static scenery baked to `bgCanvas` via `rebuildBg()`. **DPR crisp**:
+  renders at `RS=min(devicePixelRatio,2)` supersample — `cvs`/`bgCanvas` backing is W*RS×H*RS, `draw()` and
+  `rebuildBg()` start with `ctx.setTransform(RS,...)`, the bg blit is `drawImage(bgCanvas,0,0,W,H)`. All draw
+  code stays in logical W,H coords; `setMouse` maps input in logical coords (unaffected).
 - **Maps/lanes**: `m.paths` → `LANES[{PATH,segs,len,portal,core}]`; `pointAt(d,lane)`; convenience
   globals `PORTAL`/`CORE` (lane 0).
 - **Screens**: DOM overlays toggled with the `.hidden` class (title, campaign, qpOverlay, dailyOverlay,
@@ -57,13 +60,17 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   `renderSquadZones`/`renderSquadDock`; free drag-and-drop via `sqGrab` + window pointer handlers +
   `sqDropIndex` (floating `.sqGhost`, `#sqInsert` bar). `SQUAD_CAP=6`. `applySquad` filters/orders the
   in-game dock to the saved squad. Campaign shows the full unlocked arsenal (no line-up).
-- **Tutorial** (Mission 1 / OUTPOST only): coach intro `tutIntro`/`TUT_INTRO`/`drawTutIntro` (dim +
-  spotlight + NEXT) → gated lessons `tutStep`/`TUT_ACTIONS`/`tutDid`/`updateTut` (drag→upgrade→place→
-  sell→ability), wave locked until done.
+- **Tutorial** (Mission 1 / OUTPOST only): `drawTutCoach()` renders BOTH the coach intro
+  (`tutIntro`/`TUT_INTRO`, tap-anywhere NEXT) AND the gated lessons (`tutStep`/`TUT_ACTIONS`/`tutDid`)
+  in the same dim+spotlight+panel style — lessons spotlight a canvas target via `tutLessonTarget()` (build
+  cell / your tower) with a SKIP button; the dock/ability buttons sit outside the canvas so they stay bright.
+  `updateTut` only gates the wave now (the old DOM `#tutBanner` is unused). Wave locked until done.
 - **Daily**: `todayDaily`/`genDailyRule` seeds a rule (SOLO/STRIKE/POOL/HANDICAP) via
   `mulberry32(todayKey())`; runs CASUAL, 5 waves; `#dailyOverlay` = condition (left) + battlefield (right).
-- **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT]. `QP_DIFF=0` → Quick Play + daily are CASUAL
-  (the squad/tower caps are the challenge). Campaign missions set their own `diff`; BRUTAL is act-3 only.
+- **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT] (all `money:100` now). `QP_DIFF=0` → Quick Play +
+  daily are CASUAL. **Campaign HP now ramps smoothly** per mission via `makeWave` (`hpBase=0.9+campNode.id*0.1`
+  → mission 1≈0.9× … mission 12≈2.0×), NOT the old 3 flat tiers; each mission's `diff` still sets
+  lives/reward. Tune the ramp by editing that `hpBase` formula.
 - **Progression/cosmetics**: Commander rank (`SAVE.commander`, `RANKS`, `#rankCard`); cores shop (tabbed,
   `buildShop`/`shopTab`), Collection codex tab, `equipCosmetic`, `killBurst` reads
   `SAVE.cosmetics.killfx`.

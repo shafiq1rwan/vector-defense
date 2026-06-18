@@ -928,9 +928,11 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.13.3';
+const VERSION='1.14.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
+const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
+cvs.width=W*RS; cvs.height=H*RS;
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
 
@@ -1643,7 +1645,10 @@ function makeWave(n){
     const bt=(campNode&&campNode.boss)?'prime':((campNode&&campNode.bossType)||'boss');
     add(bt, bt==='boss'?Math.floor(n/10)+1:1, 5);
   }
-  let hpMul=(1+(n-1)*.30+Math.pow(Math.max(0,n-8),2)*.012)*DIFF().hp;
+  /* campaign: smooth per-mission HP ramp (mission 0→0.9× … mission 11→2.0×) instead of 3 flat tiers;
+     Quick Play / daily keep their DIFFS tier */
+  const hpBase=(campNode&&!campNode.daily&&campNode.id!=null)?(0.9+campNode.id*0.1):DIFF().hp;
+  let hpMul=(1+(n-1)*.30+Math.pow(Math.max(0,n-8),2)*.012)*hpBase;
   let rewardMul=(.7+n*.015)*DIFF().reward;
   let spdMul=1;
   const mod=(campNode&&campNode.mod)
@@ -1751,12 +1756,8 @@ function updateTut(){
     if(wb && running && !waveActive && !gameOver){ wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE '+(wave+1); }
     return;
   }
-  ban.classList.remove('hidden');
+  ban.classList.add('hidden');   /* lessons now use the canvas coach overlay (drawTutCoach), not the DOM banner */
   const done=tutStep>=TUT_ACTIONS.length;
-  ban.innerHTML=(done?'':'<span class="tStep">'+(tutStep+1)+'/'+TUT_ACTIONS.length+'</span>')
-    +'<span class="tTxt">'+(done?'Training complete — <b>START WAVE</b> to defend the core!':TUT_STEPS[tutStep])+'</span>'
-    +(done?'':'<button id="tutSkip">SKIP</button>');
-  if(!done) $('tutSkip').onclick=()=>{ tutStep=99; updateTut(); refreshUI(); SND.deny(); };
   if(wb && !done){ wb.disabled=true; wb.classList.remove('pulse'); wb.textContent='FINISH TRAINING'; }
   /* when done, refreshUI manages the button (needs at least one tower built) */
 }
@@ -3545,8 +3546,8 @@ function drawRuin(c,ru,mode='all'){
    rendered once per map/theme into an offscreen canvas and blitted each frame */
 const bgCanvas=document.createElement('canvas');
 function rebuildBg(){
-  bgCanvas.width=W; bgCanvas.height=H;
-  const c=bgCanvas.getContext('2d'), TH=THEME();
+  bgCanvas.width=W*RS; bgCanvas.height=H*RS;
+  const c=bgCanvas.getContext('2d'), TH=THEME(); c.setTransform(RS,0,0,RS,0,0);
   /* idle placement sockets */
   c.lineWidth=1; c.strokeStyle=TH.socket;
   c.beginPath();
@@ -3669,11 +3670,34 @@ function wrapText(c,txt,maxW){
   for(const wd of words){ const t=line?line+' '+wd:wd; if(c.measureText(t).width>maxW&&line){ lines.push(line); line=wd; } else line=t; }
   if(line) lines.push(line); return lines;
 }
-function drawTutIntro(){
-  if(tutIntro>=TUT_INTRO.length) return;
-  const step=TUT_INTRO[tutIntro], tgt=step.target==='spawn'?PORTAL:CORE, R=50+Math.sin(time*3)*4;
-  /* dim the whole board with a circular hole over the target */
-  ctx.fillStyle='rgba(3,6,14,.76)';
+const TUT_LESSON_TITLES=['BUILD','UPGRADE','SPARE','SELL','ABILITY'];
+/* the canvas spotlight target for the current lesson, or null (no hole) */
+function tutLessonTarget(){
+  if(tutStep===1 && towers[0]) return {x:towers[0].x,y:towers[0].y,r:46};
+  if(tutStep===3){ const t=towers[towers.length-1]; return t?{x:t.x,y:t.y,r:46}:null; }
+  if(tutStep===0||tutStep===2){   /* a free buildable cell near the lane — "build here" */
+    if(typeof buildable==='undefined'||!buildable.size||!LANES[0]) return null;
+    const mid=pointAt(LANES[0].len/2,0); let best=null,bd=Infinity;
+    for(const k of buildable){ if(occ.has(k)) continue; const p=k.split(',').map(Number);
+      const x=(p[0]+.5)*CELL, y=(p[1]+.5)*CELL, d=(x-mid.x)**2+(y-mid.y)**2;
+      if(d<bd){ bd=d; best={x,y,r:62}; } }
+    return best;
+  }
+  return null;   /* step 4 (ability): abilities are off-canvas + bright, no hole */
+}
+/* coach-mark overlay — the spawn/core intro AND the gated lessons share the same dim+spotlight+panel look */
+function drawTutCoach(){
+  let tgt,title,desc,dimA,dotN,dotI,btn;
+  if(tutIntro<TUT_INTRO.length){            /* intro: tap-anywhere NEXT/BEGIN */
+    const s=TUT_INTRO[tutIntro];
+    tgt=s.target==='spawn'?PORTAL:CORE; title=s.title; desc=s.desc;
+    dimA=.76; dotN=TUT_INTRO.length; dotI=tutIntro; btn=(tutIntro===TUT_INTRO.length-1?'BEGIN':'NEXT')+' ▶';
+  }else if(tutStep<TUT_ACTIONS.length){      /* a lesson: perform the action to advance; button = SKIP */
+    tgt=tutLessonTarget(); title=TUT_LESSON_TITLES[tutStep]; desc=TUT_STEPS[tutStep].replace(/<\/?b>/g,'');
+    dimA=.55; dotN=TUT_ACTIONS.length; dotI=tutStep; btn='SKIP';
+  }else return;
+  const R=tgt&&tgt.r?tgt.r:50+Math.sin(time*3)*4;
+  ctx.fillStyle='rgba(3,6,14,'+dimA+')';
   ctx.beginPath(); ctx.rect(0,0,W,H);
   if(tgt) ctx.arc(tgt.x,tgt.y,R,0,TAU,true);
   ctx.fill('evenodd');
@@ -3681,24 +3705,23 @@ function drawTutIntro(){
     glow(ctx,'#4d8dff',12); ctx.strokeStyle='#7db2ff'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(tgt.x,tgt.y,R,0,TAU); ctx.stroke(); noGlow(ctx);
     ctx.font='bold 13px monospace'; ctx.textAlign='center'; ctx.fillStyle='#cfe0ff';
-    const lx=Math.max(70,Math.min(W-70,tgt.x)), ly=Math.max(20,tgt.y-R-10);   /* keep the label on-screen */
-    glow(ctx,'#4d8dff',8); ctx.fillText(step.title,lx,ly); noGlow(ctx);
+    const lx=Math.max(70,Math.min(W-70,tgt.x)), ly=Math.max(20,tgt.y-R-10);
+    glow(ctx,'#4d8dff',8); ctx.fillText(title,lx,ly); noGlow(ctx);
   }
-  /* coach panel pinned at bottom-centre so it never covers the mid-board target */
   const b=tutCoachBox();
   ctx.fillStyle='rgba(10,17,38,.98)'; ctx.strokeStyle='#2f6fd0'; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.roundRect(b.x,b.y,b.w,b.h,12); ctx.fill(); ctx.stroke();
   ctx.textAlign='left';
-  ctx.fillStyle='#ffd34d'; ctx.font='bold 15px monospace'; ctx.fillText(step.title,b.x+18,b.y+28);
+  ctx.fillStyle='#ffd34d'; ctx.font='bold 15px monospace'; ctx.fillText(title,b.x+18,b.y+28);
   ctx.fillStyle='#cfe0ff'; ctx.font='12px monospace';
-  wrapText(ctx,step.desc,b.w-36).slice(0,3).forEach((ln,i)=>ctx.fillText(ln,b.x+18,b.y+50+i*16));
-  for(let i=0;i<TUT_INTRO.length;i++){ ctx.fillStyle=i===tutIntro?'#4d8dff':'#2a3f7a';
+  wrapText(ctx,desc,b.w-36).slice(0,3).forEach((ln,i)=>ctx.fillText(ln,b.x+18,b.y+50+i*16));
+  for(let i=0;i<dotN;i++){ ctx.fillStyle=i===dotI?'#4d8dff':'#2a3f7a';
     ctx.beginPath(); ctx.arc(b.x+20+i*12,b.y+b.h-14,3.5,0,TAU); ctx.fill(); }
-  const bt=b.btn, last=tutIntro===TUT_INTRO.length-1;
+  const bt=b.btn;
   ctx.fillStyle='#0c2347'; ctx.strokeStyle='#2f6fd0'; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.roundRect(bt.x,bt.y,bt.w,bt.h,8); ctx.fill(); ctx.stroke();
   ctx.fillStyle='#cfe0ff'; ctx.font='bold 11px monospace'; ctx.textAlign='center';
-  glow(ctx,'#4d8dff',6); ctx.fillText((last?'BEGIN':'NEXT')+' ▶',bt.x+bt.w/2,bt.y+bt.h/2+4); noGlow(ctx); ctx.textAlign='left';
+  glow(ctx,'#4d8dff',6); ctx.fillText(btn,bt.x+bt.w/2,bt.y+bt.h/2+4); noGlow(ctx); ctx.textAlign='left';
 }
 
 /* ============================== DRAW: SCENE ============================== */
@@ -3706,6 +3729,7 @@ function draw(){
   const TH=THEME();
   /* glow governor: heavy scenes (or lite/performance mode) drop shadowBlur for smooth frames */
   fxLite=perfLite||(enemies.length+towers.length+parts.length/3)>60;
+  ctx.setTransform(RS,0,0,RS,0,0);   /* render at supersample scale; all draw code stays in logical W,H coords */
   ctx.save();
   if(shake>0&&SAVE.shake) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
   ctx.clearRect(-20,-20,W+40,H+40);
@@ -3718,7 +3742,7 @@ function draw(){
   ctx.globalAlpha=1;
 
   /* static scenery (sockets + ruin bodies + road pack) — one blit */
-  ctx.drawImage(bgCanvas,0,0);
+  ctx.drawImage(bgCanvas,0,0,W,H);
   if(placing){
     ctx.lineWidth=1; ctx.strokeStyle=TH.socketOn;
     ctx.beginPath();
@@ -4321,7 +4345,7 @@ function draw(){
       noGlow(ctx); ctx.globalAlpha=1;
     }
   }
-  drawTutIntro();
+  drawTutCoach();
   ctx.restore();
 }
 
@@ -5152,6 +5176,10 @@ cvs.addEventListener('pointerdown',e=>{
   if(!running||gameOver) return;
   ac();
   if(tutIntro<TUT_INTRO.length){ advanceIntro(); return; }   /* coach intro: any tap advances */
+  if(tutStep<TUT_ACTIONS.length){   /* lessons: only the coach SKIP button intercepts taps; the board stays playable */
+    setMouse(e); const b=tutCoachBox().btn;
+    if(mouse.x>=b.x&&mouse.x<=b.x+b.w&&mouse.y>=b.y&&mouse.y<=b.y+b.h){ tutStep=99; updateTut(); refreshUI(); SND.deny(); return; }
+  }
   if(e.button===2) return;
   const isTouch=e.pointerType!=='mouse';
   /* touch: press starts a drag — ghost floats above the finger, release commits */
