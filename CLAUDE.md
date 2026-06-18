@@ -79,6 +79,23 @@ Upload `press/vector-defense-itch.zip` (regen: zip index.html + manifest + sw.js
 root**), tick "play in browser". Cover `press/cover.png` (630×500). Embed: 1280×720, fullscreen on,
 mobile-friendly on, orientation Default (the game self-rotates portrait→landscape).
 
+## Current focus / backlog (as of v1.13.3 — open/optional, not committed work)
+- **itch.io launch**: press assets are ready (`press/` screenshots + `cover.png`; `vector-defense-itch.zip`
+  on disk, not committed). User is setting up the page. Marketing not done — offered: a Show HN post,
+  r/playmygame + r/WebGames posts, and a short gameplay clip/GIF.
+- **No-SW itch build** (offered, not built): a copy of `index.html` with the service-worker registration
+  stripped, for the itch zip — avoids any stale-cache weirdness inside itch's sandboxed iframe. Make this
+  if a re-upload ever shows an old version.
+- **Balance (playtest-driven, all one-number tweaks)**: Quick Play + daily run CASUAL on purpose (the squad
+  cap + tower cap are the challenge). Campaign act-3 = BRUTAL with eased economy (money 150, reward .95).
+  Watch: `SQUAD_CAP=6` may feel tight now that REACTOR competes for a slot (consider 7); SOLO daily on CASUAL;
+  bastion one-per-match feel.
+- **Known minor**: the line-up floating drag ghost is a DOM `.sqGhost` element, so on portrait phones (where
+  `#wrap` is CSS-rotated 90°) it renders upright instead of rotated — drops still land correctly. Could swap
+  to a canvas-drawn ghost (like the in-game placement ghost) if it bothers the user.
+- **DESIGN.md / tuning tables** (offered, not built): a one-stop balance/tuning reference. CLAUDE.md covers
+  most of it for now.
+
 ---
 Keep this file current when conventions or architecture change — it's the cross-machine source of truth.
 Detailed version history is in `git log`.
