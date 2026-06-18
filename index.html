@@ -871,6 +871,9 @@
         <button id="menuBtn" class="cta">MENU</button>
         <button id="continueBtn" class="cta" style="display:none">ENDLESS</button>
       </div>
+      <div class="btnrow endLate" style="gap:10px;margin-top:8px">
+        <button id="shareBtn" class="cta">SHARE</button>
+      </div>
     </div>
 
     <div id="settingsOverlay" class="overlay solid vcenter hidden">
@@ -928,7 +931,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.14.3';
+const VERSION='1.15.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -961,7 +964,8 @@ const ICONS={
   lock:'<rect x="4" y="7" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
   info:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="5" r="1" fill="currentColor"/><path d="M8 7.5v4" stroke="currentColor" stroke-width="1.6"/>',
   install:'<path d="M8 2v7M5 6l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 11.5v2H13v-2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
-  cal:'<rect x="2.5" y="3.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="9.4" r="1" fill="currentColor"/><circle cx="9.6" cy="9.4" r="1" fill="currentColor"/>'
+  cal:'<rect x="2.5" y="3.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="9.4" r="1" fill="currentColor"/><circle cx="9.6" cy="9.4" r="1" fill="currentColor"/>',
+  share:'<circle cx="12" cy="3.5" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="4" cy="8" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12.5" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.2 4.5l-4.4 2.5M5.8 9l4.4 2.5" stroke="currentColor" stroke-width="1.3"/>'
 };
 const ic=(n,size=12)=>'<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">'+ICONS[n]+'</svg>';
 
@@ -1404,15 +1408,15 @@ const abilityCd=k=>Math.round(ABILITIES[k].cd*(typeof relicHas!=='undefined'&&re
 /* ============================== HERO TOWERS ============================== */
 const TOWERS={
   archer:{key:'1',name:'SLY',  title:'the Archer', cost:50, range:115, rate:2.4, dmg:11, dtype:'phys',
-    color:'#39ff6a', desc:'Rapid single-target arrows. Cheap and reliable.'},
+    color:'#39ff6a', antiAir:true, desc:'Rapid single-target arrows. Cheap and reliable. Hits flyers.'},
   frost:{key:'2',name:'GLACE',title:'the Frostweaver', cost:70, range:100, rate:1.1, dmg:7, dtype:'ice',
     color:'#3ad6ff', slow:.45, slowDur:1.6, desc:'Ice shards chill enemies to 45% speed.'},
   cannon:{key:'3',name:'BRUNO',title:'the Demolisher', cost:95, range:105, rate:.75, dmg:32, dtype:'expl',
     color:'#ffa53a', splash:58, desc:'Explosive shells damage all enemies nearby.'},
   tesla:{key:'4',name:'VOLTA',title:'the Stormcaller', cost:120, range:110, rate:1.0, dmg:17, dtype:'energy',
-    color:'#c46bff', chain:4, desc:'Lightning arcs between up to 4 enemies.'},
+    color:'#c46bff', chain:4, antiAir:true, desc:'Lightning arcs between up to 4 enemies. Hits flyers.'},
   sniper:{key:'5',name:'REX', title:'the Deadeye', cost:150, range:235, rate:.5, dmg:75, dtype:'phys',
-    color:'#ff4d6a', desc:'Extreme range hitscan rifle.'},
+    color:'#ff4d6a', antiAir:true, desc:'Extreme range hitscan rifle. Hits flyers.'},
   aura:{key:'6',name:'LUMA', title:'the Amplifier', cost:100, range:90, rate:0, dmg:0, dtype:'phys',
     color:'#ffd34d', aura:true, desc:'No attack. Boosts damage & speed of towers in range.'},
   medic:{key:'7',name:'JUNO', title:'the Mender', cost:110, range:100, rate:0, dmg:0, dtype:'phys',
@@ -1587,6 +1591,8 @@ const ENEMIES={
     shield:6, label:'AEGIS', desc:'blocks the first 6 hits', res:{energy:1.25,expl:.8}},
   phaser:{hp:130, speed:60, reward:26, lives:1, r:10, color:'#b0ffe8', shape:'diamond',
     phase:true, label:'GHOST', desc:'periodically untargetable', res:{phys:.7,energy:1.3}},
+  flyer:{hp:90, speed:80, reward:19, lives:1, r:10, color:'#e8b0ff', shape:'wing',
+    air:true, antiAirOnly:true, label:'SWOOP', desc:'flies straight over the road — only SLY, REX & VOLTA can hit it', res:{}},
   statik:{hp:95, speed:50, reward:20, lives:1, r:10, color:'#ffe14d', shape:'spark',
     empBurst:70, label:'STATIK', desc:'EMP-bursts your towers when it dies', res:{energy:.6,ice:1.3}},
   breaker:{hp:280, speed:30, reward:32, lives:2, r:13, color:'#ff8a3a', shape:'square',
@@ -1636,6 +1642,7 @@ function makeWave(n){
   if(n>=8) add('splitter', Math.floor(n/3)-1, 1.8);
   if(n>=9) add('shield', Math.floor(n/4), 2.0);
   if(n>=6) add('breaker', Math.max(1,Math.floor(n/6)), 2.6);
+  if(n>=6) add('flyer', Math.floor(n/6), 1.8);
   if(n>=10) add('statik', Math.floor(n/5), 2.2);
   if(n>=11) add('phaser', Math.floor(n/4), 1.6);
   /* finale forces its namesake boss on the last wave; otherwise bosses ride wave%5 */
@@ -1967,6 +1974,9 @@ function spawnEnemy(type,dist,w,elite,lane=0){
 
 function damageEnemy(e,dmg,dtype='phys',o={}){
   if(e.dead) return;
+  /* flyers ignore everything except anti-air heroes (blocks splash/chain from ground towers);
+     player abilities carry no o.src and still hit */
+  if(e.def.antiAirOnly && o.src && !o.src.def.antiAir) return;
   if(e.shieldHits>0 && dtype!=='true' && dtype!=='poison'){
     e.shieldHits--; e.flash=.05;
     parts.push({x:e.x,y:e.y-e.def.r,vx:0,vy:-40,life:.25,max:.25,color:'#9ad8ff',size:2});
@@ -2116,6 +2126,7 @@ function acquire(t){
   const r2=t.stats.range*t.stats.range, m=t.mode;
   for(const e of enemies){
     if(e.dead||e.phased) continue;
+    if(e.def.antiAirOnly && !t.def.antiAir) continue;   /* only anti-air heroes target flyers */
     if(dist2(t,e)>r2) continue;
     const v=m===0?e.dist : m===1?-e.dist : m===2?e.hp : -e.hp;
     if(v>bv){bv=v; best=e;}
@@ -2397,18 +2408,27 @@ function update(dt){
     let sp=planted ? 0 : e.baseSpd*(e.slowT>0?e.slowF:1);
     if(e.def.revenant&&e.rev&&e.rev.ph==='vuln') sp*=.5;   /* crawls while exposed */
     e.dist+=sp*dt;
-    /* rift gate: blink instantly from the entry gate to the exit gate */
-    const _ln=LANES[e.lane];
-    if(_ln && _ln.warps && _ln.warps.length) for(const s of _ln.warps){
-      if(e.dist>s.start && e.dist<s.start+s.len){
-        warpFx(s.a.x,s.a.y,s.b.x,s.b.y);
-        e.dist=s.start+s.len+0.5;
-        SND.tesla();
-        break;
+    const _ln=LANES[e.lane]||LANES[0];
+    if(e.def.air){
+      /* flyers cross straight from gate to core, ignoring the road & rift gates */
+      const t=Math.min(1,e.dist/_ln.len);
+      e.x=_ln.portal.x+(_ln.core.x-_ln.portal.x)*t;
+      e.y=_ln.portal.y+(_ln.core.y-_ln.portal.y)*t;
+      const ax=_ln.core.x-_ln.portal.x, ay=_ln.core.y-_ln.portal.y, am=Math.hypot(ax,ay)||1;
+      e.dx=ax/am; e.dy=ay/am;
+    }else{
+      /* rift gate: blink instantly from the entry gate to the exit gate */
+      if(_ln && _ln.warps && _ln.warps.length) for(const s of _ln.warps){
+        if(e.dist>s.start && e.dist<s.start+s.len){
+          warpFx(s.a.x,s.a.y,s.b.x,s.b.y);
+          e.dist=s.start+s.len+0.5;
+          SND.tesla();
+          break;
+        }
       }
+      const p=pointAt(e.dist,e.lane);
+      e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
     }
-    const p=pointAt(e.dist,e.lane);
-    e.x=p.x; e.y=p.y; e.dx=p.dx; e.dy=p.dy;
     if(e.def.heal){
       e.healT-=dt;
       if(e.healT<=0){
@@ -3094,6 +3114,20 @@ function drawEnemyShape(c,shape,r,col,ang,wob,extra){
     c.restore(); c.lineWidth=2;
     return;
   }
+  else if(shape==='wing'){
+    /* flyer: swept-wing dropship — fuselage + back-swept wings + cockpit dot */
+    c.save(); c.rotate(ang);
+    c.beginPath();                                   /* fuselage */
+    c.moveTo(r,0); c.lineTo(-r*.55,r*.22); c.lineTo(-r*.75,0); c.lineTo(-r*.55,-r*.22); c.closePath(); c.stroke();
+    c.beginPath();                                   /* swept wings */
+    c.moveTo(-r*.1,r*.16); c.lineTo(-r*.85,r*.95); c.lineTo(-r*.5,r*.18);
+    c.moveTo(-r*.1,-r*.16); c.lineTo(-r*.85,-r*.95); c.lineTo(-r*.5,-r*.18);
+    c.stroke();
+    c.fillStyle=col;                                 /* cockpit dot */
+    c.beginPath(); c.arc(r*.4,0,1.6,0,TAU); c.fill();
+    c.restore(); c.lineWidth=2;
+    return;
+  }
   else if(shape==='cross'){
     c.beginPath();
     c.moveTo(-r,0); c.lineTo(r,0); c.moveTo(0,-r); c.lineTo(0,r); c.stroke();
@@ -3267,6 +3301,13 @@ function drawEnemy(c,e){
     c.globalAlpha*=.25+.75*rs;
   }
   if(e.phased){ c.globalAlpha=.35; c.setLineDash([4,4]); }
+  if(d.air){
+    /* altitude cue: faint flat ground-shadow below the flyer */
+    const sa=c.globalAlpha;
+    c.globalAlpha=sa*.22; c.fillStyle='#000000';
+    c.beginPath(); c.ellipse(0,d.r+9,d.r*.7,d.r*.28,0,0,TAU); c.fill();
+    c.globalAlpha=sa;
+  }
   glow(c,d.color,9);
   const ang=Math.atan2(e.dy||0,e.dx||1);
   const wob=Math.sin(e.wob)*.15;
@@ -4603,6 +4644,7 @@ function buildUI(){
   $('restartBtn').innerHTML=ic('retry')+'RETRY';
   $('menuBtn').innerHTML=ic('home')+'MENU';
   $('continueBtn').innerHTML=ic('inf')+'ENDLESS';
+  $('shareBtn').innerHTML=ic('share')+'SHARE';
   $('resumeBtn').innerHTML=ic('play')+'RESUME';
   $('pHomeBtn').innerHTML=ic('home')+'HOME';
   $('pRestartBtn').innerHTML=ic('retry')+'RESTART';
@@ -4630,7 +4672,7 @@ function buildUI(){
     ['4','<b>HOLD THE LINE</b> — stop every glyph before it reaches your CORE. Earn credits from kills and REACTORS.']
   ].map(s=>`<div class="howStep"><div class="hn">${s[0]}</div><div>${s[1]}</div></div>`).join('');
   /* about screen */
-  $('aboutMeta').innerHTML='VERSION '+VERSION+' · 9 heroes · 11 enemies · 3 bosses · HTML5 Canvas, single file';
+  $('aboutMeta').innerHTML='VERSION '+VERSION+' · 9 heroes · 12 enemies · 3 bosses · HTML5 Canvas, single file';
   buildLogo();
   buildShop();
   updateBestLine();
@@ -5046,8 +5088,9 @@ function showMedals(){
     box.appendChild(el);
   }
 }
-let lastXpGain=0, lastRankUp=null, lastDailyClaim=false;
+let lastXpGain=0, lastRankUp=null, lastDailyClaim=false, lastWon=false;
 function recordEnd(won){
+  lastWon=won;
   SAVE.bestWave=Math.max(SAVE.bestWave||0,wave);
   SAVE.bestCombo=Math.max(SAVE.bestCombo||0,bestCombo);
   if(won) SAVE.wins=(SAVE.wins||0)+1;
@@ -5078,6 +5121,79 @@ function recordEnd(won){
   SAVE.commander.level=newLvl;
   persist(); updateBestLine(); buildShop();
   return earned;
+}
+/* ---- shareable result card: render a PNG summary and share/download it ---- */
+function shareResult(){
+  ac();
+  const CW=640, CH=360, S=Math.min(window.devicePixelRatio||1,2);
+  const cc=document.createElement('canvas');
+  cc.width=CW*S; cc.height=CH*S;
+  const c=cc.getContext('2d');
+  c.setTransform(S,0,0,S,0,0);
+  const daily=!!(campNode&&campNode.daily);
+  const won=lastWon;
+  const accent=won?'#39ff6a':'#ff4d6a';
+  /* flat backdrop + faint grid (no gradients) */
+  c.fillStyle='#06080f'; c.fillRect(0,0,CW,CH);
+  c.strokeStyle='#101a30'; c.lineWidth=1;
+  for(let x=0;x<=CW;x+=40){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,CH); c.stroke(); }
+  for(let y=0;y<=CH;y+=40){ c.beginPath(); c.moveTo(0,y); c.lineTo(CW,y); c.stroke(); }
+  c.strokeStyle=accent; c.lineWidth=2; c.strokeRect(8,8,CW-16,CH-16);
+  c.textAlign='center';
+  /* wordmark — white VECTOR + outlined DEFENSE */
+  c.font='700 30px system-ui,Segoe UI,Arial'; c.textBaseline='alphabetic';
+  const vt='VECTOR ', dt='DEFENSE';
+  const vw=c.measureText(vt).width, dw=c.measureText(dt).width, tot=vw+dw, sx=CW/2-tot/2;
+  c.textAlign='left';
+  c.fillStyle='#ffffff'; c.shadowColor='#4d8dff'; c.shadowBlur=10; c.fillText(vt,sx,58);
+  c.lineWidth=1.5; c.strokeStyle='#4d8dff'; c.fillStyle='#0a1428';
+  c.fillText(dt,sx+vw,58); c.strokeText(dt,sx+vw,58);
+  c.shadowBlur=0; c.textAlign='center';
+  /* result banner */
+  c.fillStyle=accent; c.shadowColor=accent; c.shadowBlur=16;
+  c.font='700 46px system-ui,Segoe UI,Arial';
+  c.fillText(daily?(won?'DAILY CLEARED':'DAILY ENDED'):(won?'VICTORY':'DEFEAT'),CW/2,148);
+  c.shadowBlur=0;
+  /* stat row */
+  c.fillStyle='#e7eefc'; c.font='700 22px system-ui,Segoe UI,Arial';
+  c.fillText('WAVE '+wave+'   ·   KILLS '+fmt(kills)+'   ·   COMBO x'+bestCombo,CW/2,196);
+  c.fillStyle='#8fa6cf'; c.font='600 15px system-ui,Segoe UI,Arial';
+  c.fillText(DIFF().label+'  ·  '+MAPS[mapIndex].name,CW/2,224);
+  /* rank emblem + line */
+  const lvl=SAVE.commander.level||1, rk=rankFor(lvl), idx=rankIndexFor(lvl);
+  const bx=CW/2, by=276, br=20;
+  c.save(); c.translate(bx-118,by);
+  c.strokeStyle=rk.col; c.lineWidth=2; c.shadowColor=rk.col; c.shadowBlur=8;
+  poly(c,0,0,br,idx+3,-Math.PI/2); c.stroke();
+  poly(c,0,0,br*.55,idx+3,Math.PI/2); c.stroke();
+  c.shadowBlur=0; c.fillStyle=rk.col; c.beginPath(); c.arc(0,0,br*.16,0,TAU); c.fill();
+  c.restore();
+  c.textAlign='left'; c.fillStyle=rk.col; c.font='700 20px system-ui,Segoe UI,Arial';
+  c.fillText(rk.n+'  ·  LV '+lvl,bx-88,by+7);
+  /* footer */
+  c.textAlign='center'; c.fillStyle='#6f86b0'; c.font='600 14px system-ui,Segoe UI,Arial';
+  c.fillText('shafiq1rwan.github.io/vector-defense',CW/2,CH-26);
+  /* export — Web Share with file on mobile, download fallback on desktop */
+  const shareText=(won?'I cleared wave '+wave:'I held to wave '+wave)+' in VECTOR DEFENSE!';
+  cc.toBlob(blob=>{
+    if(!blob){ return; }
+    try{
+      const file=new File([blob],'vector-defense.png',{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],text:shareText,title:'VECTOR DEFENSE'})
+          .catch(err=>{ if(err&&err.name!=='AbortError') downloadCard(blob); });
+      }else{
+        downloadCard(blob);
+      }
+    }catch(e){ downloadCard(blob); }
+  },'image/png');
+}
+function downloadCard(blob){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='vector-defense.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
 }
 /* XP / rank-up line appended to every results screen */
 function rankLine(){
@@ -5687,6 +5803,7 @@ function goEndless(){
   refreshUI(); updateNextPreview();
 }
 $('continueBtn').onclick=goEndless;
+$('shareBtn').onclick=shareResult;
 
 /* ============================== CAMPAIGN UI ============================== */
 function exitCampaign(){

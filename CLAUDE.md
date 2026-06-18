@@ -23,14 +23,18 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
 ## Workflow for every change
 1. Edit `index.html` (bump `const VERSION` near the top — humble minor bumps, e.g. 1.13.x).
 2. **Syntax check**: extract the `<script>` and run `node --check` (catches the easy breaks).
-3. **Verify behavior headless** (this Windows box has Edge, no Chrome/gh CLI):
-   `"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" --headless=new --disable-gpu
-   --no-first-run --user-data-dir=_pTMP --window-size=W,H --virtual-time-budget=MS
-   --screenshot=out.png file:///.../page.html` — inject a `<script>` before `</body>` that drives the
-   game (set `SAVE`, call `launchMission(0)` / `openSquad(...)` / etc.), then Read the PNG. For
-   assertions use `document.title='RESULT:'+JSON.stringify(r)` + `--dump-dom` and grep the title.
-   Temp files use a `_` prefix (gitignored); clean up `_p*` profiles after (kill stray `msedge` if a
-   profile folder is "busy"). On another OS, use Chrome/Chromium with the same flags.
+3. **Verify behavior.** Edge 149 BROKE the old screenshot workflow on this box: `--headless=new` now
+   ignores `--screenshot` AND `--dump-dom` (both return empty), and `--headless=old` `--screenshot`
+   crashes silently on ANY page containing a `<canvas>` (no PNG, regardless of GPU flags) — so the whole
+   game can no longer be screenshotted headless here. `--virtual-time-budget` also breaks old-headless
+   screenshots. **Working verification path = a Node VM harness** (no browser): extract the `<script>`,
+   `vm.runInContext(script + testCode, sandbox)` with a Proxy-based DOM/canvas/localStorage/AudioContext
+   stub (every element method is a chainable no-op; `getContext` returns a stub 2d ctx). Init runs to
+   completion under the stubs, then call the real functions (`makeWave(n)`, `acquire(t)`,
+   `damageEnemy(e,..,{src})`, `spawnEnemy(...)`+`update(dt)`) and assert on the returns. This exercises the
+   actual game code, not a reimplementation. (A tiny non-canvas page still screenshots in `--headless=old`
+   if you ever need pixels; on another OS use Chrome/Chromium with the classic flags.) Temp files use a `_`
+   prefix (gitignored); clean up `_p*` profiles after (kill stray `msedge` holding a profile lock).
 4. Commit + `git push origin main` (auto-deploys). Bump `sw.js` `CACHE` (`vectordef-vN`) when assets change.
 
 ## Architecture (all inside index.html `<script>`)
@@ -56,6 +60,18 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
 - **Heroes / placement**: `TOWERS`; `placeTower` guarded by `deployBlocked` (tower cap `towerCap()` 8→16,
   bastion `solo:true` one-per-match, daily roster caps). REACTOR is a HERO (`isStructure` = footprint
   only); BASTION is the only structure.
+- **FLYER / anti-air** (v1.15.0): `ENEMIES.flyer` (`air:true, antiAirOnly:true, shape:'wing'`) crosses the
+  map in a STRAIGHT line gate→core (ignores the road & rift warps) — the movement fork is in `update()` at
+  the per-frame position set (keeps `e.dist+=sp*dt` + the leak check; only forks x/y to a portal→core lerp).
+  Only anti-air heroes hit it: `TOWERS.archer/sniper/tesla` carry `antiAir:true`. Two gates enforce it —
+  `acquire()` (`if(e.def.antiAirOnly && !t.def.antiAir) continue;`) and the `damageEnemy()` chokepoint
+  (`if(e.def.antiAirOnly && o.src && !o.src.def.antiAir) return;`, so splash/chain from ground towers can't
+  clip it but player abilities — no `o.src` — still can). `drawEnemy` adds a faint ground-shadow for `air`.
+  `makeWave`: `if(n>=6) add('flyer', Math.floor(n/6), 1.8)`.
+- **Share card** (v1.15.0): `#shareBtn` on `#endOverlay` → `shareResult()` renders an offscreen 640×360 ×RS
+  canvas (wordmark + VICTORY/DEFEAT/DAILY + WAVE/KILLS/COMBO + diff·map + inline rank emblem + footer URL)
+  and exports via `navigator.canShare({files})`/`navigator.share` on mobile, else `downloadCard()` anchor.
+  `recordEnd()` stashes `lastWon` so the card knows the result.
 - **Line-up** (Quick Play + daily pool/handicap; NOT campaign): `openSquad` →
   `renderSquadZones`/`renderSquadDock`; free drag-and-drop via `sqGrab` + window pointer handlers +
   `sqDropIndex` (floating `.sqGhost`, `#sqInsert` bar). `SQUAD_CAP=6`. `applySquad` filters/orders the
@@ -67,8 +83,8 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   `updateTut` only gates the wave now (the old DOM `#tutBanner` is unused). Wave locked until done.
 - **Daily**: `todayDaily`/`genDailyRule` seeds a rule (SOLO/STRIKE/POOL/HANDICAP) via
   `mulberry32(todayKey())`; runs CASUAL, 5 waves; `#dailyOverlay` = condition (left) + battlefield (right).
-- **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT] (all `money:100` now). `QP_DIFF=0` → Quick Play +
-  daily are CASUAL. **Campaign HP now ramps smoothly** per mission via `makeWave` (`hpBase=0.9+campNode.id*0.1`
+- **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT] (all `money:100` now). `QP_DIFF=2` → Quick Play
+  runs BRUTAL; daily still runs CASUAL. **Campaign HP ramps smoothly** per mission via `makeWave` (`hpBase=0.9+campNode.id*0.1`
   → mission 1≈0.9× … mission 12≈2.0×), NOT the old 3 flat tiers; each mission's `diff` still sets
   lives/reward. Tune the ramp by editing that `hpBase` formula.
 - **Progression/cosmetics**: Commander rank (`SAVE.commander`, `RANKS`, `#rankCard`); cores shop (tabbed,
@@ -86,7 +102,9 @@ Upload `press/vector-defense-itch.zip` (regen: zip index.html + manifest + sw.js
 root**), tick "play in browser". Cover `press/cover.png` (630×500). Embed: 1280×720, fullscreen on,
 mobile-friendly on, orientation Default (the game self-rotates portrait→landscape).
 
-## Current focus / backlog (as of v1.13.3 — open/optional, not committed work)
+## Current focus / backlog (as of v1.15.0 — open/optional, not committed work)
+- **v1.15.0 shipped**: FLYER enemy (anti-air) + shareable result card. The `press/vector-defense-itch.zip`
+  on disk is stale (pre-1.15) — regenerate before the next itch re-upload.
 - **itch.io launch**: press assets are ready (`press/` screenshots + `cover.png`; `vector-defense-itch.zip`
   on disk, not committed). User is setting up the page. Marketing not done — offered: a Show HN post,
   r/playmygame + r/WebGames posts, and a short gameplay clip/GIF.
