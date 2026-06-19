@@ -930,7 +930,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.18.2';
+const VERSION='1.18.3';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -4902,7 +4902,7 @@ function codexHeroes(){
       return `<div class="cdx locked"><div class="lockArt">${ic('lock',22)}</div><div>
         <b>??? </b><span style="font-size:9px">LOCKED</span><br>${where}</div></div>`;
     }
-    const art=(d.footprint||d.income)   /* structures & the reactor show their body icon, not a hero portrait */
+    const art=d.footprint   /* structures show their body icon; all heroes (incl. REACTOR) show a face portrait */
       ? `<canvas width="44" height="44" data-hero="${k}"></canvas>`
       : `<canvas width="92" height="118" data-portrait="${k}" style="width:44px;height:56px"></canvas>`;
     return `<div class="cdx">${art}<div>
