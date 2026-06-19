@@ -99,9 +99,12 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
 - **Daily**: `todayDaily`/`genDailyRule` seeds a rule (SOLO/STRIKE/POOL/HANDICAP) via
   `mulberry32(todayKey())`; runs CASUAL, 5 waves; `#dailyOverlay` = condition (left) + battlefield (right).
 - **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT] (all `money:100` now). `QP_DIFF=2` → Quick Play
-  runs BRUTAL; daily still runs CASUAL. **Campaign HP ramps smoothly** per mission via `makeWave` (`hpBase=0.9+campNode.id*0.1`
-  → mission 1≈0.9× … mission 12≈2.0×), NOT the old 3 flat tiers; each mission's `diff` still sets
-  lives/reward. Tune the ramp by editing that `hpBase` formula.
+  runs BRUTAL; daily still runs CASUAL. **Campaign HP ramps** per mission via `makeWave`
+  (`hpBase=0.85+campNode.id*0.12` → mission 0≈0.85× … mission 11≈2.17×; v1.18.1 steepened acts 2-3 so the
+  mid-game isn't a cruise), NOT the old 3 flat tiers; each mission's `diff` still sets lives/reward. NOTE the
+  `(n-8)²` HP term in `hpMul` never fires in campaign (missions cap at 7 waves) — it's a QP/endless wall only;
+  the campaign finale's difficulty is the **OVERMIND PRIME** boss (`ENEMIES.prime.hp`, eased 2600→2000 in
+  v1.18.1 to de-cliff the finale). Tune via the `hpBase` formula + `ENEMIES.prime.hp`.
 - **Progression/cosmetics**: Commander rank (`SAVE.commander`, `RANKS`, `#rankCard`); cores shop (tabbed,
   `buildShop`/`shopTab`), Collection codex tab, `equipCosmetic`, `killBurst` reads
   `SAVE.cosmetics.killfx`.
@@ -122,7 +125,10 @@ mobile-friendly on, orientation Default (the game self-rotates portrait→landsc
   enemies on it). 5 playable maps now. Regenerate `press/vector-defense-itch.zip` before the next upload.
 - **v1.17.0 shipped**: first-match goal coach-marks in any mode (`SAVE.seenCoach`).
 - **v1.16.1 shipped**: fixed mouse drag-to-deploy placing a tile high (touch-only `lift` was applied to mouse).
-- **Open tester note**: BALANCE pass still deferred (early difficulty/economy curve; QP runs BRUTAL).
+- **v1.18.1 shipped**: campaign curve reshape (tester: "1-10 easy, finale a wall") — `hpBase` steepened to
+  `0.85+id*0.12` (acts 2-3 less cushy) + PRIME 2600→2000 (de-cliff finale). Playtest-iterate from here.
+  Still open if it needs it: a Quick-Play difficulty picker (QP is hardcoded BRUTAL), and the late-game
+  reward-vs-quadratic-HP income gap in QP/endless.
 - **v1.16.0 shipped**: removed BASTION + the whole structure category (felt OP/redundant). Mission 8
   (VOID SPIRAL) now unlocks WARDEN instead, and WARDEN lost its commander-level-8 gate. Roster is now 9
   heroes + REACTOR.
