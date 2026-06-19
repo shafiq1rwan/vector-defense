@@ -51,7 +51,15 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   `rebuildBg()` start with `ctx.setTransform(RS,...)`, the bg blit is `drawImage(bgCanvas,0,0,W,H)`. All draw
   code stays in logical W,H coords; `setMouse` maps input in logical coords (unaffected).
 - **Maps/lanes**: `m.paths` → `LANES[{PATH,segs,len,portal,core}]`; `pointAt(d,lane)`; convenience
-  globals `PORTAL`/`CORE` (lane 0).
+  globals `PORTAL`/`CORE` (lane 0). 5 playable maps + OUTPOST (tutorial, `hidden`); `mapSel` auto-lists
+  every non-hidden map (no hardcoded count). Two segment gimmicks, both flagged per-seg in `buildMap`:
+  RIFT `warps:[{lane,seg}]` (teleport, no road laid) and CONDUIT `conduit:[{lane,seg}]`.
+- **Surge conduit** (v1.18.0, CONDUIT map): a road segment that periodically DISCHARGES. `buildMap`
+  fills `surgeBands=[{lane,start,len,a,b}]`; `update()` ticks `conduitT` and, once per `CONDUIT_CYCLE`,
+  `damageEnemy(e,28+wave*5,'energy',{quiet:true})` every ground enemy whose `dist` is in a band (flyers
+  excepted). `draw()` renders the band charge-ramp + white discharge flash + emitter nodes (beside the
+  RIFT-gate block); the `mapSel` + `drawMiniRoad` thumbnails overlay the conduit segment in cyan.
+  `reset()` zeroes `conduitT`. Tuning: `CONDUIT_CYCLE/CONDUIT_TELE/CONDUIT_FLASH` + the damage formula.
 - **Screens**: DOM overlays toggled with the `.hidden` class (title, campaign, qpOverlay, dailyOverlay,
   squadOverlay, shopOverlay, codexOverlay, settings, pause, end). Canvas `#game` + HUD + `#dock`
   (hero cards). `$=id=>getElementById`.
@@ -109,7 +117,12 @@ Upload `press/vector-defense-itch.zip` (regen: zip index.html + manifest + sw.js
 root**), tick "play in browser". Cover `press/cover.png` (630×500). Embed: 1280×720, fullscreen on,
 mobile-friendly on, orientation Default (the game self-rotates portrait→landscape).
 
-## Current focus / backlog (as of v1.16.0 — open/optional, not committed work)
+## Current focus / backlog (as of v1.18.0 — open/optional, not committed work)
+- **v1.18.0 shipped**: new CONDUIT map (Surge Conduit gimmick — a road band that periodically zaps ground
+  enemies on it). 5 playable maps now. Regenerate `press/vector-defense-itch.zip` before the next upload.
+- **v1.17.0 shipped**: first-match goal coach-marks in any mode (`SAVE.seenCoach`).
+- **v1.16.1 shipped**: fixed mouse drag-to-deploy placing a tile high (touch-only `lift` was applied to mouse).
+- **Open tester note**: BALANCE pass still deferred (early difficulty/economy curve; QP runs BRUTAL).
 - **v1.16.0 shipped**: removed BASTION + the whole structure category (felt OP/redundant). Mission 8
   (VOID SPIRAL) now unlocks WARDEN instead, and WARDEN lost its commander-level-8 gate. Roster is now 9
   heroes + REACTOR.
