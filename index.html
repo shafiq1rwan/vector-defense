@@ -931,7 +931,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.19.1';
+const VERSION='1.19.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -3831,16 +3831,28 @@ function draw(){
   for(const g of grove) drawPlantCluster(ctx,g);
   ctx.lineWidth=2;
 
-  /* burn zones */
+  /* hazard pools (acid / burning ground) — calm low fill + glowing animated rim + drifting motes,
+     to match the neon-linework look (the old flat disc strobed via a negative-going sine) */
   for(const z of zones){
-    const a=z.t/z.max;
-    ctx.globalAlpha=.1*a+.04*Math.sin(time*14);
-    ctx.fillStyle=z.color;
+    const a=Math.min(1,z.t/z.max);                       /* fade out near end of life */
+    const br=.5+.5*Math.sin(time*2.1+z.x*.05);           /* slow, always-positive breathe (per-pool phase) */
+    ctx.fillStyle=z.color; ctx.strokeStyle=z.color;
+    ctx.globalAlpha=(.06+.03*br)*a;                      /* soft fill — no longer a bright blob */
     ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,TAU); ctx.fill();
-    ctx.globalAlpha=.5*a; ctx.strokeStyle=z.color; ctx.lineWidth=1;
-    ctx.setLineDash([4,6]); ctx.lineDashOffset=-time*20;
+    glow(ctx,z.color,7);                                 /* glowing dashed rim, drifting */
+    ctx.globalAlpha=(.34+.22*br)*a; ctx.lineWidth=1.4;
+    ctx.setLineDash([5,7]); ctx.lineDashOffset=-time*18;
     ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,TAU); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha=1;
+    ctx.globalAlpha=.16*a; ctx.lineWidth=1; ctx.lineDashOffset=time*12;   /* inner ring for depth */
+    ctx.beginPath(); ctx.arc(z.x,z.y,z.r*.6,0,TAU); ctx.stroke();
+    ctx.setLineDash([]); noGlow(ctx);
+    if(!fxLite) for(let i=0;i<5;i++){                    /* rising bubbles/embers — deterministic per pool */
+      const ph=(time*.6+i*.37+z.x*.013+z.y*.017)%1, ang=i*2.39+z.x*.05;
+      const rr=z.r*(.2+.55*((i*.27+z.y*.01)%1));
+      ctx.globalAlpha=(1-ph)*.5*a;
+      ctx.beginPath(); ctx.arc(z.x+Math.cos(ang)*rr, z.y+Math.sin(ang)*rr-ph*9, 1.2+(1-ph)*1.1, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha=1;
   }
 
   /* spawn portals — one per lane, deduped when lanes share a gate */
