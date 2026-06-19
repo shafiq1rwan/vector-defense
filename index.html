@@ -865,6 +865,7 @@
     </div>
 
     <div id="endOverlay" class="overlay vcenter hidden">
+      <button id="shareBtn" class="gearBtn" title="Share result"></button>
       <div class="big" id="endTitle">CORE LOST</div>
       <div class="sub" id="endSub"></div>
       <div id="medals" class="endLate"></div>
@@ -872,9 +873,6 @@
         <button id="restartBtn" class="cta">RETRY</button>
         <button id="menuBtn" class="cta">MENU</button>
         <button id="continueBtn" class="cta" style="display:none">ENDLESS</button>
-      </div>
-      <div class="btnrow endLate" style="gap:10px;margin-top:8px">
-        <button id="shareBtn" class="cta">SHARE</button>
       </div>
     </div>
 
@@ -933,7 +931,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.19.0';
+const VERSION='1.19.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -4689,7 +4687,7 @@ function buildUI(){
   $('restartBtn').innerHTML=ic('retry')+'RETRY';
   $('menuBtn').innerHTML=ic('home')+'MENU';
   $('continueBtn').innerHTML=ic('inf')+'ENDLESS';
-  $('shareBtn').innerHTML=ic('share')+'SHARE';
+  $('shareBtn').innerHTML=ic('share',16);
   $('resumeBtn').innerHTML=ic('play')+'RESUME';
   $('pHomeBtn').innerHTML=ic('home')+'HOME';
   $('pRestartBtn').innerHTML=ic('retry')+'RESTART';
@@ -5292,6 +5290,7 @@ function finishWin(){
     const fin=campNode.id===CAMPAIGN.length-1?`<br><i style="color:#9db8ff">${EPILOGUE}</i>`:'';
     $('endSub').innerHTML=`<div id="starRow">${[0,1,2].map(i=>
         `<span class="winStar${i<stars?' on':''}" style="animation-delay:${.2+i*.3}s">★</span>`).join('')}</div>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:3px">★★★ lose ≤1 life · ★★ lose ≤5 · you lost <b style="color:${leaks<=1?'#39ff6a':'#ffd34d'}">${leaks}</b></div>
       <b>${campNode.name}</b> complete<br>
       Kills: <b>${kills}</b> · Best combo: <b style="color:#ffd34d">×${bestCombo}</b> · ${ic('hex',10)}Cores: <b style="color:#9db8ff">+${earned+bonus}</b>${rankLine()}${unlockNote}${fin}`;
     for(let i=0;i<stars;i++) setTimeout(()=>SND.combo(3+i*2),300+i*300);
@@ -6202,10 +6201,13 @@ function selectNode(i){
   document.querySelectorAll('.cnode').forEach(b=>b.classList.toggle('selN',+b.dataset.node===i));
   $('briefBox').classList.remove('hidden');
   $('briefTitle').innerHTML=`<b style="color:${ACT_COL[n.act-1]}">${String(i+1).padStart(2,'0')} · ${n.name}</b>`;
+  const earned=SAVE.camp.stars[n.id]||0;
   $('briefMeta').innerHTML=
     MAPS[n.map].name+' · '+DIFFS[n.diff].label+' · '+n.waves+' WAVES'
     +(n.mod?' · '+MODS.find(m=>m.id===n.mod).label+' WAVES':'')
-    +(n.unlock?' · UNLOCKS '+TOWERS[n.unlock].name:'');
+    +(n.unlock?' · UNLOCKS '+TOWERS[n.unlock].name:'')
+    +`<br><span style="font-size:9px;color:var(--dim)">STARS — ★★★ lose ≤1 life · ★★ lose ≤5 · ★ clear`
+    +(earned?` · <span style="color:var(--gold)">best ${'★'.repeat(earned)}</span>`:'')+`</span>`;
   typeText($('briefText'), (i===0&&!SAVE.camp.intro) ? INTRO+'\n\n'+n.brief : n.brief);
   SND.place();
 }
