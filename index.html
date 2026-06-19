@@ -930,7 +930,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.16.0';
+const VERSION='1.16.1';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -5235,7 +5235,9 @@ function setMouse(e,lift=0){
   }
   mouse.inside=true;
 }
-cvs.addEventListener('pointermove',e=>setMouse(e,dragMode?60:0));
+/* lift the mapped point above a FINGER on touch so the cell isn't hidden; a mouse cursor needs no lift */
+const liftFor=e=>e.pointerType==='mouse'?0:60;
+cvs.addEventListener('pointermove',e=>setMouse(e,dragMode?liftFor(e):0));
 cvs.addEventListener('pointerleave',()=>{ if(!dragMode) mouse.inside=false; });
 cvs.addEventListener('pointerdown',e=>{
   if(!running||gameOver) return;
@@ -5278,7 +5280,7 @@ cvs.addEventListener('pointerdown',e=>{
 });
 cvs.addEventListener('pointerup',e=>{
   if(!dragMode) return;
-  setMouse(e,60);
+  setMouse(e,liftFor(e));
   const mode=dragMode; dragMode=null;
   if(mode==='strike' && aiming==='strike'){
     castStrike(mouse.x,mouse.y); refreshUI();
@@ -5335,8 +5337,7 @@ window.addEventListener('pointermove',e=>{
     const ce=$('card_'+cardDrag.type); if(ce) ce.classList.add('lift');
   }
   const r=cvs.getBoundingClientRect();
-  const lift=e.pointerType==='mouse'?0:60;
-  if(e.clientX>=r.left-20&&e.clientX<=r.right+20&&e.clientY>=r.top-80&&e.clientY<=r.bottom+20) setMouse(e,lift);
+  if(e.clientX>=r.left-20&&e.clientX<=r.right+20&&e.clientY>=r.top-80&&e.clientY<=r.bottom+20) setMouse(e,liftFor(e));
   else mouse.inside=false;
 });
 window.addEventListener('pointerup',e=>{
