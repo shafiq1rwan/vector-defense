@@ -930,7 +930,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.18.1';
+const VERSION='1.18.2';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -5951,6 +5951,32 @@ function drawHeroBust(c,key,t,talk,still){
     c.lineWidth=2.2;
     c.beginPath(); c.moveTo(0,-26); c.lineTo(0,-20); c.moveTo(-3,-23); c.lineTo(3,-23); c.stroke();
     c.lineWidth=1.8;
+  }else if(key==='blight'){                          /* BLIGHT — alchemist hood + toxin vial */
+    c.beginPath();
+    c.moveTo(-22,15); c.lineTo(-25,-9); c.lineTo(-12,-27); c.lineTo(12,-27); c.lineTo(25,-9); c.lineTo(22,15);
+    c.lineTo(16,10); c.lineTo(18,-7); c.lineTo(10,-19); c.lineTo(-10,-19); c.lineTo(-18,-7); c.lineTo(-16,10);
+    c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle=col; c.lineWidth=1.6;
+    c.beginPath(); c.moveTo(-2,-27); c.lineTo(-2,-31); c.moveTo(2,-27); c.lineTo(2,-31); c.stroke();   /* vial neck */
+    c.fillStyle=col; glow(c,col,5); c.beginPath(); c.arc(0,-33,3,0,TAU); c.fill(); noGlow(c);          /* bubbling toxin bead */
+  }else if(key==='warden'){                          /* WARDEN — bulwark helm + crest + brow visor */
+    c.beginPath();
+    c.moveTo(-22,3); c.lineTo(-22,-13); c.lineTo(-12,-25); c.lineTo(12,-25); c.lineTo(22,-13); c.lineTo(22,3);
+    c.lineTo(16,-1); c.lineTo(16,-13); c.lineTo(-16,-13); c.lineTo(-16,-1); c.closePath();
+    c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-4,-25); c.lineTo(0,-34); c.lineTo(4,-25); c.closePath(); c.fill(); c.stroke();  /* crest fin */
+    c.strokeStyle=col; c.lineWidth=3;
+    c.beginPath(); c.moveTo(-15,-3); c.lineTo(15,-3); c.stroke();                                       /* brow plate */
+    c.strokeStyle=dk; c.lineWidth=1.4;
+    c.strokeRect(-22,3,6,12); c.strokeRect(16,3,6,12);                                                  /* pauldron guards */
+  }else if(key==='reactor'){                         /* REACTOR — engineer crown + power core */
+    c.beginPath();
+    c.moveTo(-20,7); c.lineTo(-22,-11); c.lineTo(-12,-23); c.lineTo(12,-23); c.lineTo(22,-11); c.lineTo(20,7);
+    c.lineTo(14,1); c.lineTo(15,-11); c.lineTo(-15,-11); c.lineTo(-14,1); c.closePath();
+    c.fill(); c.stroke();
+    c.strokeStyle=col; c.lineWidth=1.6;
+    c.beginPath(); c.moveTo(-12,-23); c.lineTo(-16,-30); c.moveTo(12,-23); c.lineTo(16,-30); c.stroke();   /* antenna prongs */
+    c.fillStyle=col; glow(c,col,6); c.beginPath(); c.arc(0,-16,3.4,0,TAU); c.fill(); noGlow(c);            /* power core */
   }
 
   /* eyes — glowing lenses with periodic blink and gaze drift */

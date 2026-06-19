@@ -1,6 +1,6 @@
 /* Vector Defense service worker — network-first so updates land immediately,
    cache fallback so the game works offline once visited. */
-const CACHE = 'vectordef-v17';
+const CACHE = 'vectordef-v18';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', e => {
