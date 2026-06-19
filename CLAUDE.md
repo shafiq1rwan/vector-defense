@@ -107,7 +107,10 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   v1.18.1 to de-cliff the finale). Tune via the `hpBase` formula + `ENEMIES.prime.hp`.
 - **Progression/cosmetics**: Commander rank (`SAVE.commander`, `RANKS`, `#rankCard`); cores shop (tabbed,
   `buildShop`/`shopTab`), Collection codex tab, `equipCosmetic`, `killBurst` reads
-  `SAVE.cosmetics.killfx`.
+  `SAVE.cosmetics.killfx`. Codex hero entries render the completed bust portrait (`renderHeroPortrait`→
+  `drawHeroBust`, all 10 heroes incl. REACTOR) + a **ROLE badge** (`HERO_ROLES`/`heroRole`/`roleBadges`,
+  `.rtag` pill — SINGLE/AOE/CHAIN/SLOW/KNOCKBACK/POISON/SNIPER/BUFF/HEAL·REVIVE/ECONOMY, plus an ANTI-AIR
+  chip for `antiAir` heroes); the same `roleBadges()` is reused on the hold-to-inspect `#cardInfo` card.
 - **Audio**: `ac()` unlocks the AudioContext on first gesture (mobile suspends it); `musicTick` scheduler;
   `SND.*`. If "no music" but SFX work, it's the Music toggle/volume, not a bug.
 

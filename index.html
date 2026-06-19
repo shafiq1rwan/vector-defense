@@ -95,6 +95,9 @@
   #cardInfo .ttl{font-size:12px; letter-spacing:.5px; margin-bottom:2px;}
   #cardInfo .role{color:#9db8ff; font-size:8.5px; letter-spacing:1px;}
   #cardInfo .sp{color:#c46bff;}
+  /* hero ROLE badge (codex + inspect card) — flat pill in the role's colour */
+  .rtag{display:inline-block; padding:1px 6px; margin:0 4px 2px 0; border:1px solid var(--rc);
+    color:var(--rc); border-radius:6px; font-size:8px; letter-spacing:1px; font-weight:700; line-height:1.5;}
   .card:hover{border-color:var(--neon); transform:translateY(-2px);}
   .card.sel{border-color:#fff; box-shadow:0 0 10px rgba(77,141,255,.5);}
   .card.lift{transform:translateY(-10px) scale(1.06); border-color:#7db2ff; box-shadow:0 0 12px rgba(77,141,255,.55);}
@@ -930,7 +933,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.18.3';
+const VERSION='1.19.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -1463,6 +1466,27 @@ const SPECS={
   reactor:[{id:'overcharge',n:'OVERCHARGE',d:'+50% income'},
            {id:'cells',  n:'AID CELLS', d:'+1 core life each wave clear'}]
 };
+/* hero ROLE badges — the at-a-glance "what does this one do?" for the codex + inspect card */
+const HERO_ROLES={
+  archer:{label:'SINGLE',     col:'#39ff6a'},
+  frost: {label:'SLOW',       col:'#3ad6ff'},
+  cannon:{label:'AOE',        col:'#ffa53a'},
+  tesla: {label:'CHAIN',      col:'#c46bff'},
+  sniper:{label:'SNIPER',     col:'#ff4d6a'},
+  aura:  {label:'BUFF',       col:'#ffd34d'},
+  medic: {label:'HEAL·REVIVE',col:'#7dffc8'},
+  blight:{label:'POISON',     col:'#9dff3a'},
+  warden:{label:'KNOCKBACK',  col:'#5ad6ff'},
+  reactor:{label:'ECONOMY',   col:'#6bffb0'}
+};
+const heroRole=k=>HERO_ROLES[k]||{label:'TOWER',col:TOWERS[k].color};
+/* badge HTML: the role tag + an ANTI-AIR chip for the flyer-counters */
+function roleBadges(k){
+  const r=heroRole(k);
+  let h='<span class="rtag" style="--rc:'+r.col+'">'+r.label+'</span>';
+  if(TOWERS[k].antiAir) h+='<span class="rtag" style="--rc:#8fd0ff">ANTI-AIR</span>';
+  return h;
+}
 const specCost=def=>Math.round(def.cost*1.5);
 const lvlStat=(t,lv)=>({
   dmg:Math.round(t.dmg*Math.pow(1.65,lv-1)),
@@ -4907,6 +4931,7 @@ function codexHeroes(){
       : `<canvas width="92" height="118" data-portrait="${k}" style="width:44px;height:56px"></canvas>`;
     return `<div class="cdx">${art}<div>
       <b style="color:${d.color}">${d.name}</b> <span style="font-size:9px">${d.title} · $${d.cost}</span><br>
+      <div style="margin:3px 0">${roleBadges(k)}</div>
       ${d.desc}<br>
       ${d.aura?'<b>BUFF</b> +25% dmg · +15% rate':d.income?`<b>INCOME</b> +${d.income} credits / 10s`:`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${d.footprint?` · footprint ${d.footprint[0]}×${d.footprint[1]}`:''}`} · <i>${DT_NAMES[d.dtype]}</i><br>
       <span style="color:#c46bff">★ ${SPECS[k][0].n} / ${SPECS[k][1].n}</span></div></div>`;
@@ -5374,14 +5399,13 @@ cvs.addEventListener('pointercancel',()=>{ dragMode=null; mouse.inside=false; })
 let cardDrag=null, suppressClick=false, holdTimer=null;
 function showCardInfo(type){
   const d=TOWERS[type], s=lvlStat(d,1), sp=SPECS[type];
-  const role=d.aura?'SUPPORT · AURA':d.heal?'SUPPORT · MENDER':d.income?'TOWER · ECONOMY':d.footprint?'STRUCTURE · SIEGE':'TOWER · '+DT_NAMES[d.dtype].toUpperCase();
   const stat=d.aura?`<b>BUFF</b> +25% dmg · +15% rate · RNG ${d.range}`
     :d.heal?`<b>REPAIR</b> ${d.heal}/s · RNG ${d.range} · revives offline towers`
     :d.income?`<b>INCOME</b> +${d.income} credits every 10s`
     :`<b>DMG</b> ${s.dmg} · <b>RNG</b> ${s.range} · <b>SPD</b> ${s.rate}/s${s.splash?` · AOE ${s.splash}`:''}${s.chain?` · CHAIN ${s.chain}`:''}`;
   const p=$('cardInfo');
   p.innerHTML=`<div class="ttl" style="color:${d.color}">${d.name} <span style="font-size:8px;color:#6b7fb3">$${d.cost}</span></div>`
-    +`<div class="role">${role}</div>${d.desc}<br>${stat}`
+    +`<div class="role">${roleBadges(type)}</div>${d.desc}<br>${stat}`
     +`<br><span class="sp">★ ${sp[0].n} / ${sp[1].n}</span>`;
   p.classList.remove('hidden');
 }
