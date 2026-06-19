@@ -930,7 +930,7 @@
 <script>
 "use strict";
 /* ============================== CONSTANTS ============================== */
-const VERSION='1.16.1';
+const VERSION='1.17.0';
 const W=990, H=495, CELL=55, COLS=18, ROWS=9, FINAL_WAVE=20, INTERMISSION=14, MAX_LVL=3;
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const RS=Math.min(window.devicePixelRatio||1,2);   /* supersample for crisp rendering on high-DPI screens (capped for perf) */
@@ -987,6 +987,7 @@ SAVE.daily=Object.assign({date:0,best:0,claimed:false},SAVE.daily||{});
 if(SAVE.daily.date!==todayKey()){ SAVE.daily.date=todayKey(); SAVE.daily.best=0; SAVE.daily.claimed=false; }
 SAVE.squad=Array.isArray(SAVE.squad)?SAVE.squad:null;   /* pre-match hero loadout; null = auto-fill on first use */
 SAVE.seenIntro=!!SAVE.seenIntro;
+SAVE.seenCoach=!!SAVE.seenCoach;   /* the on-board goal coach-marks (core/spawn/road) — shown once, first match in any mode */
 SAVE.perf=(SAVE.perf==='on'||SAVE.perf==='off')?SAVE.perf:'auto';   /* perf mode: 'auto' | 'on' | 'off' */
 function persist(){ try{localStorage.setItem('vectordef',JSON.stringify(SAVE));}catch(e){} }
 let vol=SAVE.vol!=null?SAVE.vol:.8;
@@ -1716,7 +1717,9 @@ function reset(){
   const wb=$('waveBtn');
   wb.disabled=false; wb.classList.add('pulse'); wb.textContent='START WAVE 1';
   const tut1=campNode&&campNode.id===0&&!campNode.daily;   /* interactive tutorial only on Mission 1 */
-  tutIntro=tut1?0:99; tutStep=tut1?0:99;
+  /* first match outside the mission-1 tutorial (e.g. Quick Play): show the goal coach-marks once */
+  const firstCoach=!tut1 && !SAVE.seenCoach;
+  tutIntro=(tut1||firstCoach)?0:99; tutStep=tut1?0:99;
   updateTut();
   refreshUI(); hidePop(); updateNextPreview();
 }
@@ -1726,7 +1729,7 @@ let tutIntro=99;  /* coach-mark intro before the lessons: 0 overview · 1 spawn 
 const TUT_INTRO=[
   {title:'PROTECT THE CORE', desc:'The last light of the grid. If its integrity hits zero, the grid falls. Stop every enemy before it reaches the core.', target:'core'},
   {title:'THE SPAWN GATE', desc:'Every wave of enemies pours out of this gate and marches down the road toward your core.', target:'spawn'},
-  {title:'HOLD THE ROAD', desc:'Build towers along the path to destroy them before they arrive. Let us learn how.', target:'core'}
+  {title:'HOLD THE ROAD', desc:'Build towers along the path to destroy them before they reach the core. Drag a hero from the dock to begin.', target:'core'}
 ];
 const TUT_ACTIONS=['place','upgrade','place','sell','ability'];
 const TUT_STEPS=[
@@ -1743,7 +1746,7 @@ function tutDid(action){
 function advanceIntro(){
   if(tutIntro>=TUT_INTRO.length) return;
   tutIntro++; SND.place(); vib(12);
-  if(tutIntro>=TUT_INTRO.length){ tutIntro=99; updateTut(); }   /* intro done → lessons banner (tutStep already 0) */
+  if(tutIntro>=TUT_INTRO.length){ tutIntro=99; SAVE.seenCoach=true; persist(); updateTut(); }   /* intro done → lessons (tut1) or normal play */
 }
 function updateTut(){
   const ban=$('tutBanner'), wb=$('waveBtn');
@@ -4319,7 +4322,7 @@ function draw(){
   /* generic hints (the interactive tutorial uses its own banner instead) */
   {
     let msg=null;
-    if(running&&!gameOver&&tutStep===99&&wave===0){
+    if(running&&!gameOver&&tutStep===99&&tutIntro>=TUT_INTRO.length&&wave===0){
       msg=towers.length===0
         ? (placing?'RELEASE OVER A CELL TO BUILD':'DRAG A HERO CARD FROM THE DOCK ONTO THE GRID')
         : 'PRESS SPACE OR HIT START TO BEGIN THE WAVE';

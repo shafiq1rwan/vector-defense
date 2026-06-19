@@ -83,6 +83,11 @@ inline `<style>` + one big `<script>`). Zero build, zero dependencies. Other fil
   in the same dim+spotlight+panel style — lessons spotlight a canvas target via `tutLessonTarget()` (build
   cell / your tower) with a SKIP button; the dock/ability buttons sit outside the canvas so they stay bright.
   `updateTut` only gates the wave now (the old DOM `#tutBanner` is unused). Wave locked until done.
+  **Onboarding outside Mission 1** (v1.17.0): a player's FIRST match in ANY mode (Quick Play/daily/non-M1
+  campaign) runs the 3-card goal intro only (`reset()` sets `tutIntro=0` when `!tut1 && !SAVE.seenCoach`;
+  `tutStep` stays 99 = no forced lessons). `advanceIntro` sets `SAVE.seenCoach` on completion so it shows
+  once ever. There's also a first-launch text `#howOverlay` (`SAVE.seenIntro`) and a wave-0 bottom hint in
+  `draw()` ("DRAG A HERO CARD…"/"PRESS SPACE…", suppressed while the coach intro is up).
 - **Daily**: `todayDaily`/`genDailyRule` seeds a rule (SOLO/STRIKE/POOL/HANDICAP) via
   `mulberry32(todayKey())`; runs CASUAL, 5 waves; `#dailyOverlay` = condition (left) + battlefield (right).
 - **Difficulty**: `DIFFS` = [CASUAL, NORMAL, BRUTAL, EXPERT] (all `money:100` now). `QP_DIFF=2` → Quick Play
